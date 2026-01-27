@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Revvie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Navigation Bar -->
+    <nav class="bg-white shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+            <h1 class="text-2xl font-bold text-indigo-600">Revvie</h1>
+            <button
+                id="logoutBtn"
+                class="text-gray-600 hover:text-red-600 font-medium transition"
+            >
+                Logout
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto px-4 py-8">
+
+        <!-- Welcome Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-8 mb-8">
+            <h2 id="welcomeMessage" class="text-2xl font-bold text-gray-800">
+                Loading...
+            </h2>
+            <p class="text-gray-500 mt-2">Here's your review automation dashboard</p>
+        </div>
+
+        <!-- Stats Cards (placeholder for future features) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+            <!-- Reviews Requested -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <div class="text-3xl font-bold text-indigo-600">0</div>
+                <div class="text-gray-500 mt-1">Reviews Requested</div>
+            </div>
+
+            <!-- Reviews Received -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <div class="text-3xl font-bold text-green-600">0</div>
+                <div class="text-gray-500 mt-1">Reviews Received</div>
+            </div>
+
+            <!-- Conversion Rate -->
+            <div class="bg-white rounded-xl shadow p-6">
+                <div class="text-3xl font-bold text-amber-600">0%</div>
+                <div class="text-gray-500 mt-1">Conversion Rate</div>
+            </div>
+        </div>
+
+        <!-- Business Info Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Business Information</h3>
+            <div id="businessInfo" class="space-y-3 text-gray-600">
+                Loading...
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // =====================================================
+        // DASHBOARD JAVASCRIPT
+        // =====================================================
+        // This script:
+        // 1. Checks if user is logged in (has token in localStorage)
+        // 2. If not logged in: redirects to login page
+        // 3. If logged in: calls /api/auth/me to get user data
+        // 4. Displays the user's business information
+        // 5. Handles logout (clears localStorage, redirects)
+        // =====================================================
+
+        const API_URL = 'http://localhost:5001/api';
+
+        // Get the token from localStorage
+        const token = localStorage.getItem('token');
+
+        // If no token exists, user is not logged in - redirect to login
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+
+        // Get references to elements we'll update
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const businessInfo = document.getElementById('businessInfo');
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Fetch user data from API
+        async function loadUserData() {
+            try {
+                // Call /api/auth/me with the token in the Authorization header
+                const response = await fetch(`${API_URL}/auth/me`, {
+                    method: 'GET',
+                    headers: {
+                        // This is how we send the JWT token to protected routes
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Success! Display the user's info
+                    displayUserData(data);
+                } else {
+                    // Token is invalid or expired
+                    console.error('Auth error:', data.error);
+                    // Clear invalid token and redirect to login
+                    logout();
+                }
+            } catch (error) {
+                console.error('Failed to load user data:', error);
+                welcomeMessage.textContent = 'Error loading data';
+                businessInfo.innerHTML = `
+                    <p class="text-red-600">Cannot connect to server.</p>
+                    <p>Make sure the Flask server is running.</p>
+                `;
+            }
+        }
+
+        // Display the user's data on the page
+        function displayUserData(data) {
+            const business = data.business;
+            const user = data.user;
+
+            // Update welcome message with business name
+            welcomeMessage.textContent = `Welcome, ${business?.business_name || 'User'}!`;
+
+            // Display business information
+            businessInfo.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <span class="font-medium text-gray-800">Email:</span>
+                        <span class="ml-2">${user?.email || 'N/A'}</span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-gray-800">Business Name:</span>
+                        <span class="ml-2">${business?.business_name || 'N/A'}</span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-gray-800">Phone:</span>
+                        <span class="ml-2">${business?.phone || 'Not set'}</span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-gray-800">Google Review URL:</span>
+                        <span class="ml-2">${business?.google_review_url || 'Not set'}</span>
+                    </div>
+                    <div>
+                        <span class="font-medium text-gray-800">Member Since:</span>
+                        <span class="ml-2">${formatDate(business?.created_at)}</span>
+                    </div>
+                </div>
+            `;
+
+            // Also update localStorage with fresh data
+            localStorage.setItem('user', JSON.stringify(user));
+            localStorage.setItem('business', JSON.stringify(business));
+        }
+
+        // Format date nicely
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+
+        // Logout function
+        function logout() {
+            // Clear all stored data
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('business');
+
+            // Redirect to login page
+            window.location.href = 'login.html';
+        }
+
+        // Add click handler to logout button
+        logoutBtn.addEventListener('click', logout);
+
+        // Load user data when page loads
+        loadUserData();
+    </script>
+</body>
+</html>

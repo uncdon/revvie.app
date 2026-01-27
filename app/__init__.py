@@ -3,13 +3,17 @@ Application factory for the Flask app.
 This pattern allows creating multiple instances of the app with different configurations.
 """
 
-from flask import Flask
+import os
+from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from config import config
 
 # Initialize extensions (without binding to app yet)
 db = SQLAlchemy()
+
+# Path to frontend folder
+FRONTEND_FOLDER = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend')
 
 
 def create_app(config_name='default'):
@@ -22,7 +26,7 @@ def create_app(config_name='default'):
     Returns:
         The configured Flask application instance
     """
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=FRONTEND_FOLDER)
 
     # Load configuration
     app.config.from_object(config[config_name])
@@ -35,8 +39,14 @@ def create_app(config_name='default'):
     from app.routes.health import health_bp
     from app.routes.reviews import reviews_bp
     from app.routes.test import test_bp
+    from app.routes.auth import auth_bp
+    from app.routes.businesses import businesses_bp
+    from app.routes.frontend import frontend_bp
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(reviews_bp, url_prefix='/api')
     app.register_blueprint(test_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp, url_prefix='/api')
+    app.register_blueprint(businesses_bp, url_prefix='/api')
+    app.register_blueprint(frontend_bp)  # No prefix - serves at root
 
     return app
