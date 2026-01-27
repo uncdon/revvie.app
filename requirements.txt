@@ -1,0 +1,16 @@
+# Web framework
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Environment variables
+python-dotenv==1.0.0
+
+# Database ORM (for future use)
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy>=2.0.36
+
+# For API development
+flask-cors==4.0.0
+
+# Database
+supabase>=2.0.0
