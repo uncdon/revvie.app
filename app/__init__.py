@@ -45,6 +45,7 @@ def create_app(config_name='default'):
     from app.routes.sms import sms_bp
     from app.routes.email import email_bp
     from app.routes.review_requests import review_requests_bp
+    from app.routes.dashboard import dashboard_bp
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(reviews_bp, url_prefix='/api')
     app.register_blueprint(test_bp, url_prefix='/api')
@@ -53,6 +54,7 @@ def create_app(config_name='default'):
     app.register_blueprint(sms_bp, url_prefix='/api')
     app.register_blueprint(email_bp, url_prefix='/api')
     app.register_blueprint(review_requests_bp, url_prefix='/api')
+    app.register_blueprint(dashboard_bp, url_prefix='/api')
     app.register_blueprint(frontend_bp)  # No prefix - serves at root
 
     return app
