@@ -42,11 +42,17 @@ def create_app(config_name='default'):
     from app.routes.auth import auth_bp
     from app.routes.businesses import businesses_bp
     from app.routes.frontend import frontend_bp
+    from app.routes.sms import sms_bp
+    from app.routes.email import email_bp
+    from app.routes.review_requests import review_requests_bp
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(reviews_bp, url_prefix='/api')
     app.register_blueprint(test_bp, url_prefix='/api')
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(businesses_bp, url_prefix='/api')
+    app.register_blueprint(sms_bp, url_prefix='/api')
+    app.register_blueprint(email_bp, url_prefix='/api')
+    app.register_blueprint(review_requests_bp, url_prefix='/api')
     app.register_blueprint(frontend_bp)  # No prefix - serves at root
 
     return app
