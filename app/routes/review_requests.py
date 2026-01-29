@@ -19,6 +19,8 @@ THE FULL FLOW:
 
 Endpoints:
 - POST /api/review-requests/send - Send a review request email
+- POST /api/review-requests/bulk - Send review requests to multiple customers
+- GET /api/review-requests - Get all review requests
 """
 
 from datetime import datetime, timezone
@@ -240,4 +242,170 @@ def get_review_requests():
         return jsonify({
             "success": False,
             "message": f"Failed to fetch review requests: {str(e)}"
+        }), 500
+
+
+@review_requests_bp.route('/review-requests/bulk', methods=['POST'])
+@require_auth
+def send_bulk_review_requests():
+    """
+    Send review request emails to multiple customers at once.
+
+    Request:
+        Headers:
+            Authorization: Bearer <access_token>
+
+        Body (JSON):
+        {
+            "customer_ids": ["uuid1", "uuid2", "uuid3"]
+        }
+
+    Response:
+        {
+            "success": true,
+            "success_count": 3,
+            "error_count": 1,
+            "errors": [{"customer_id": "uuid4", "message": "Email failed"}]
+        }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data provided"
+            }), 400
+
+        customer_ids = data.get('customer_ids', [])
+
+        if not customer_ids:
+            return jsonify({
+                "success": False,
+                "message": "No customer IDs provided"
+            }), 400
+
+        if not isinstance(customer_ids, list):
+            return jsonify({
+                "success": False,
+                "message": "customer_ids must be an array"
+            }), 400
+
+        # Get business info
+        business = request.business
+
+        if not business:
+            return jsonify({
+                "success": False,
+                "message": "Business profile not found"
+            }), 404
+
+        business_id = business.get('id')
+        business_name = business.get('business_name')
+        google_place_id = business.get('google_place_id')
+
+        if not google_place_id:
+            return jsonify({
+                "success": False,
+                "message": "Google Place ID not configured. Please add your Google Place ID in settings."
+            }), 400
+
+        # Generate review URL once (same for all customers)
+        review_url = generate_google_review_url(google_place_id)
+
+        # Fetch all customers at once
+        customers_result = supabase.table("customers") \
+            .select("*") \
+            .eq("business_id", business_id) \
+            .in_("id", customer_ids) \
+            .execute()
+
+        if not customers_result.data:
+            return jsonify({
+                "success": False,
+                "message": "No customers found with the provided IDs"
+            }), 404
+
+        customers = {c['id']: c for c in customers_result.data}
+
+        success_count = 0
+        error_count = 0
+        errors = []
+        review_requests_to_insert = []
+
+        for customer_id in customer_ids:
+            customer = customers.get(customer_id)
+
+            if not customer:
+                errors.append({
+                    "customer_id": customer_id,
+                    "message": "Customer not found"
+                })
+                error_count += 1
+                continue
+
+            customer_name = customer.get('name')
+            customer_email = customer.get('email')
+
+            if not customer_email:
+                errors.append({
+                    "customer_id": customer_id,
+                    "message": "Customer has no email address"
+                })
+                error_count += 1
+                continue
+
+            # Send email
+            try:
+                email_result = send_review_request_email(
+                    customer_name=customer_name,
+                    customer_email=customer_email,
+                    business_name=business_name,
+                    review_url=review_url
+                )
+
+                if email_result['success']:
+                    success_count += 1
+                    # Prepare review request record
+                    review_requests_to_insert.append({
+                        "business_id": business_id,
+                        "customer_id": customer_id,
+                        "customer_name": customer_name,
+                        "customer_email": customer_email,
+                        "status": "sent",
+                        "method": "email",
+                        "sent_at": datetime.now(timezone.utc).isoformat()
+                    })
+                else:
+                    errors.append({
+                        "customer_id": customer_id,
+                        "message": email_result.get('message', 'Failed to send email')
+                    })
+                    error_count += 1
+
+            except Exception as e:
+                errors.append({
+                    "customer_id": customer_id,
+                    "message": str(e)
+                })
+                error_count += 1
+
+        # Bulk insert all successful review requests
+        if review_requests_to_insert:
+            try:
+                supabase.table("review_requests").insert(review_requests_to_insert).execute()
+            except Exception as e:
+                print(f"Warning: Failed to save some review requests to database: {e}")
+
+        return jsonify({
+            "success": True,
+            "success_count": success_count,
+            "error_count": error_count,
+            "errors": errors
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"An error occurred: {str(e)}"
         }), 500

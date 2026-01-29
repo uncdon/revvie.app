@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Revvie</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
         /* Custom animations */
         @keyframes fadeIn {
@@ -86,186 +87,584 @@
     <main class="max-w-6xl mx-auto px-4 py-8">
 
         <!-- ========================================== -->
-        <!-- STATS CARDS                               -->
+        <!-- TAB NAVIGATION                            -->
         <!-- ========================================== -->
-        <div id="statsSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-            <!-- Skeleton loaders for stats (shown initially) -->
-            <div id="statsSkeleton" class="contents">
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="skeleton rounded h-10 w-16 mb-2"></div>
-                    <div class="skeleton rounded h-4 w-24"></div>
-                </div>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="skeleton rounded h-10 w-16 mb-2"></div>
-                    <div class="skeleton rounded h-4 w-24"></div>
-                </div>
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="skeleton rounded h-10 w-16 mb-2"></div>
-                    <div class="skeleton rounded h-4 w-24"></div>
-                </div>
-            </div>
-
-            <!-- Actual stats cards (hidden initially) -->
-            <div id="statsContent" class="contents hidden">
-                <!-- Card 1: Requests Sent -->
-                <div class="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl shadow-lg p-6 text-white fade-in">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p id="statRequestsSent" class="text-4xl font-bold">0</p>
-                            <p class="text-teal-100 mt-1 text-sm font-medium">Requests Sent</p>
-                        </div>
-                        <div class="text-4xl opacity-80">&#128231;</div>
-                    </div>
-                </div>
-
-                <!-- Card 2: Reviews Received -->
-                <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.1s;">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p id="statReviewsReceived" class="text-4xl font-bold">0</p>
-                            <p class="text-blue-100 mt-1 text-sm font-medium">Reviews Received</p>
-                        </div>
-                        <div class="text-4xl opacity-80">&#11088;</div>
-                    </div>
-                </div>
-
-                <!-- Card 3: Conversion Rate -->
-                <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.2s;">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p id="statConversionRate" class="text-4xl font-bold">0%</p>
-                            <p class="text-indigo-100 mt-1 text-sm font-medium">Conversion Rate</p>
-                        </div>
-                        <div class="text-4xl opacity-80">&#128202;</div>
-                    </div>
-                </div>
-            </div>
+        <div class="mb-6 border-b border-gray-200">
+            <nav class="flex space-x-8" aria-label="Tabs">
+                <button
+                    id="tabSendReviews"
+                    data-tab="send-reviews"
+                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 border-teal-500 text-teal-600"
+                >
+                    <span class="flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                        </svg>
+                        Send Reviews
+                    </span>
+                </button>
+                <button
+                    id="tabCustomers"
+                    data-tab="customers"
+                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                >
+                    <span class="flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        Customers
+                    </span>
+                </button>
+            </nav>
         </div>
 
         <!-- ========================================== -->
-        <!-- SEND REVIEW REQUEST CARD                  -->
+        <!-- TAB CONTENT: SEND REVIEWS                 -->
         <!-- ========================================== -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 mb-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                </svg>
-                Send Review Request
-            </h2>
+        <div id="tabContentSendReviews" class="tab-content">
 
-            <form id="reviewRequestForm" class="space-y-5">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- STATS CARDS -->
+            <div id="statsSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
 
-                    <!-- Customer Name Input -->
-                    <div>
-                        <label for="customerName" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Customer Name <span class="text-red-400">*</span>
-                        </label>
-                        <input
-                            type="text"
-                            id="customerName"
-                            name="customerName"
-                            required
-                            placeholder="e.g., John Smith"
-                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
-                        >
-                        <p id="nameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                            <span></span>
-                        </p>
+                <!-- Skeleton loaders for stats (shown initially) -->
+                <div id="statsSkeleton" class="contents">
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="skeleton rounded h-10 w-16 mb-2"></div>
+                        <div class="skeleton rounded h-4 w-24"></div>
                     </div>
-
-                    <!-- Customer Email Input -->
-                    <div>
-                        <label for="customerEmail" class="block text-sm font-semibold text-gray-700 mb-2">
-                            Customer Email <span class="text-red-400">*</span>
-                        </label>
-                        <input
-                            type="email"
-                            id="customerEmail"
-                            name="customerEmail"
-                            required
-                            placeholder="e.g., john@example.com"
-                            class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
-                        >
-                        <p id="emailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                            <span></span>
-                        </p>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="skeleton rounded h-10 w-16 mb-2"></div>
+                        <div class="skeleton rounded h-4 w-24"></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                        <div class="skeleton rounded h-10 w-16 mb-2"></div>
+                        <div class="skeleton rounded h-4 w-24"></div>
                     </div>
                 </div>
 
-                <!-- Submit Button -->
-                <div class="pt-2">
-                    <button
-                        type="submit"
-                        id="sendRequestBtn"
-                        class="w-full md:w-auto px-8 py-3.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
-                    >
-                        <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                        </svg>
-                        <span id="btnText">Send Review Request</span>
-                        <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    </button>
+                <!-- Actual stats cards (hidden initially) -->
+                <div id="statsContent" class="contents hidden">
+                    <!-- Card 1: Requests Sent -->
+                    <div class="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl shadow-lg p-6 text-white fade-in">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p id="statRequestsSent" class="text-4xl font-bold">0</p>
+                                <p class="text-teal-100 mt-1 text-sm font-medium">Requests Sent</p>
+                            </div>
+                            <div class="text-4xl opacity-80">&#128231;</div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Reviews Received -->
+                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.1s;">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p id="statReviewsReceived" class="text-4xl font-bold">0</p>
+                                <p class="text-blue-100 mt-1 text-sm font-medium">Reviews Received</p>
+                            </div>
+                            <div class="text-4xl opacity-80">&#11088;</div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Conversion Rate -->
+                    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.2s;">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p id="statConversionRate" class="text-4xl font-bold">0%</p>
+                                <p class="text-indigo-100 mt-1 text-sm font-medium">Conversion Rate</p>
+                            </div>
+                            <div class="text-4xl opacity-80">&#128202;</div>
+                        </div>
+                    </div>
                 </div>
-            </form>
+            </div>
+
+            <!-- SEND REVIEW REQUEST CARD -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 mb-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    Send Review Request
+                </h2>
+
+                <form id="reviewRequestForm" class="space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                        <!-- Customer Name Input -->
+                        <div>
+                            <label for="customerName" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Customer Name <span class="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="customerName"
+                                name="customerName"
+                                required
+                                placeholder="e.g., John Smith"
+                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                            >
+                            <p id="nameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span></span>
+                            </p>
+                        </div>
+
+                        <!-- Customer Email Input -->
+                        <div>
+                            <label for="customerEmail" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Customer Email <span class="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="email"
+                                id="customerEmail"
+                                name="customerEmail"
+                                required
+                                placeholder="e.g., john@example.com"
+                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                            >
+                            <p id="emailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span></span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="pt-2">
+                        <button
+                            type="submit"
+                            id="sendRequestBtn"
+                            class="w-full md:w-auto px-8 py-3.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                        >
+                            <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                            <span id="btnText">Send Review Request</span>
+                            <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- RECENT REVIEW REQUESTS TABLE -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                    </svg>
+                    Recent Review Requests
+                </h2>
+
+                <!-- Table Skeleton (shown while loading) -->
+                <div id="tableSkeleton" class="space-y-3">
+                    <div class="skeleton rounded h-12 w-full"></div>
+                    <div class="skeleton rounded h-12 w-full"></div>
+                    <div class="skeleton rounded h-12 w-full"></div>
+                </div>
+
+                <!-- Table Content (hidden initially) -->
+                <div id="tableContent" class="hidden">
+                    <!-- Table container with horizontal scroll on mobile -->
+                    <div class="overflow-x-auto -mx-6 md:mx-0">
+                        <table class="w-full min-w-[600px]">
+                            <thead>
+                                <tr class="border-b-2 border-gray-100">
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Customer</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Email</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Date Sent</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="requestsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Empty State (hidden initially) -->
+                <div id="emptyState" class="hidden text-center py-12">
+                    <div class="text-6xl mb-4">&#128237;</div>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">No review requests yet</h3>
+                    <p class="text-gray-500">Send your first review request using the form above!</p>
+                </div>
+            </div>
+
         </div>
 
         <!-- ========================================== -->
-        <!-- RECENT REVIEW REQUESTS TABLE              -->
+        <!-- TAB CONTENT: CUSTOMERS                    -->
         <!-- ========================================== -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                </svg>
-                Recent Review Requests
-            </h2>
+        <div id="tabContentCustomers" class="tab-content hidden">
 
-            <!-- Table Skeleton (shown while loading) -->
-            <div id="tableSkeleton" class="space-y-3">
-                <div class="skeleton rounded h-12 w-full"></div>
-                <div class="skeleton rounded h-12 w-full"></div>
-                <div class="skeleton rounded h-12 w-full"></div>
+            <!-- IMPORT BUTTON -->
+            <div class="mb-6 flex justify-end">
+                <button
+                    id="openImportModalBtn"
+                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
+                >
+                    <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    Import from CSV
+                </button>
             </div>
 
-            <!-- Table Content (hidden initially) -->
-            <div id="tableContent" class="hidden">
-                <!-- Table container with horizontal scroll on mobile -->
-                <div class="overflow-x-auto -mx-6 md:mx-0">
-                    <table class="w-full min-w-[600px]">
-                        <thead>
-                            <tr class="border-b-2 border-gray-100">
-                                <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Customer</th>
-                                <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Email</th>
-                                <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Date Sent</th>
-                                <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="requestsTableBody">
-                        </tbody>
-                    </table>
+            <!-- ADD CUSTOMER CARD -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 mb-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
+                    </svg>
+                    Add Customer
+                </h2>
+
+                <form id="addCustomerForm" class="space-y-5">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+
+                        <!-- Name Input -->
+                        <div>
+                            <label for="newCustomerName" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Name <span class="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="text"
+                                id="newCustomerName"
+                                name="newCustomerName"
+                                required
+                                placeholder="e.g., John Smith"
+                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                            >
+                            <p id="newCustomerNameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span></span>
+                            </p>
+                        </div>
+
+                        <!-- Email Input -->
+                        <div>
+                            <label for="newCustomerEmail" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Email <span class="text-red-400">*</span>
+                            </label>
+                            <input
+                                type="email"
+                                id="newCustomerEmail"
+                                name="newCustomerEmail"
+                                required
+                                placeholder="e.g., john@example.com"
+                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                            >
+                            <p id="newCustomerEmailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                </svg>
+                                <span></span>
+                            </p>
+                        </div>
+
+                        <!-- Phone Input (Optional) -->
+                        <div>
+                            <label for="newCustomerPhone" class="block text-sm font-semibold text-gray-700 mb-2">
+                                Phone <span class="text-gray-400 font-normal">(optional)</span>
+                            </label>
+                            <input
+                                type="tel"
+                                id="newCustomerPhone"
+                                name="newCustomerPhone"
+                                placeholder="e.g., 555-123-4567"
+                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                            >
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="pt-2">
+                        <button
+                            type="submit"
+                            id="saveCustomerBtn"
+                            class="w-full md:w-auto px-8 py-3.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                        >
+                            <svg id="saveCustomerIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                            <span id="saveCustomerText">Save Customer</span>
+                            <svg id="saveCustomerSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- CUSTOMERS TABLE -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+                <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    All Customers
+                </h2>
+
+                <!-- Table Skeleton (shown while loading) -->
+                <div id="customersTableSkeleton" class="space-y-3">
+                    <div class="skeleton rounded h-12 w-full"></div>
+                    <div class="skeleton rounded h-12 w-full"></div>
+                    <div class="skeleton rounded h-12 w-full"></div>
+                </div>
+
+                <!-- Table Content (hidden initially) -->
+                <div id="customersTableContent" class="hidden">
+                    <!-- Table container with horizontal scroll on mobile -->
+                    <div class="overflow-x-auto -mx-6 md:mx-0">
+                        <table class="w-full min-w-[800px]">
+                            <thead>
+                                <tr class="border-b-2 border-gray-100">
+                                    <th class="py-3 px-4 md:px-6 w-12">
+                                        <input
+                                            type="checkbox"
+                                            id="selectAllCustomers"
+                                            class="w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2 cursor-pointer"
+                                        >
+                                    </th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Name</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Email</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Phone</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Date Added</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="customersTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Empty State (hidden initially) -->
+                <div id="customersEmptyState" class="hidden text-center py-12">
+                    <div class="text-6xl mb-4">&#128100;</div>
+                    <h3 class="text-xl font-semibold text-gray-700 mb-2">No customers yet</h3>
+                    <p class="text-gray-500">Add your first customer using the form above!</p>
                 </div>
             </div>
 
-            <!-- Empty State (hidden initially) -->
-            <div id="emptyState" class="hidden text-center py-12">
-                <div class="text-6xl mb-4">&#128237;</div>
-                <h3 class="text-xl font-semibold text-gray-700 mb-2">No review requests yet</h3>
-                <p class="text-gray-500">Send your first review request using the form above!</p>
-            </div>
         </div>
 
     </main>
+
+    <!-- ============================================== -->
+    <!-- FLOATING ACTION BAR (for bulk selection)      -->
+    <!-- ============================================== -->
+    <div id="bulkActionBar" class="fixed bottom-0 left-0 right-0 z-40 hidden transform translate-y-full transition-transform duration-300">
+        <div class="max-w-4xl mx-auto px-4 pb-6">
+            <div class="bg-gray-900 rounded-2xl shadow-2xl px-6 py-4 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center">
+                        <span id="selectedCountBadge" class="text-white font-bold text-sm">0</span>
+                    </div>
+                    <span id="selectedCountText" class="text-white font-medium">customers selected</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button
+                        id="deselectAllBtn"
+                        class="px-4 py-2 text-gray-300 hover:text-white font-medium transition-colors duration-200"
+                    >
+                        Deselect All
+                    </button>
+                    <button
+                        id="bulkSendBtn"
+                        class="px-5 py-2.5 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-400 transition-all duration-200 flex items-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                        Send Review Requests
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- BULK SEND CONFIRMATION MODAL                  -->
+    <!-- ============================================== -->
+    <div id="bulkSendModal" class="fixed inset-0 z-50 hidden">
+        <!-- Backdrop -->
+        <div id="bulkSendModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+        <!-- Modal Content -->
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden fade-in">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                        Send Review Requests
+                    </h3>
+                </div>
+
+                <!-- Body -->
+                <div class="px-6 py-5">
+                    <p id="bulkSendConfirmText" class="text-gray-700 mb-4">
+                        Send review request to <strong id="bulkSendCount">0</strong> customers?
+                    </p>
+
+                    <!-- Customer List Preview -->
+                    <div id="bulkSendCustomerList" class="bg-gray-50 rounded-xl p-3 max-h-48 overflow-y-auto">
+                        <!-- Customer names will be inserted here -->
+                    </div>
+
+                    <!-- Progress -->
+                    <div id="bulkSendProgress" class="hidden mt-4">
+                        <div class="flex items-center gap-3">
+                            <svg class="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span id="bulkSendProgressText" class="text-gray-700 font-medium">Sending...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div id="bulkSendFooter" class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button
+                        id="cancelBulkSendBtn"
+                        class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors duration-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="confirmBulkSendBtn"
+                        class="px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-all duration-200 flex items-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                        Send to All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- CSV IMPORT MODAL                              -->
+    <!-- ============================================== -->
+    <div id="importModal" class="fixed inset-0 z-50 hidden">
+        <!-- Backdrop -->
+        <div id="importModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+
+        <!-- Modal Content -->
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden fade-in">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                        </svg>
+                        Import Customers from CSV
+                    </h3>
+                    <button id="closeImportModalBtn" class="text-gray-400 hover:text-gray-600 transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Body -->
+                <div class="px-6 py-5 overflow-y-auto max-h-[60vh]">
+                    <!-- Dropzone -->
+                    <div
+                        id="csvDropzone"
+                        class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-all duration-200"
+                    >
+                        <input type="file" id="csvFileInput" accept=".csv" class="hidden">
+                        <div id="dropzoneContent">
+                            <svg class="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                            <p class="text-gray-600 font-medium mb-1">Drop your CSV file here</p>
+                            <p class="text-gray-400 text-sm">or click to browse</p>
+                        </div>
+                        <div id="selectedFileInfo" class="hidden">
+                            <svg class="w-10 h-10 mx-auto text-teal-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            <p id="selectedFileName" class="text-gray-800 font-medium"></p>
+                            <p id="selectedFileRows" class="text-gray-500 text-sm mt-1"></p>
+                            <button id="clearFileBtn" class="mt-2 text-sm text-red-500 hover:text-red-600 font-medium">Remove file</button>
+                        </div>
+                    </div>
+
+                    <!-- Example Format -->
+                    <div class="mt-5 bg-gray-50 rounded-xl p-4">
+                        <p class="text-sm font-semibold text-gray-700 mb-2">Expected CSV format:</p>
+                        <pre class="text-xs text-gray-600 bg-white rounded-lg p-3 border border-gray-200 overflow-x-auto">name,email,phone
+John Doe,john@example.com,+12345678900
+Jane Smith,jane@example.com,+19876543210</pre>
+                        <p class="text-xs text-gray-500 mt-2">
+                            <strong>name</strong> and <strong>email</strong> are required. <strong>phone</strong> is optional.
+                        </p>
+                    </div>
+
+                    <!-- Validation Errors -->
+                    <div id="importValidationErrors" class="hidden mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
+                        <p class="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            Validation Errors
+                        </p>
+                        <ul id="importErrorsList" class="text-sm text-red-600 space-y-1 max-h-32 overflow-y-auto"></ul>
+                    </div>
+
+                    <!-- Import Progress -->
+                    <div id="importProgress" class="hidden mt-4">
+                        <div class="flex items-center gap-3">
+                            <svg class="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span id="importProgressText" class="text-gray-700 font-medium">Importing customers...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button
+                        id="cancelImportBtn"
+                        class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors duration-200"
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        id="uploadImportBtn"
+                        disabled
+                        class="px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+                        </svg>
+                        Upload and Import
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- ============================================== -->
     <!-- JAVASCRIPT                                    -->
@@ -313,6 +712,60 @@
         const tableSkeleton = document.getElementById('tableSkeleton');
         const tableContent = document.getElementById('tableContent');
         const emptyState = document.getElementById('emptyState');
+
+        // Tab elements
+        const tabSendReviews = document.getElementById('tabSendReviews');
+        const tabCustomers = document.getElementById('tabCustomers');
+        const tabContentSendReviews = document.getElementById('tabContentSendReviews');
+        const tabContentCustomers = document.getElementById('tabContentCustomers');
+
+        // Customer form elements
+        const addCustomerForm = document.getElementById('addCustomerForm');
+        const newCustomerName = document.getElementById('newCustomerName');
+        const newCustomerEmail = document.getElementById('newCustomerEmail');
+        const newCustomerPhone = document.getElementById('newCustomerPhone');
+        const saveCustomerBtn = document.getElementById('saveCustomerBtn');
+        const saveCustomerText = document.getElementById('saveCustomerText');
+        const saveCustomerIcon = document.getElementById('saveCustomerIcon');
+        const saveCustomerSpinner = document.getElementById('saveCustomerSpinner');
+        const newCustomerNameError = document.getElementById('newCustomerNameError');
+        const newCustomerEmailError = document.getElementById('newCustomerEmailError');
+
+        // Customers table elements
+        const customersTableSkeleton = document.getElementById('customersTableSkeleton');
+        const customersTableContent = document.getElementById('customersTableContent');
+        const customersTableBody = document.getElementById('customersTableBody');
+        const customersEmptyState = document.getElementById('customersEmptyState');
+
+        // =====================================================
+        // TAB SWITCHING
+        // =====================================================
+        function switchTab(tabName) {
+            // Update tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(btn => {
+                if (btn.dataset.tab === tabName) {
+                    btn.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                    btn.classList.add('border-teal-500', 'text-teal-600');
+                } else {
+                    btn.classList.remove('border-teal-500', 'text-teal-600');
+                    btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                }
+            });
+
+            // Update tab content
+            if (tabName === 'send-reviews') {
+                tabContentSendReviews.classList.remove('hidden');
+                tabContentCustomers.classList.add('hidden');
+            } else if (tabName === 'customers') {
+                tabContentSendReviews.classList.add('hidden');
+                tabContentCustomers.classList.remove('hidden');
+                loadCustomers(); // Load customers when switching to tab
+            }
+        }
+
+        tabSendReviews.addEventListener('click', () => switchTab('send-reviews'));
+        tabCustomers.addEventListener('click', () => switchTab('customers'));
 
         // =====================================================
         // TOAST NOTIFICATION SYSTEM
@@ -383,6 +836,35 @@
             } else if (!isValidEmail(email)) {
                 emailError.querySelector('span').textContent = 'Please enter a valid email address';
                 emailError.classList.remove('hidden');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function validateCustomerForm() {
+            let isValid = true;
+
+            // Hide previous errors
+            newCustomerNameError.classList.add('hidden');
+            newCustomerEmailError.classList.add('hidden');
+
+            const name = newCustomerName.value.trim();
+            const email = newCustomerEmail.value.trim();
+
+            if (!name) {
+                newCustomerNameError.querySelector('span').textContent = 'Please enter customer name';
+                newCustomerNameError.classList.remove('hidden');
+                isValid = false;
+            }
+
+            if (!email) {
+                newCustomerEmailError.querySelector('span').textContent = 'Please enter customer email';
+                newCustomerEmailError.classList.remove('hidden');
+                isValid = false;
+            } else if (!isValidEmail(email)) {
+                newCustomerEmailError.querySelector('span').textContent = 'Please enter a valid email address';
+                newCustomerEmailError.classList.remove('hidden');
                 isValid = false;
             }
 
@@ -519,6 +1001,170 @@
         }
 
         // =====================================================
+        // LOAD CUSTOMERS
+        // =====================================================
+        async function loadCustomers() {
+            try {
+                const response = await fetch(`${API_URL}/customers`, {
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                const data = await response.json();
+
+                // Hide skeleton
+                customersTableSkeleton.classList.add('hidden');
+
+                if (response.ok && data.success) {
+                    displayCustomers(data.data);
+                } else {
+                    showCustomersEmptyState();
+                }
+            } catch (error) {
+                console.error('Failed to load customers:', error);
+                customersTableSkeleton.classList.add('hidden');
+                showCustomersEmptyState();
+            }
+        }
+
+        // =====================================================
+        // DISPLAY CUSTOMERS
+        // =====================================================
+        let allCustomers = []; // Store for bulk operations
+
+        function displayCustomers(customers) {
+            if (!customers || customers.length === 0) {
+                showCustomersEmptyState();
+                allCustomers = [];
+                return;
+            }
+
+            allCustomers = customers; // Store for bulk operations
+
+            // Hide empty state, show table
+            customersEmptyState.classList.add('hidden');
+            customersTableContent.classList.remove('hidden');
+            customersTableContent.classList.add('fade-in');
+
+            // Reset select all checkbox
+            const selectAllCheckbox = document.getElementById('selectAllCustomers');
+            if (selectAllCheckbox) selectAllCheckbox.checked = false;
+
+            customersTableBody.innerHTML = customers.map((customer, index) => `
+                <tr class="border-b border-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-teal-50/50 transition-colors duration-150 customer-row" data-customer-id="${customer.id}">
+                    <td class="py-4 px-4 md:px-6">
+                        <input
+                            type="checkbox"
+                            class="customer-checkbox w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2 cursor-pointer"
+                            data-customer-id="${customer.id}"
+                            data-customer-name="${escapeHtml(customer.name)}"
+                            data-customer-email="${escapeHtml(customer.email)}"
+                        >
+                    </td>
+                    <td class="py-4 px-4 md:px-6">
+                        <span class="font-medium text-gray-800">${escapeHtml(customer.name)}</span>
+                    </td>
+                    <td class="py-4 px-4 md:px-6 text-gray-600">${escapeHtml(customer.email)}</td>
+                    <td class="py-4 px-4 md:px-6 text-gray-500">${customer.phone ? escapeHtml(customer.phone) : '<span class="text-gray-400">-</span>'}</td>
+                    <td class="py-4 px-4 md:px-6 text-gray-500 text-sm">${formatDate(customer.created_at)}</td>
+                    <td class="py-4 px-4 md:px-6">
+                        <button
+                            onclick="sendReviewToCustomer('${escapeHtml(customer.name)}', '${escapeHtml(customer.email)}')"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 font-medium text-sm rounded-lg hover:bg-teal-100 transition-colors duration-150"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                            Send Review Request
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Update selection state
+            updateSelectionUI();
+        }
+
+        function showCustomersEmptyState() {
+            customersTableContent.classList.add('hidden');
+            customersEmptyState.classList.remove('hidden');
+            customersEmptyState.classList.add('fade-in');
+        }
+
+        // =====================================================
+        // SEND REVIEW TO CUSTOMER (from Customers tab)
+        // =====================================================
+        function sendReviewToCustomer(name, email) {
+            // Switch to Send Reviews tab
+            switchTab('send-reviews');
+
+            // Fill in the form
+            customerNameInput.value = name;
+            customerEmailInput.value = email;
+
+            // Scroll to form and focus
+            customerNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // Highlight the form briefly
+            const formCard = reviewRequestForm.closest('.bg-white');
+            formCard.classList.add('ring-2', 'ring-teal-500', 'ring-offset-2');
+            setTimeout(() => {
+                formCard.classList.remove('ring-2', 'ring-teal-500', 'ring-offset-2');
+            }, 2000);
+        }
+
+        // =====================================================
+        // ADD CUSTOMER
+        // =====================================================
+        async function addCustomer(event) {
+            event.preventDefault();
+
+            if (!validateCustomerForm()) return;
+
+            const name = newCustomerName.value.trim();
+            const email = newCustomerEmail.value.trim();
+            const phone = newCustomerPhone.value.trim() || null;
+
+            // Show loading state
+            saveCustomerBtn.disabled = true;
+            saveCustomerText.textContent = 'Saving...';
+            saveCustomerIcon.classList.add('hidden');
+            saveCustomerSpinner.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/customers`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ name, email, phone })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showToast('Customer added successfully!', 'success');
+                    newCustomerName.value = '';
+                    newCustomerEmail.value = '';
+                    newCustomerPhone.value = '';
+                    loadCustomers();
+                } else {
+                    showToast(data.message || 'Failed to add customer', 'error');
+                }
+            } catch (error) {
+                console.error('Error adding customer:', error);
+                showToast('Cannot connect to server. Please try again.', 'error');
+            }
+
+            // Reset button state
+            saveCustomerBtn.disabled = false;
+            saveCustomerText.textContent = 'Save Customer';
+            saveCustomerIcon.classList.remove('hidden');
+            saveCustomerSpinner.classList.add('hidden');
+        }
+
+        // =====================================================
         // HELPER FUNCTIONS
         // =====================================================
         function formatDateTime(dateString) {
@@ -532,6 +1178,16 @@
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true
+            });
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
             });
         }
 
@@ -636,9 +1292,446 @@
         }
 
         // =====================================================
+        // CSV IMPORT FUNCTIONALITY
+        // =====================================================
+        const importModal = document.getElementById('importModal');
+        const importModalBackdrop = document.getElementById('importModalBackdrop');
+        const openImportModalBtn = document.getElementById('openImportModalBtn');
+        const closeImportModalBtn = document.getElementById('closeImportModalBtn');
+        const cancelImportBtn = document.getElementById('cancelImportBtn');
+        const uploadImportBtn = document.getElementById('uploadImportBtn');
+        const csvDropzone = document.getElementById('csvDropzone');
+        const csvFileInput = document.getElementById('csvFileInput');
+        const dropzoneContent = document.getElementById('dropzoneContent');
+        const selectedFileInfo = document.getElementById('selectedFileInfo');
+        const selectedFileName = document.getElementById('selectedFileName');
+        const selectedFileRows = document.getElementById('selectedFileRows');
+        const clearFileBtn = document.getElementById('clearFileBtn');
+        const importValidationErrors = document.getElementById('importValidationErrors');
+        const importErrorsList = document.getElementById('importErrorsList');
+        const importProgress = document.getElementById('importProgress');
+        const importProgressText = document.getElementById('importProgressText');
+
+        let parsedCustomers = [];
+
+        function openImportModal() {
+            importModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            resetImportModal();
+        }
+
+        function closeImportModal() {
+            importModal.classList.add('hidden');
+            document.body.style.overflow = '';
+            resetImportModal();
+        }
+
+        function resetImportModal() {
+            csvFileInput.value = '';
+            parsedCustomers = [];
+            dropzoneContent.classList.remove('hidden');
+            selectedFileInfo.classList.add('hidden');
+            importValidationErrors.classList.add('hidden');
+            importProgress.classList.add('hidden');
+            uploadImportBtn.disabled = true;
+            importErrorsList.innerHTML = '';
+        }
+
+        function handleFileSelect(file) {
+            if (!file) return;
+
+            if (!file.name.endsWith('.csv')) {
+                showToast('Please select a CSV file', 'error');
+                return;
+            }
+
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    handleParsedCSV(results, file.name);
+                },
+                error: function(error) {
+                    showToast('Failed to parse CSV file: ' + error.message, 'error');
+                }
+            });
+        }
+
+        function handleParsedCSV(results, fileName) {
+            const { data, errors, meta } = results;
+
+            // Check for required columns
+            const headers = meta.fields || [];
+            const hasName = headers.some(h => h.toLowerCase() === 'name');
+            const hasEmail = headers.some(h => h.toLowerCase() === 'email');
+
+            if (!hasName || !hasEmail) {
+                showToast('CSV must have "name" and "email" columns', 'error');
+                return;
+            }
+
+            if (data.length === 0) {
+                showToast('CSV file is empty', 'error');
+                return;
+            }
+
+            // Normalize column names and validate rows
+            const validationErrors = [];
+            parsedCustomers = [];
+
+            data.forEach((row, index) => {
+                const rowNum = index + 2; // +2 because of header row and 0-indexing
+
+                // Normalize keys to lowercase
+                const normalizedRow = {};
+                Object.keys(row).forEach(key => {
+                    normalizedRow[key.toLowerCase().trim()] = row[key];
+                });
+
+                const name = (normalizedRow['name'] || '').trim();
+                const email = (normalizedRow['email'] || '').trim();
+                const phone = (normalizedRow['phone'] || '').trim();
+
+                // Validate
+                if (!name) {
+                    validationErrors.push({ row: rowNum, message: 'Name is required' });
+                    return;
+                }
+
+                if (!email) {
+                    validationErrors.push({ row: rowNum, message: 'Email is required' });
+                    return;
+                }
+
+                if (!isValidEmail(email)) {
+                    validationErrors.push({ row: rowNum, message: `Invalid email: ${email}` });
+                    return;
+                }
+
+                parsedCustomers.push({ name, email, phone: phone || null });
+            });
+
+            // Show file info
+            dropzoneContent.classList.add('hidden');
+            selectedFileInfo.classList.remove('hidden');
+            selectedFileName.textContent = fileName;
+            selectedFileRows.textContent = `${parsedCustomers.length} valid customer(s) found`;
+
+            // Show validation errors if any
+            if (validationErrors.length > 0) {
+                importValidationErrors.classList.remove('hidden');
+                importErrorsList.innerHTML = validationErrors.slice(0, 10).map(err =>
+                    `<li>Row ${err.row}: ${escapeHtml(err.message)}</li>`
+                ).join('');
+
+                if (validationErrors.length > 10) {
+                    importErrorsList.innerHTML += `<li class="text-gray-500">...and ${validationErrors.length - 10} more errors</li>`;
+                }
+            } else {
+                importValidationErrors.classList.add('hidden');
+            }
+
+            // Enable upload button if we have valid customers
+            uploadImportBtn.disabled = parsedCustomers.length === 0;
+        }
+
+        async function importCustomers() {
+            if (parsedCustomers.length === 0) return;
+
+            // Show progress
+            importProgress.classList.remove('hidden');
+            importProgressText.textContent = `Importing ${parsedCustomers.length} customer(s)...`;
+            uploadImportBtn.disabled = true;
+            cancelImportBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}/customers/import`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ customers: parsedCustomers })
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success !== false) {
+                    const { success_count, skipped_count, error_count, errors } = data;
+
+                    let message = `Imported ${success_count} customer(s)`;
+                    if (skipped_count > 0) {
+                        message += `, ${skipped_count} skipped (already exist)`;
+                    }
+                    if (error_count > 0) {
+                        message += `, ${error_count} failed`;
+                    }
+
+                    showToast(message, error_count > 0 ? 'error' : 'success');
+
+                    // Show any server-side errors
+                    if (errors && errors.length > 0) {
+                        importValidationErrors.classList.remove('hidden');
+                        importErrorsList.innerHTML = errors.slice(0, 10).map(err =>
+                            `<li>Row ${err.row}: ${escapeHtml(err.message)}</li>`
+                        ).join('');
+                    }
+
+                    // Close modal and refresh if we had any successes
+                    if (success_count > 0) {
+                        closeImportModal();
+                        loadCustomers();
+                    }
+                } else {
+                    showToast(data.message || 'Failed to import customers', 'error');
+                }
+            } catch (error) {
+                console.error('Error importing customers:', error);
+                showToast('Cannot connect to server. Please try again.', 'error');
+            }
+
+            // Reset progress
+            importProgress.classList.add('hidden');
+            uploadImportBtn.disabled = parsedCustomers.length === 0;
+            cancelImportBtn.disabled = false;
+        }
+
+        // Dropzone event handlers
+        csvDropzone.addEventListener('click', () => csvFileInput.click());
+
+        csvFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        csvDropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            csvDropzone.classList.add('border-teal-500', 'bg-teal-50');
+        });
+
+        csvDropzone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            csvDropzone.classList.remove('border-teal-500', 'bg-teal-50');
+        });
+
+        csvDropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            csvDropzone.classList.remove('border-teal-500', 'bg-teal-50');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        clearFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetImportModal();
+        });
+
+        // Modal event handlers
+        openImportModalBtn.addEventListener('click', openImportModal);
+        closeImportModalBtn.addEventListener('click', closeImportModal);
+        cancelImportBtn.addEventListener('click', closeImportModal);
+        importModalBackdrop.addEventListener('click', closeImportModal);
+        uploadImportBtn.addEventListener('click', importCustomers);
+
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !importModal.classList.contains('hidden')) {
+                closeImportModal();
+            }
+            if (e.key === 'Escape' && !bulkSendModal.classList.contains('hidden')) {
+                closeBulkSendModal();
+            }
+        });
+
+        // =====================================================
+        // BULK SELECTION FUNCTIONALITY
+        // =====================================================
+        const bulkActionBar = document.getElementById('bulkActionBar');
+        const selectedCountBadge = document.getElementById('selectedCountBadge');
+        const selectedCountText = document.getElementById('selectedCountText');
+        const deselectAllBtn = document.getElementById('deselectAllBtn');
+        const bulkSendBtn = document.getElementById('bulkSendBtn');
+        const selectAllCustomers = document.getElementById('selectAllCustomers');
+
+        // Bulk send modal elements
+        const bulkSendModal = document.getElementById('bulkSendModal');
+        const bulkSendModalBackdrop = document.getElementById('bulkSendModalBackdrop');
+        const bulkSendCount = document.getElementById('bulkSendCount');
+        const bulkSendCustomerList = document.getElementById('bulkSendCustomerList');
+        const bulkSendProgress = document.getElementById('bulkSendProgress');
+        const bulkSendProgressText = document.getElementById('bulkSendProgressText');
+        const bulkSendFooter = document.getElementById('bulkSendFooter');
+        const cancelBulkSendBtn = document.getElementById('cancelBulkSendBtn');
+        const confirmBulkSendBtn = document.getElementById('confirmBulkSendBtn');
+
+        function getSelectedCustomers() {
+            const checkboxes = document.querySelectorAll('.customer-checkbox:checked');
+            return Array.from(checkboxes).map(cb => ({
+                id: cb.dataset.customerId,
+                name: cb.dataset.customerName,
+                email: cb.dataset.customerEmail
+            }));
+        }
+
+        function updateSelectionUI() {
+            const selected = getSelectedCustomers();
+            const count = selected.length;
+
+            selectedCountBadge.textContent = count;
+            selectedCountText.textContent = count === 1 ? 'customer selected' : 'customers selected';
+
+            if (count > 0) {
+                bulkActionBar.classList.remove('hidden');
+                setTimeout(() => {
+                    bulkActionBar.classList.remove('translate-y-full');
+                }, 10);
+            } else {
+                bulkActionBar.classList.add('translate-y-full');
+                setTimeout(() => {
+                    bulkActionBar.classList.add('hidden');
+                }, 300);
+            }
+
+            // Update select all checkbox state
+            const allCheckboxes = document.querySelectorAll('.customer-checkbox');
+            if (selectAllCustomers) {
+                selectAllCustomers.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+                selectAllCustomers.indeterminate = count > 0 && count < allCheckboxes.length;
+            }
+        }
+
+        function selectAllCustomersFn(checked) {
+            const checkboxes = document.querySelectorAll('.customer-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = checked;
+                // Add visual feedback to row
+                const row = cb.closest('tr');
+                if (checked) {
+                    row.classList.add('bg-teal-50');
+                } else {
+                    row.classList.remove('bg-teal-50');
+                }
+            });
+            updateSelectionUI();
+        }
+
+        function deselectAll() {
+            selectAllCustomersFn(false);
+        }
+
+        function openBulkSendModal() {
+            const selected = getSelectedCustomers();
+            if (selected.length === 0) return;
+
+            bulkSendCount.textContent = selected.length;
+            bulkSendCustomerList.innerHTML = selected.map(c =>
+                `<div class="py-1.5 px-2 text-sm text-gray-700 flex items-center gap-2">
+                    <span class="w-2 h-2 bg-teal-500 rounded-full"></span>
+                    ${escapeHtml(c.name)} <span class="text-gray-400">(${escapeHtml(c.email)})</span>
+                </div>`
+            ).join('');
+
+            bulkSendProgress.classList.add('hidden');
+            bulkSendFooter.classList.remove('hidden');
+            confirmBulkSendBtn.disabled = false;
+            cancelBulkSendBtn.disabled = false;
+
+            bulkSendModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeBulkSendModal() {
+            bulkSendModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        async function sendBulkReviewRequests() {
+            const selected = getSelectedCustomers();
+            if (selected.length === 0) return;
+
+            // Show progress
+            bulkSendProgress.classList.remove('hidden');
+            bulkSendProgressText.textContent = `Sending to ${selected.length} customer(s)...`;
+            bulkSendFooter.classList.add('hidden');
+
+            try {
+                const response = await fetch(`${API_URL}/review-requests/bulk`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        customer_ids: selected.map(c => c.id)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const { success_count, error_count } = data;
+
+                    let message = `Sent to ${success_count} customer(s)!`;
+                    if (error_count > 0) {
+                        message += ` ${error_count} failed.`;
+                    }
+
+                    showToast(message, error_count > 0 ? 'error' : 'success');
+
+                    // Deselect all and close modal
+                    deselectAll();
+                    closeBulkSendModal();
+
+                    // Refresh data
+                    loadDashboardStats();
+                    loadReviewRequests();
+                } else {
+                    showToast(data.message || 'Failed to send review requests', 'error');
+                    bulkSendProgress.classList.add('hidden');
+                    bulkSendFooter.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Error sending bulk review requests:', error);
+                showToast('Cannot connect to server. Please try again.', 'error');
+                bulkSendProgress.classList.add('hidden');
+                bulkSendFooter.classList.remove('hidden');
+            }
+        }
+
+        // Event delegation for customer checkboxes
+        customersTableBody.addEventListener('change', (e) => {
+            if (e.target.classList.contains('customer-checkbox')) {
+                const row = e.target.closest('tr');
+                if (e.target.checked) {
+                    row.classList.add('bg-teal-50');
+                } else {
+                    row.classList.remove('bg-teal-50');
+                }
+                updateSelectionUI();
+            }
+        });
+
+        // Select all checkbox
+        selectAllCustomers.addEventListener('change', (e) => {
+            selectAllCustomersFn(e.target.checked);
+        });
+
+        // Bulk action bar buttons
+        deselectAllBtn.addEventListener('click', deselectAll);
+        bulkSendBtn.addEventListener('click', openBulkSendModal);
+
+        // Bulk send modal buttons
+        cancelBulkSendBtn.addEventListener('click', closeBulkSendModal);
+        bulkSendModalBackdrop.addEventListener('click', closeBulkSendModal);
+        confirmBulkSendBtn.addEventListener('click', sendBulkReviewRequests);
+
+        // =====================================================
         // EVENT LISTENERS
         // =====================================================
         reviewRequestForm.addEventListener('submit', sendReviewRequest);
+        addCustomerForm.addEventListener('submit', addCustomer);
         logoutBtn.addEventListener('click', logout);
 
         // =====================================================
