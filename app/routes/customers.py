@@ -4,6 +4,8 @@ Customers API endpoints.
 Endpoints:
 - POST /api/customers - Create a new customer
 - GET /api/customers - Get all customers for the business
+- PUT /api/customers/<id> - Update a customer
+- DELETE /api/customers/<id> - Delete a customer
 - POST /api/customers/import - Bulk import customers from CSV
 """
 
@@ -150,6 +152,160 @@ def get_customers():
         return jsonify({
             "success": False,
             "message": f"Failed to fetch customers: {str(e)}"
+        }), 500
+
+
+@customers_bp.route('/customers/<customer_id>', methods=['PUT'])
+@require_auth
+def update_customer(customer_id):
+    """
+    Update an existing customer.
+
+    Request:
+        Headers:
+            Authorization: Bearer <access_token>
+
+        Body (JSON):
+        {
+            "name": "John Smith",
+            "email": "john@example.com",
+            "phone": "555-123-4567"
+        }
+
+    Response (success):
+        {
+            "success": true,
+            "message": "Customer updated successfully",
+            "data": { ... }
+        }
+    """
+    try:
+        data = request.get_json()
+        business_id = request.business.get('id')
+
+        if not data:
+            return jsonify({
+                "success": False,
+                "message": "No data provided"
+            }), 400
+
+        # Verify customer belongs to this business
+        existing = supabase.table("customers") \
+            .select("*") \
+            .eq("id", customer_id) \
+            .eq("business_id", business_id) \
+            .execute()
+
+        if not existing.data:
+            return jsonify({
+                "success": False,
+                "message": "Customer not found"
+            }), 404
+
+        # Build update data
+        update_data = {}
+
+        if 'name' in data:
+            name = data['name'].strip()
+            if not name:
+                return jsonify({
+                    "success": False,
+                    "message": "Name cannot be empty"
+                }), 400
+            update_data['name'] = name
+
+        if 'email' in data:
+            email = data['email'].strip()
+            if not email:
+                return jsonify({
+                    "success": False,
+                    "message": "Email cannot be empty"
+                }), 400
+            if '@' not in email or '.' not in email:
+                return jsonify({
+                    "success": False,
+                    "message": "Please enter a valid email address"
+                }), 400
+            update_data['email'] = email
+
+        if 'phone' in data:
+            update_data['phone'] = data['phone'].strip() if data['phone'] else None
+
+        if not update_data:
+            return jsonify({
+                "success": False,
+                "message": "No fields to update"
+            }), 400
+
+        result = supabase.table("customers") \
+            .update(update_data) \
+            .eq("id", customer_id) \
+            .eq("business_id", business_id) \
+            .execute()
+
+        if not result.data:
+            return jsonify({
+                "success": False,
+                "message": "Failed to update customer"
+            }), 500
+
+        return jsonify({
+            "success": True,
+            "message": "Customer updated successfully",
+            "data": result.data[0]
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+
+
+@customers_bp.route('/customers/<customer_id>', methods=['DELETE'])
+@require_auth
+def delete_customer(customer_id):
+    """
+    Delete a customer.
+
+    Response (success):
+        {
+            "success": true,
+            "message": "Customer deleted successfully"
+        }
+    """
+    try:
+        business_id = request.business.get('id')
+
+        # Verify customer belongs to this business
+        existing = supabase.table("customers") \
+            .select("id") \
+            .eq("id", customer_id) \
+            .eq("business_id", business_id) \
+            .execute()
+
+        if not existing.data:
+            return jsonify({
+                "success": False,
+                "message": "Customer not found"
+            }), 404
+
+        # Delete customer
+        supabase.table("customers") \
+            .delete() \
+            .eq("id", customer_id) \
+            .eq("business_id", business_id) \
+            .execute()
+
+        return jsonify({
+            "success": True,
+            "message": "Customer deleted successfully"
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "success": False,
+            "message": f"An error occurred: {str(e)}"
         }), 500
 
 

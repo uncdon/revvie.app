@@ -24,78 +24,109 @@
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-        .fade-in {
-            animation: fadeIn 0.4s ease-out forwards;
+        @keyframes checkmark {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
         }
-        .slide-down {
-            animation: slideDown 0.3s ease-out forwards;
+        @keyframes confetti {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(-20px) rotate(180deg); opacity: 0; }
         }
-        .slide-up {
-            animation: slideUp 0.3s ease-out forwards;
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
         }
+        @keyframes scaleIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        .slide-down { animation: slideDown 0.3s ease-out forwards; }
+        .slide-up { animation: slideUp 0.3s ease-out forwards; }
+        .scale-in { animation: scaleIn 0.2s ease-out forwards; }
+        .checkmark-animation { animation: checkmark 0.4s ease-out forwards; }
         .skeleton {
-            animation: pulse 1.5s ease-in-out infinite;
             background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
             background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
         }
+        .tab-transition { transition: all 0.3s ease-out; }
+        /* Tooltip */
+        .tooltip { position: relative; }
+        .tooltip::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+            margin-bottom: 4px;
+        }
+        .tooltip:hover::after { opacity: 1; }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
 
-    <!-- ============================================== -->
-    <!-- TOAST CONTAINER                               -->
-    <!-- Notifications appear here                     -->
-    <!-- ============================================== -->
+    <!-- OFFLINE BANNER -->
+    <div id="offlineBanner" class="fixed top-0 left-0 right-0 z-[60] hidden">
+        <div class="bg-amber-500 text-white text-center py-2 px-4 text-sm font-medium flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636a9 9 0 010 12.728m0 0l-2.829-2.829m2.829 2.829L21 21M15.536 8.464a5 5 0 010 7.072m0 0l-2.829-2.829m-4.243 2.829a4.978 4.978 0 01-1.414-2.83m-1.414 5.658a9 9 0 01-2.167-9.238m7.824 2.167a1 1 0 111.414 1.414m-1.414-1.414L3 3m8.293 8.293l1.414 1.414"></path>
+            </svg>
+            You're offline. Check your connection.
+            <button onclick="location.reload()" class="ml-2 underline hover:no-underline">Retry</button>
+        </div>
+    </div>
+
+    <!-- TOAST CONTAINER -->
     <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
 
-    <!-- ============================================== -->
-    <!-- HEADER / NAVIGATION BAR                       -->
-    <!-- ============================================== -->
-    <nav class="bg-white shadow-sm border-b border-gray-100">
+    <!-- SUCCESS OVERLAY (for celebrations) -->
+    <div id="successOverlay" class="fixed inset-0 z-[55] pointer-events-none flex items-center justify-center hidden">
+        <div class="bg-white rounded-full p-6 shadow-2xl checkmark-animation">
+            <svg class="w-16 h-16 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- HEADER / NAVIGATION BAR -->
+    <nav class="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-40">
         <div class="max-w-6xl mx-auto px-4 py-4">
             <div class="flex justify-between items-center">
-                <!-- Left: Logo -->
                 <h1 class="text-2xl font-bold text-teal-600">Revvie</h1>
-
-                <!-- Center: Business Name -->
                 <span id="headerBusinessName" class="hidden md:block text-lg font-semibold text-gray-700">
                     <span class="skeleton rounded h-6 w-32 inline-block"></span>
                 </span>
-
-                <!-- Right: Logout Button -->
-                <button
-                    id="logoutBtn"
-                    class="text-gray-500 hover:text-red-600 font-medium transition-colors duration-200 flex items-center gap-1"
-                >
+                <button id="logoutBtn" class="text-gray-500 hover:text-red-600 font-medium transition-colors duration-200 flex items-center gap-1">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                     </svg>
                     Logout
                 </button>
             </div>
-
-            <!-- Business name on mobile -->
             <div id="mobileBusinessName" class="md:hidden text-center mt-2 text-gray-700 font-medium">
                 <span class="skeleton rounded h-5 w-24 inline-block"></span>
             </div>
         </div>
     </nav>
 
-    <!-- ============================================== -->
-    <!-- MAIN CONTENT AREA                             -->
-    <!-- ============================================== -->
+    <!-- MAIN CONTENT AREA -->
     <main class="max-w-6xl mx-auto px-4 py-8">
 
-        <!-- ========================================== -->
-        <!-- TAB NAVIGATION                            -->
-        <!-- ========================================== -->
+        <!-- TAB NAVIGATION -->
         <div class="mb-6 border-b border-gray-200">
             <nav class="flex space-x-8" aria-label="Tabs">
-                <button
-                    id="tabSendReviews"
-                    data-tab="send-reviews"
-                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 border-teal-500 text-teal-600"
-                >
+                <button id="tabSendReviews" data-tab="send-reviews" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 border-teal-500 text-teal-600">
                     <span class="flex items-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -103,11 +134,7 @@
                         Send Reviews
                     </span>
                 </button>
-                <button
-                    id="tabCustomers"
-                    data-tab="customers"
-                    class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                >
+                <button id="tabCustomers" data-tab="customers" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
                     <span class="flex items-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
@@ -118,61 +145,31 @@
             </nav>
         </div>
 
-        <!-- ========================================== -->
-        <!-- TAB CONTENT: SEND REVIEWS                 -->
-        <!-- ========================================== -->
-        <div id="tabContentSendReviews" class="tab-content">
-
+        <!-- TAB CONTENT: SEND REVIEWS -->
+        <div id="tabContentSendReviews" class="tab-content tab-transition">
             <!-- STATS CARDS -->
             <div id="statsSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-
-                <!-- Skeleton loaders for stats (shown initially) -->
                 <div id="statsSkeleton" class="contents">
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <div class="skeleton rounded h-10 w-16 mb-2"></div>
-                        <div class="skeleton rounded h-4 w-24"></div>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <div class="skeleton rounded h-10 w-16 mb-2"></div>
-                        <div class="skeleton rounded h-4 w-24"></div>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                        <div class="skeleton rounded h-10 w-16 mb-2"></div>
-                        <div class="skeleton rounded h-4 w-24"></div>
-                    </div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"><div class="skeleton rounded h-10 w-16 mb-2"></div><div class="skeleton rounded h-4 w-24"></div></div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"><div class="skeleton rounded h-10 w-16 mb-2"></div><div class="skeleton rounded h-4 w-24"></div></div>
+                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"><div class="skeleton rounded h-10 w-16 mb-2"></div><div class="skeleton rounded h-4 w-24"></div></div>
                 </div>
-
-                <!-- Actual stats cards (hidden initially) -->
                 <div id="statsContent" class="contents hidden">
-                    <!-- Card 1: Requests Sent -->
                     <div class="bg-gradient-to-br from-teal-500 to-teal-600 rounded-2xl shadow-lg p-6 text-white fade-in">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p id="statRequestsSent" class="text-4xl font-bold">0</p>
-                                <p class="text-teal-100 mt-1 text-sm font-medium">Requests Sent</p>
-                            </div>
+                            <div><p id="statRequestsSent" class="text-4xl font-bold">0</p><p class="text-teal-100 mt-1 text-sm font-medium">Requests Sent</p></div>
                             <div class="text-4xl opacity-80">&#128231;</div>
                         </div>
                     </div>
-
-                    <!-- Card 2: Reviews Received -->
                     <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.1s;">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p id="statReviewsReceived" class="text-4xl font-bold">0</p>
-                                <p class="text-blue-100 mt-1 text-sm font-medium">Reviews Received</p>
-                            </div>
+                            <div><p id="statReviewsReceived" class="text-4xl font-bold">0</p><p class="text-blue-100 mt-1 text-sm font-medium">Reviews Received</p></div>
                             <div class="text-4xl opacity-80">&#11088;</div>
                         </div>
                     </div>
-
-                    <!-- Card 3: Conversion Rate -->
                     <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.2s;">
                         <div class="flex items-center justify-between">
-                            <div>
-                                <p id="statConversionRate" class="text-4xl font-bold">0%</p>
-                                <p class="text-indigo-100 mt-1 text-sm font-medium">Conversion Rate</p>
-                            </div>
+                            <div><p id="statConversionRate" class="text-4xl font-bold">0%</p><p class="text-indigo-100 mt-1 text-sm font-medium">Conversion Rate</p></div>
                             <div class="text-4xl opacity-80">&#128202;</div>
                         </div>
                     </div>
@@ -187,68 +184,32 @@
                     </svg>
                     Send Review Request
                 </h2>
-
                 <form id="reviewRequestForm" class="space-y-5">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-                        <!-- Customer Name Input -->
                         <div>
-                            <label for="customerName" class="block text-sm font-semibold text-gray-700 mb-2">
-                                Customer Name <span class="text-red-400">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                id="customerName"
-                                name="customerName"
-                                required
-                                placeholder="e.g., John Smith"
-                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
-                            >
+                            <label for="customerName" class="block text-sm font-semibold text-gray-700 mb-2">Customer Name <span class="text-red-400">*</span></label>
+                            <input type="text" id="customerName" name="customerName" required placeholder="e.g., John Smith" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
                             <p id="nameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                </svg>
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
                                 <span></span>
                             </p>
+                            <p class="text-xs text-gray-400 mt-1">Press <kbd class="px-1.5 py-0.5 bg-gray-100 rounded text-gray-600">C</kbd> to focus</p>
                         </div>
-
-                        <!-- Customer Email Input -->
                         <div>
-                            <label for="customerEmail" class="block text-sm font-semibold text-gray-700 mb-2">
-                                Customer Email <span class="text-red-400">*</span>
-                            </label>
-                            <input
-                                type="email"
-                                id="customerEmail"
-                                name="customerEmail"
-                                required
-                                placeholder="e.g., john@example.com"
-                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
-                            >
+                            <label for="customerEmail" class="block text-sm font-semibold text-gray-700 mb-2">Customer Email <span class="text-red-400">*</span></label>
+                            <input type="email" id="customerEmail" name="customerEmail" required placeholder="e.g., john@example.com" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
                             <p id="emailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                </svg>
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
                                 <span></span>
                             </p>
+                            <p class="text-xs text-gray-400 mt-1">Format: name@example.com</p>
                         </div>
                     </div>
-
-                    <!-- Submit Button -->
                     <div class="pt-2">
-                        <button
-                            type="submit"
-                            id="sendRequestBtn"
-                            class="w-full md:w-auto px-8 py-3.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
-                        >
-                            <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                            </svg>
+                        <button type="submit" id="sendRequestBtn" disabled class="w-full md:w-auto px-8 py-3.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:bg-teal-600">
+                            <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                             <span id="btnText">Send Review Request</span>
-                            <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         </button>
                     </div>
                 </form>
@@ -257,150 +218,86 @@
             <!-- RECENT REVIEW REQUESTS TABLE -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
                 <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                    </svg>
+                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                     Recent Review Requests
                 </h2>
-
-                <!-- Table Skeleton (shown while loading) -->
                 <div id="tableSkeleton" class="space-y-3">
                     <div class="skeleton rounded h-12 w-full"></div>
                     <div class="skeleton rounded h-12 w-full"></div>
                     <div class="skeleton rounded h-12 w-full"></div>
                 </div>
-
-                <!-- Table Content (hidden initially) -->
                 <div id="tableContent" class="hidden">
-                    <!-- Table container with horizontal scroll on mobile -->
                     <div class="overflow-x-auto -mx-6 md:mx-0">
                         <table class="w-full min-w-[600px]">
                             <thead>
                                 <tr class="border-b-2 border-gray-100">
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Customer</th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Email</th>
-                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Date Sent</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Sent</th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="requestsTableBody">
-                            </tbody>
+                            <tbody id="requestsTableBody"></tbody>
                         </table>
                     </div>
                 </div>
-
-                <!-- Empty State (hidden initially) -->
-                <div id="emptyState" class="hidden text-center py-12">
-                    <div class="text-6xl mb-4">&#128237;</div>
+                <div id="emptyState" class="hidden text-center py-16">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    </div>
                     <h3 class="text-xl font-semibold text-gray-700 mb-2">No review requests yet</h3>
-                    <p class="text-gray-500">Send your first review request using the form above!</p>
+                    <p class="text-gray-500 max-w-sm mx-auto">Send your first review request using the form above to start collecting customer reviews!</p>
+                </div>
+                <div id="tableError" class="hidden text-center py-12">
+                    <div class="text-red-500 mb-4"><svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg></div>
+                    <p class="text-gray-600 mb-4">Failed to load review requests</p>
+                    <button onclick="loadReviewRequests()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors">Try Again</button>
                 </div>
             </div>
-
         </div>
 
-        <!-- ========================================== -->
-        <!-- TAB CONTENT: CUSTOMERS                    -->
-        <!-- ========================================== -->
-        <div id="tabContentCustomers" class="tab-content hidden">
-
-            <!-- IMPORT BUTTON -->
-            <div class="mb-6 flex justify-end">
-                <button
-                    id="openImportModalBtn"
-                    class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200"
-                >
-                    <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                    </svg>
-                    Import from CSV
+        <!-- TAB CONTENT: CUSTOMERS -->
+        <div id="tabContentCustomers" class="tab-content tab-transition hidden">
+            <!-- SEARCH AND ACTIONS BAR -->
+            <div class="mb-6 flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <div class="relative flex-1 max-w-md">
+                    <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <input type="text" id="customerSearch" placeholder="Search customers..." class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all duration-200 placeholder-gray-400">
+                </div>
+                <button id="openImportModalBtn" class="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 hover:border-gray-300 transition-all duration-200">
+                    <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
+                    Import CSV
                 </button>
             </div>
 
             <!-- ADD CUSTOMER CARD -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 mb-8">
                 <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path>
-                    </svg>
+                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
                     Add Customer
                 </h2>
-
                 <form id="addCustomerForm" class="space-y-5">
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-
-                        <!-- Name Input -->
                         <div>
-                            <label for="newCustomerName" class="block text-sm font-semibold text-gray-700 mb-2">
-                                Name <span class="text-red-400">*</span>
-                            </label>
-                            <input
-                                type="text"
-                                id="newCustomerName"
-                                name="newCustomerName"
-                                required
-                                placeholder="e.g., John Smith"
-                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
-                            >
-                            <p id="newCustomerNameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span></span>
-                            </p>
+                            <label for="newCustomerName" class="block text-sm font-semibold text-gray-700 mb-2">Name <span class="text-red-400">*</span></label>
+                            <input type="text" id="newCustomerName" name="newCustomerName" required placeholder="e.g., John Smith" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                            <p id="newCustomerNameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg><span></span></p>
                         </div>
-
-                        <!-- Email Input -->
                         <div>
-                            <label for="newCustomerEmail" class="block text-sm font-semibold text-gray-700 mb-2">
-                                Email <span class="text-red-400">*</span>
-                            </label>
-                            <input
-                                type="email"
-                                id="newCustomerEmail"
-                                name="newCustomerEmail"
-                                required
-                                placeholder="e.g., john@example.com"
-                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
-                            >
-                            <p id="newCustomerEmailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                                </svg>
-                                <span></span>
-                            </p>
+                            <label for="newCustomerEmail" class="block text-sm font-semibold text-gray-700 mb-2">Email <span class="text-red-400">*</span></label>
+                            <input type="email" id="newCustomerEmail" name="newCustomerEmail" required placeholder="e.g., john@example.com" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                            <p id="newCustomerEmailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg><span></span></p>
                         </div>
-
-                        <!-- Phone Input (Optional) -->
                         <div>
-                            <label for="newCustomerPhone" class="block text-sm font-semibold text-gray-700 mb-2">
-                                Phone <span class="text-gray-400 font-normal">(optional)</span>
-                            </label>
-                            <input
-                                type="tel"
-                                id="newCustomerPhone"
-                                name="newCustomerPhone"
-                                placeholder="e.g., 555-123-4567"
-                                class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
-                            >
+                            <label for="newCustomerPhone" class="block text-sm font-semibold text-gray-700 mb-2">Phone <span class="text-gray-400 font-normal">(optional)</span></label>
+                            <input type="tel" id="newCustomerPhone" name="newCustomerPhone" placeholder="e.g., 555-123-4567" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
                         </div>
                     </div>
-
-                    <!-- Submit Button -->
                     <div class="pt-2">
-                        <button
-                            type="submit"
-                            id="saveCustomerBtn"
-                            class="w-full md:w-auto px-8 py-3.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
-                        >
-                            <svg id="saveCustomerIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                            </svg>
+                        <button type="submit" id="saveCustomerBtn" disabled class="w-full md:w-auto px-8 py-3.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 hover:shadow-lg hover:shadow-teal-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <svg id="saveCustomerIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                             <span id="saveCustomerText">Save Customer</span>
-                            <svg id="saveCustomerSpinner" class="hidden animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
+                            <svg id="saveCustomerSpinner" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
                         </button>
                     </div>
                 </form>
@@ -409,84 +306,59 @@
             <!-- CUSTOMERS TABLE -->
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
                 <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                    </svg>
+                    <svg class="w-6 h-6 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     All Customers
+                    <span id="customerCount" class="ml-2 text-sm font-normal text-gray-400"></span>
                 </h2>
-
-                <!-- Table Skeleton (shown while loading) -->
                 <div id="customersTableSkeleton" class="space-y-3">
                     <div class="skeleton rounded h-12 w-full"></div>
                     <div class="skeleton rounded h-12 w-full"></div>
                     <div class="skeleton rounded h-12 w-full"></div>
                 </div>
-
-                <!-- Table Content (hidden initially) -->
                 <div id="customersTableContent" class="hidden">
-                    <!-- Table container with horizontal scroll on mobile -->
                     <div class="overflow-x-auto -mx-6 md:mx-0">
-                        <table class="w-full min-w-[800px]">
+                        <table class="w-full min-w-[900px]">
                             <thead>
                                 <tr class="border-b-2 border-gray-100">
-                                    <th class="py-3 px-4 md:px-6 w-12">
-                                        <input
-                                            type="checkbox"
-                                            id="selectAllCustomers"
-                                            class="w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2 cursor-pointer"
-                                        >
-                                    </th>
+                                    <th class="py-3 px-4 md:px-6 w-12"><input type="checkbox" id="selectAllCustomers" class="w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2 cursor-pointer"></th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Name</th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Email</th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Phone</th>
-                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Date Added</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Added</th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="customersTableBody">
-                            </tbody>
+                            <tbody id="customersTableBody"></tbody>
                         </table>
                     </div>
                 </div>
-
-                <!-- Empty State (hidden initially) -->
-                <div id="customersEmptyState" class="hidden text-center py-12">
-                    <div class="text-6xl mb-4">&#128100;</div>
+                <div id="customersEmptyState" class="hidden text-center py-16">
+                    <div class="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                        <svg class="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </div>
                     <h3 class="text-xl font-semibold text-gray-700 mb-2">No customers yet</h3>
-                    <p class="text-gray-500">Add your first customer using the form above!</p>
+                    <p class="text-gray-500 max-w-sm mx-auto">Add your first customer using the form above or import from a CSV file!</p>
+                </div>
+                <div id="noSearchResults" class="hidden text-center py-12">
+                    <svg class="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    <p class="text-gray-500">No customers match your search</p>
                 </div>
             </div>
-
         </div>
-
     </main>
 
-    <!-- ============================================== -->
-    <!-- FLOATING ACTION BAR (for bulk selection)      -->
-    <!-- ============================================== -->
+    <!-- FLOATING ACTION BAR -->
     <div id="bulkActionBar" class="fixed bottom-0 left-0 right-0 z-40 hidden transform translate-y-full transition-transform duration-300">
         <div class="max-w-4xl mx-auto px-4 pb-6">
             <div class="bg-gray-900 rounded-2xl shadow-2xl px-6 py-4 flex items-center justify-between gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center">
-                        <span id="selectedCountBadge" class="text-white font-bold text-sm">0</span>
-                    </div>
+                    <div class="w-10 h-10 bg-teal-500 rounded-full flex items-center justify-center"><span id="selectedCountBadge" class="text-white font-bold text-sm">0</span></div>
                     <span id="selectedCountText" class="text-white font-medium">customers selected</span>
                 </div>
                 <div class="flex items-center gap-3">
-                    <button
-                        id="deselectAllBtn"
-                        class="px-4 py-2 text-gray-300 hover:text-white font-medium transition-colors duration-200"
-                    >
-                        Deselect All
-                    </button>
-                    <button
-                        id="bulkSendBtn"
-                        class="px-5 py-2.5 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-400 transition-all duration-200 flex items-center gap-2"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                        </svg>
+                    <button id="deselectAllBtn" class="px-4 py-2 text-gray-300 hover:text-white font-medium transition-colors duration-200">Deselect All</button>
+                    <button id="bulkSendBtn" class="px-5 py-2.5 bg-teal-500 text-white font-semibold rounded-xl hover:bg-teal-400 transition-all duration-200 flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                         Send Review Requests
                     </button>
                 </div>
@@ -494,194 +366,170 @@
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- BULK SEND CONFIRMATION MODAL                  -->
-    <!-- ============================================== -->
-    <div id="bulkSendModal" class="fixed inset-0 z-50 hidden">
-        <!-- Backdrop -->
-        <div id="bulkSendModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-
-        <!-- Modal Content -->
+    <!-- LOGOUT CONFIRMATION MODAL -->
+    <div id="logoutModal" class="fixed inset-0 z-50 hidden">
+        <div id="logoutModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden fade-in">
-                <!-- Header -->
-                <div class="px-6 py-4 border-b border-gray-100">
-                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                        </svg>
-                        Send Review Requests
-                    </h3>
-                </div>
-
-                <!-- Body -->
-                <div class="px-6 py-5">
-                    <p id="bulkSendConfirmText" class="text-gray-700 mb-4">
-                        Send review request to <strong id="bulkSendCount">0</strong> customers?
-                    </p>
-
-                    <!-- Customer List Preview -->
-                    <div id="bulkSendCustomerList" class="bg-gray-50 rounded-xl p-3 max-h-48 overflow-y-auto">
-                        <!-- Customer names will be inserted here -->
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden scale-in">
+                <div class="px-6 py-5 text-center">
+                    <div class="w-14 h-14 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
                     </div>
-
-                    <!-- Progress -->
-                    <div id="bulkSendProgress" class="hidden mt-4">
-                        <div class="flex items-center gap-3">
-                            <svg class="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span id="bulkSendProgressText" class="text-gray-700 font-medium">Sending...</span>
-                        </div>
-                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Log out?</h3>
+                    <p class="text-gray-500 text-sm">Are you sure you want to log out of your account?</p>
                 </div>
-
-                <!-- Footer -->
-                <div id="bulkSendFooter" class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-                    <button
-                        id="cancelBulkSendBtn"
-                        class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors duration-200"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        id="confirmBulkSendBtn"
-                        class="px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-all duration-200 flex items-center gap-2"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                        </svg>
-                        Send to All
-                    </button>
+                <div class="px-6 py-4 bg-gray-50 flex gap-3">
+                    <button id="cancelLogoutBtn" class="flex-1 px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors duration-200">Cancel</button>
+                    <button id="confirmLogoutBtn" class="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition-colors duration-200">Log Out</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- CSV IMPORT MODAL                              -->
-    <!-- ============================================== -->
-    <div id="importModal" class="fixed inset-0 z-50 hidden">
-        <!-- Backdrop -->
-        <div id="importModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
-
-        <!-- Modal Content -->
+    <!-- EDIT CUSTOMER MODAL -->
+    <div id="editCustomerModal" class="fixed inset-0 z-50 hidden">
+        <div id="editCustomerModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
         <div class="absolute inset-0 flex items-center justify-center p-4">
-            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden fade-in">
-                <!-- Header -->
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden scale-in">
                 <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
-                        </svg>
-                        Import Customers from CSV
-                    </h3>
-                    <button id="closeImportModalBtn" class="text-gray-400 hover:text-gray-600 transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
+                    <h3 class="text-lg font-bold text-gray-800">Edit Customer</h3>
+                    <button id="closeEditModalBtn" class="text-gray-400 hover:text-gray-600 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <form id="editCustomerForm" class="px-6 py-5 space-y-4">
+                    <input type="hidden" id="editCustomerId">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Name <span class="text-red-400">*</span></label>
+                        <input type="text" id="editCustomerName" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email <span class="text-red-400">*</span></label>
+                        <input type="email" id="editCustomerEmail" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
+                        <input type="tel" id="editCustomerPhone" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 focus:bg-white outline-none transition-all">
+                    </div>
+                </form>
+                <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button type="button" id="cancelEditBtn" class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors">Cancel</button>
+                    <button type="submit" form="editCustomerForm" id="saveEditBtn" class="px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-all flex items-center gap-2">
+                        <span>Save Changes</span>
+                        <svg id="saveEditSpinner" class="hidden animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
 
-                <!-- Body -->
+    <!-- DELETE CONFIRMATION MODAL -->
+    <div id="deleteModal" class="fixed inset-0 z-50 hidden">
+        <div id="deleteModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden scale-in">
+                <div class="px-6 py-5 text-center">
+                    <div class="w-14 h-14 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Delete Customer?</h3>
+                    <p class="text-gray-500 text-sm">This action cannot be undone. The customer "<span id="deleteCustomerName" class="font-medium"></span>" will be permanently removed.</p>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 flex gap-3">
+                    <button id="cancelDeleteBtn" class="flex-1 px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors">Cancel</button>
+                    <button id="confirmDeleteBtn" class="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition-colors flex items-center justify-center gap-2">
+                        <span>Delete</span>
+                        <svg id="deleteSpinner" class="hidden animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BULK SEND CONFIRMATION MODAL -->
+    <div id="bulkSendModal" class="fixed inset-0 z-50 hidden">
+        <div id="bulkSendModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden scale-in">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>Send Review Requests</h3>
+                </div>
+                <div class="px-6 py-5">
+                    <p class="text-gray-700 mb-4">Send review request to <strong id="bulkSendCount">0</strong> customers?</p>
+                    <div id="bulkSendCustomerList" class="bg-gray-50 rounded-xl p-3 max-h-48 overflow-y-auto"></div>
+                    <div id="bulkSendProgress" class="hidden mt-4">
+                        <div class="flex items-center gap-3"><svg class="animate-spin h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span id="bulkSendProgressText" class="text-gray-700 font-medium">Sending...</span></div>
+                    </div>
+                </div>
+                <div id="bulkSendFooter" class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+                    <button id="cancelBulkSendBtn" class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors">Cancel</button>
+                    <button id="confirmBulkSendBtn" class="px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-all flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>Send to All</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CSV IMPORT MODAL -->
+    <div id="importModal" class="fixed inset-0 z-50 hidden">
+        <div id="importModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden scale-in">
+                <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2"><svg class="w-5 h-5 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>Import Customers from CSV</h3>
+                    <button id="closeImportModalBtn" class="text-gray-400 hover:text-gray-600 transition-colors"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
                 <div class="px-6 py-5 overflow-y-auto max-h-[60vh]">
-                    <!-- Dropzone -->
-                    <div
-                        id="csvDropzone"
-                        class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-all duration-200"
-                    >
+                    <div id="csvDropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-teal-400 hover:bg-teal-50/30 transition-all duration-200">
                         <input type="file" id="csvFileInput" accept=".csv" class="hidden">
                         <div id="dropzoneContent">
-                            <svg class="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                            </svg>
+                            <svg class="w-12 h-12 mx-auto text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             <p class="text-gray-600 font-medium mb-1">Drop your CSV file here</p>
                             <p class="text-gray-400 text-sm">or click to browse</p>
                         </div>
                         <div id="selectedFileInfo" class="hidden">
-                            <svg class="w-10 h-10 mx-auto text-teal-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                            </svg>
+                            <svg class="w-10 h-10 mx-auto text-teal-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                             <p id="selectedFileName" class="text-gray-800 font-medium"></p>
                             <p id="selectedFileRows" class="text-gray-500 text-sm mt-1"></p>
                             <button id="clearFileBtn" class="mt-2 text-sm text-red-500 hover:text-red-600 font-medium">Remove file</button>
                         </div>
                     </div>
-
-                    <!-- Example Format -->
                     <div class="mt-5 bg-gray-50 rounded-xl p-4">
                         <p class="text-sm font-semibold text-gray-700 mb-2">Expected CSV format:</p>
                         <pre class="text-xs text-gray-600 bg-white rounded-lg p-3 border border-gray-200 overflow-x-auto">name,email,phone
 John Doe,john@example.com,+12345678900
 Jane Smith,jane@example.com,+19876543210</pre>
-                        <p class="text-xs text-gray-500 mt-2">
-                            <strong>name</strong> and <strong>email</strong> are required. <strong>phone</strong> is optional.
-                        </p>
+                        <p class="text-xs text-gray-500 mt-2"><strong>name</strong> and <strong>email</strong> are required. <strong>phone</strong> is optional.</p>
                     </div>
-
-                    <!-- Validation Errors -->
                     <div id="importValidationErrors" class="hidden mt-4 bg-red-50 border border-red-200 rounded-xl p-4">
-                        <p class="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1">
-                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                            </svg>
-                            Validation Errors
-                        </p>
+                        <p class="text-sm font-semibold text-red-700 mb-2 flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>Validation Errors</p>
                         <ul id="importErrorsList" class="text-sm text-red-600 space-y-1 max-h-32 overflow-y-auto"></ul>
                     </div>
-
-                    <!-- Import Progress -->
                     <div id="importProgress" class="hidden mt-4">
-                        <div class="flex items-center gap-3">
-                            <svg class="animate-spin h-5 w-5 text-teal-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            <span id="importProgressText" class="text-gray-700 font-medium">Importing customers...</span>
-                        </div>
+                        <div class="flex items-center gap-3"><svg class="animate-spin h-5 w-5 text-teal-600" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg><span id="importProgressText" class="text-gray-700 font-medium">Importing customers...</span></div>
                     </div>
                 </div>
-
-                <!-- Footer -->
                 <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
-                    <button
-                        id="cancelImportBtn"
-                        class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors duration-200"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        id="uploadImportBtn"
-                        disabled
-                        class="px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
-                        </svg>
-                        Upload and Import
-                    </button>
+                    <button id="cancelImportBtn" class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors">Cancel</button>
+                    <button id="uploadImportBtn" disabled class="px-6 py-2.5 bg-teal-600 text-white font-semibold rounded-xl hover:bg-teal-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>Upload and Import</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ============================================== -->
-    <!-- JAVASCRIPT                                    -->
-    <!-- ============================================== -->
+    <!-- JAVASCRIPT -->
     <script>
         // =====================================================
         // CONFIGURATION
         // =====================================================
         const API_URL = 'http://localhost:5001/api';
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'login.html';
 
         // =====================================================
-        // AUTHENTICATION CHECK
+        // NETWORK STATUS
         // =====================================================
-        const token = localStorage.getItem('token');
-        if (!token) {
-            window.location.href = 'login.html';
-        }
+        const offlineBanner = document.getElementById('offlineBanner');
+        window.addEventListener('online', () => offlineBanner.classList.add('hidden'));
+        window.addEventListener('offline', () => offlineBanner.classList.remove('hidden'));
+        if (!navigator.onLine) offlineBanner.classList.remove('hidden');
 
         // =====================================================
         // ELEMENT REFERENCES
@@ -700,26 +548,24 @@ Jane Smith,jane@example.com,+19876543210</pre>
         const requestsTableBody = document.getElementById('requestsTableBody');
         const logoutBtn = document.getElementById('logoutBtn');
         const toastContainer = document.getElementById('toastContainer');
+        const successOverlay = document.getElementById('successOverlay');
 
-        // Stats elements
         const statsSkeleton = document.getElementById('statsSkeleton');
         const statsContent = document.getElementById('statsContent');
         const statRequestsSent = document.getElementById('statRequestsSent');
         const statReviewsReceived = document.getElementById('statReviewsReceived');
         const statConversionRate = document.getElementById('statConversionRate');
 
-        // Table elements
         const tableSkeleton = document.getElementById('tableSkeleton');
         const tableContent = document.getElementById('tableContent');
         const emptyState = document.getElementById('emptyState');
+        const tableError = document.getElementById('tableError');
 
-        // Tab elements
         const tabSendReviews = document.getElementById('tabSendReviews');
         const tabCustomers = document.getElementById('tabCustomers');
         const tabContentSendReviews = document.getElementById('tabContentSendReviews');
         const tabContentCustomers = document.getElementById('tabContentCustomers');
 
-        // Customer form elements
         const addCustomerForm = document.getElementById('addCustomerForm');
         const newCustomerName = document.getElementById('newCustomerName');
         const newCustomerEmail = document.getElementById('newCustomerEmail');
@@ -731,36 +577,157 @@ Jane Smith,jane@example.com,+19876543210</pre>
         const newCustomerNameError = document.getElementById('newCustomerNameError');
         const newCustomerEmailError = document.getElementById('newCustomerEmailError');
 
-        // Customers table elements
         const customersTableSkeleton = document.getElementById('customersTableSkeleton');
         const customersTableContent = document.getElementById('customersTableContent');
         const customersTableBody = document.getElementById('customersTableBody');
         const customersEmptyState = document.getElementById('customersEmptyState');
+        const customerSearch = document.getElementById('customerSearch');
+        const customerCount = document.getElementById('customerCount');
+        const noSearchResults = document.getElementById('noSearchResults');
+
+        let allCustomers = [];
+        let deleteCustomerId = null;
+
+        // =====================================================
+        // UTILITY FUNCTIONS
+        // =====================================================
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function isValidEmail(email) {
+            return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+        }
+
+        function formatRelativeTime(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins}m ago`;
+            if (diffHours < 24) return `${diffHours}h ago`;
+            if (diffDays < 7) return `${diffDays}d ago`;
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+        }
+
+        function formatExactDateTime(dateString) {
+            if (!dateString) return '';
+            return new Date(dateString).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+        }
+
+        function getStatusBadge(status) {
+            const badges = {
+                'sent': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Sent</span>',
+                'opened': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Opened</span>',
+                'clicked': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>Clicked</span>',
+                'reviewed': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Reviewed</span>'
+            };
+            return badges[status] || `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">${status || 'Unknown'}</span>`;
+        }
+
+        // =====================================================
+        // TOAST & SUCCESS ANIMATION
+        // =====================================================
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg min-w-[300px] max-w-md ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white slide-down`;
+            const icon = type === 'success' ? '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' : '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+            toast.innerHTML = `${icon}<span class="font-medium">${escapeHtml(message)}</span><button class="ml-auto hover:opacity-80" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
+            toastContainer.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('slide-down'); toast.classList.add('slide-up'); setTimeout(() => toast.remove(), 300); }, type === 'success' ? 3000 : 5000);
+        }
+
+        function showSuccessAnimation() {
+            successOverlay.classList.remove('hidden');
+            setTimeout(() => successOverlay.classList.add('hidden'), 1000);
+        }
+
+        // =====================================================
+        // FORM VALIDATION (Real-time)
+        // =====================================================
+        function validateReviewForm() {
+            const name = customerNameInput.value.trim();
+            const email = customerEmailInput.value.trim();
+            let valid = true;
+
+            nameError.classList.add('hidden');
+            emailError.classList.add('hidden');
+            customerNameInput.classList.remove('border-red-400');
+            customerEmailInput.classList.remove('border-red-400');
+
+            if (!name) valid = false;
+            if (!email || !isValidEmail(email)) valid = false;
+
+            sendRequestBtn.disabled = !valid;
+            return valid;
+        }
+
+        function validateCustomerForm() {
+            const name = newCustomerName.value.trim();
+            const email = newCustomerEmail.value.trim();
+            let valid = true;
+
+            newCustomerNameError.classList.add('hidden');
+            newCustomerEmailError.classList.add('hidden');
+
+            if (!name) valid = false;
+            if (!email || !isValidEmail(email)) valid = false;
+
+            saveCustomerBtn.disabled = !valid;
+            return valid;
+        }
+
+        customerNameInput.addEventListener('input', validateReviewForm);
+        customerEmailInput.addEventListener('input', validateReviewForm);
+        newCustomerName.addEventListener('input', validateCustomerForm);
+        newCustomerEmail.addEventListener('input', validateCustomerForm);
+
+        // Show error on blur if invalid
+        customerEmailInput.addEventListener('blur', () => {
+            const email = customerEmailInput.value.trim();
+            if (email && !isValidEmail(email)) {
+                emailError.querySelector('span').textContent = 'Please enter a valid email';
+                emailError.classList.remove('hidden');
+                customerEmailInput.classList.add('border-red-400');
+            }
+        });
+
+        newCustomerEmail.addEventListener('blur', () => {
+            const email = newCustomerEmail.value.trim();
+            if (email && !isValidEmail(email)) {
+                newCustomerEmailError.querySelector('span').textContent = 'Please enter a valid email';
+                newCustomerEmailError.classList.remove('hidden');
+            }
+        });
 
         // =====================================================
         // TAB SWITCHING
         // =====================================================
         function switchTab(tabName) {
-            // Update tab buttons
-            const tabButtons = document.querySelectorAll('.tab-button');
-            tabButtons.forEach(btn => {
+            document.querySelectorAll('.tab-button').forEach(btn => {
                 if (btn.dataset.tab === tabName) {
-                    btn.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                    btn.classList.remove('border-transparent', 'text-gray-500');
                     btn.classList.add('border-teal-500', 'text-teal-600');
                 } else {
                     btn.classList.remove('border-teal-500', 'text-teal-600');
-                    btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+                    btn.classList.add('border-transparent', 'text-gray-500');
                 }
             });
-
-            // Update tab content
             if (tabName === 'send-reviews') {
                 tabContentSendReviews.classList.remove('hidden');
                 tabContentCustomers.classList.add('hidden');
-            } else if (tabName === 'customers') {
+            } else {
                 tabContentSendReviews.classList.add('hidden');
                 tabContentCustomers.classList.remove('hidden');
-                loadCustomers(); // Load customers when switching to tab
+                loadCustomers();
             }
         }
 
@@ -768,169 +735,49 @@ Jane Smith,jane@example.com,+19876543210</pre>
         tabCustomers.addEventListener('click', () => switchTab('customers'));
 
         // =====================================================
-        // TOAST NOTIFICATION SYSTEM
+        // API CALLS WITH ERROR HANDLING
         // =====================================================
-        function showToast(message, type = 'success') {
-            // Create toast element
-            const toast = document.createElement('div');
-            toast.className = `
-                flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg min-w-[300px] max-w-md
-                ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white
-                slide-down
-            `;
+        async function apiCall(url, options = {}) {
+            if (!navigator.onLine) {
+                throw new Error('You are offline. Check your connection.');
+            }
+            options.headers = { ...options.headers, 'Authorization': `Bearer ${token}` };
+            if (options.body) options.headers['Content-Type'] = 'application/json';
 
-            // Icon based on type
-            const icon = type === 'success'
-                ? `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                   </svg>`
-                : `<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                   </svg>`;
+            const response = await fetch(url, options);
+            const data = await response.json();
 
-            toast.innerHTML = `
-                ${icon}
-                <span class="font-medium">${escapeHtml(message)}</span>
-                <button class="ml-auto hover:opacity-80 transition-opacity" onclick="this.parentElement.remove()">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                    </svg>
-                </button>
-            `;
-
-            // Add to container
-            toastContainer.appendChild(toast);
-
-            // Auto-dismiss after delay (3s for success, 5s for error)
-            const delay = type === 'success' ? 3000 : 5000;
-            setTimeout(() => {
-                toast.classList.remove('slide-down');
-                toast.classList.add('slide-up');
-                setTimeout(() => toast.remove(), 300);
-            }, delay);
+            if (!response.ok) {
+                throw new Error(data.message || data.error || 'Something went wrong');
+            }
+            return data;
         }
 
         // =====================================================
-        // FORM VALIDATION
-        // =====================================================
-        function validateForm() {
-            let isValid = true;
-
-            // Hide previous errors
-            nameError.classList.add('hidden');
-            emailError.classList.add('hidden');
-
-            const name = customerNameInput.value.trim();
-            const email = customerEmailInput.value.trim();
-
-            if (!name) {
-                nameError.querySelector('span').textContent = 'Please enter customer name';
-                nameError.classList.remove('hidden');
-                isValid = false;
-            }
-
-            if (!email) {
-                emailError.querySelector('span').textContent = 'Please enter customer email';
-                emailError.classList.remove('hidden');
-                isValid = false;
-            } else if (!isValidEmail(email)) {
-                emailError.querySelector('span').textContent = 'Please enter a valid email address';
-                emailError.classList.remove('hidden');
-                isValid = false;
-            }
-
-            return isValid;
-        }
-
-        function validateCustomerForm() {
-            let isValid = true;
-
-            // Hide previous errors
-            newCustomerNameError.classList.add('hidden');
-            newCustomerEmailError.classList.add('hidden');
-
-            const name = newCustomerName.value.trim();
-            const email = newCustomerEmail.value.trim();
-
-            if (!name) {
-                newCustomerNameError.querySelector('span').textContent = 'Please enter customer name';
-                newCustomerNameError.classList.remove('hidden');
-                isValid = false;
-            }
-
-            if (!email) {
-                newCustomerEmailError.querySelector('span').textContent = 'Please enter customer email';
-                newCustomerEmailError.classList.remove('hidden');
-                isValid = false;
-            } else if (!isValidEmail(email)) {
-                newCustomerEmailError.querySelector('span').textContent = 'Please enter a valid email address';
-                newCustomerEmailError.classList.remove('hidden');
-                isValid = false;
-            }
-
-            return isValid;
-        }
-
-        function isValidEmail(email) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return emailRegex.test(email);
-        }
-
-        // =====================================================
-        // LOAD USER DATA
+        // LOAD DATA
         // =====================================================
         async function loadUserData() {
             try {
-                const response = await fetch(`${API_URL}/auth/me`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    const businessName = data.business?.business_name || 'Your Business';
-                    headerBusinessName.textContent = businessName;
-                    mobileBusinessName.textContent = businessName;
-                    localStorage.setItem('user', JSON.stringify(data.user));
-                    localStorage.setItem('business', JSON.stringify(data.business));
-                } else {
-                    logout();
-                }
+                const data = await apiCall(`${API_URL}/auth/me`);
+                const businessName = data.business?.business_name || 'Your Business';
+                headerBusinessName.textContent = businessName;
+                mobileBusinessName.textContent = businessName;
+                localStorage.setItem('business', JSON.stringify(data.business));
             } catch (error) {
-                console.error('Failed to load user data:', error);
                 headerBusinessName.textContent = 'Dashboard';
                 mobileBusinessName.textContent = 'Dashboard';
             }
         }
 
-        // =====================================================
-        // LOAD DASHBOARD STATS
-        // =====================================================
         async function loadDashboardStats() {
             try {
-                const response = await fetch(`${API_URL}/dashboard/stats`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const data = await response.json();
-
-                // Hide skeleton, show content
+                const data = await apiCall(`${API_URL}/dashboard/stats`);
                 statsSkeleton.classList.add('hidden');
                 statsContent.classList.remove('hidden');
-
-                if (response.ok) {
-                    statRequestsSent.textContent = data.total_requests_sent || 0;
-                    statReviewsReceived.textContent = data.reviews_received || 0;
-                    statConversionRate.textContent = `${data.conversion_rate || 0}%`;
-                } else {
-                    statRequestsSent.textContent = '0';
-                    statReviewsReceived.textContent = '0';
-                    statConversionRate.textContent = '0%';
-                }
+                statRequestsSent.textContent = data.total_requests_sent || 0;
+                statReviewsReceived.textContent = data.reviews_received || 0;
+                statConversionRate.textContent = `${data.conversion_rate || 0}%`;
             } catch (error) {
-                console.error('Error fetching dashboard stats:', error);
                 statsSkeleton.classList.add('hidden');
                 statsContent.classList.remove('hidden');
                 statRequestsSent.textContent = '0';
@@ -939,178 +786,164 @@ Jane Smith,jane@example.com,+19876543210</pre>
             }
         }
 
-        // =====================================================
-        // LOAD REVIEW REQUESTS
-        // =====================================================
         async function loadReviewRequests() {
-            try {
-                const response = await fetch(`${API_URL}/review-requests`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const data = await response.json();
-
-                // Hide skeleton
-                tableSkeleton.classList.add('hidden');
-
-                if (response.ok && data.success) {
-                    displayReviewRequests(data.data);
-                } else {
-                    showEmptyState();
-                }
-            } catch (error) {
-                console.error('Failed to load review requests:', error);
-                tableSkeleton.classList.add('hidden');
-                showEmptyState();
-            }
-        }
-
-        // =====================================================
-        // DISPLAY REVIEW REQUESTS
-        // =====================================================
-        function displayReviewRequests(requests) {
-            if (!requests || requests.length === 0) {
-                showEmptyState();
-                return;
-            }
-
-            // Hide empty state, show table
-            emptyState.classList.add('hidden');
-            tableContent.classList.remove('hidden');
-            tableContent.classList.add('fade-in');
-
-            const recentRequests = requests.slice(0, 10);
-
-            requestsTableBody.innerHTML = recentRequests.map((request, index) => `
-                <tr class="border-b border-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-teal-50/50 transition-colors duration-150">
-                    <td class="py-4 px-4 md:px-6">
-                        <span class="font-medium text-gray-800">${escapeHtml(request.customer_name)}</span>
-                    </td>
-                    <td class="py-4 px-4 md:px-6 text-gray-600">${escapeHtml(request.customer_email)}</td>
-                    <td class="py-4 px-4 md:px-6 text-gray-500 text-sm">${formatDateTime(request.sent_at)}</td>
-                    <td class="py-4 px-4 md:px-6">${getStatusBadge(request.status)}</td>
-                </tr>
-            `).join('');
-        }
-
-        function showEmptyState() {
+            tableSkeleton.classList.remove('hidden');
             tableContent.classList.add('hidden');
-            emptyState.classList.remove('hidden');
-            emptyState.classList.add('fade-in');
-        }
+            emptyState.classList.add('hidden');
+            tableError.classList.add('hidden');
 
-        // =====================================================
-        // LOAD CUSTOMERS
-        // =====================================================
-        async function loadCustomers() {
             try {
-                const response = await fetch(`${API_URL}/customers`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-
-                const data = await response.json();
-
-                // Hide skeleton
-                customersTableSkeleton.classList.add('hidden');
-
-                if (response.ok && data.success) {
-                    displayCustomers(data.data);
+                const data = await apiCall(`${API_URL}/review-requests`);
+                tableSkeleton.classList.add('hidden');
+                if (data.success && data.data?.length > 0) {
+                    tableContent.classList.remove('hidden');
+                    requestsTableBody.innerHTML = data.data.slice(0, 10).map((r, i) => `
+                        <tr class="border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-teal-50/50 transition-colors">
+                            <td class="py-4 px-4 md:px-6"><span class="font-medium text-gray-800">${escapeHtml(r.customer_name)}</span></td>
+                            <td class="py-4 px-4 md:px-6 text-gray-600">${escapeHtml(r.customer_email)}</td>
+                            <td class="py-4 px-4 md:px-6 text-gray-500 text-sm tooltip" data-tooltip="${formatExactDateTime(r.sent_at)}">${formatRelativeTime(r.sent_at)}</td>
+                            <td class="py-4 px-4 md:px-6">${getStatusBadge(r.status)}</td>
+                        </tr>
+                    `).join('');
                 } else {
-                    showCustomersEmptyState();
+                    emptyState.classList.remove('hidden');
                 }
             } catch (error) {
-                console.error('Failed to load customers:', error);
-                customersTableSkeleton.classList.add('hidden');
-                showCustomersEmptyState();
+                tableSkeleton.classList.add('hidden');
+                tableError.classList.remove('hidden');
             }
         }
 
-        // =====================================================
-        // DISPLAY CUSTOMERS
-        // =====================================================
-        let allCustomers = []; // Store for bulk operations
+        async function loadCustomers() {
+            customersTableSkeleton.classList.remove('hidden');
+            customersTableContent.classList.add('hidden');
+            customersEmptyState.classList.add('hidden');
+            noSearchResults.classList.add('hidden');
+
+            try {
+                const data = await apiCall(`${API_URL}/customers`);
+                customersTableSkeleton.classList.add('hidden');
+                allCustomers = data.data || [];
+                customerCount.textContent = allCustomers.length > 0 ? `(${allCustomers.length})` : '';
+                displayCustomers(allCustomers);
+            } catch (error) {
+                customersTableSkeleton.classList.add('hidden');
+                showToast(error.message, 'error');
+            }
+        }
 
         function displayCustomers(customers) {
+            const selectAll = document.getElementById('selectAllCustomers');
+            if (selectAll) selectAll.checked = false;
+
             if (!customers || customers.length === 0) {
-                showCustomersEmptyState();
-                allCustomers = [];
+                customersTableContent.classList.add('hidden');
+                if (customerSearch.value.trim()) {
+                    noSearchResults.classList.remove('hidden');
+                    customersEmptyState.classList.add('hidden');
+                } else {
+                    customersEmptyState.classList.remove('hidden');
+                    noSearchResults.classList.add('hidden');
+                }
+                updateSelectionUI();
                 return;
             }
 
-            allCustomers = customers; // Store for bulk operations
-
-            // Hide empty state, show table
             customersEmptyState.classList.add('hidden');
+            noSearchResults.classList.add('hidden');
             customersTableContent.classList.remove('hidden');
-            customersTableContent.classList.add('fade-in');
 
-            // Reset select all checkbox
-            const selectAllCheckbox = document.getElementById('selectAllCustomers');
-            if (selectAllCheckbox) selectAllCheckbox.checked = false;
-
-            customersTableBody.innerHTML = customers.map((customer, index) => `
-                <tr class="border-b border-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-teal-50/50 transition-colors duration-150 customer-row" data-customer-id="${customer.id}">
+            customersTableBody.innerHTML = customers.map((c, i) => `
+                <tr class="border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-teal-50/50 transition-colors customer-row" data-customer-id="${c.id}">
                     <td class="py-4 px-4 md:px-6">
-                        <input
-                            type="checkbox"
-                            class="customer-checkbox w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 focus:ring-2 cursor-pointer"
-                            data-customer-id="${customer.id}"
-                            data-customer-name="${escapeHtml(customer.name)}"
-                            data-customer-email="${escapeHtml(customer.email)}"
-                        >
+                        <input type="checkbox" class="customer-checkbox w-4 h-4 text-teal-600 bg-gray-100 border-gray-300 rounded focus:ring-teal-500 cursor-pointer" data-customer-id="${c.id}" data-customer-name="${escapeHtml(c.name)}" data-customer-email="${escapeHtml(c.email)}">
                     </td>
+                    <td class="py-4 px-4 md:px-6"><span class="font-medium text-gray-800">${escapeHtml(c.name)}</span></td>
+                    <td class="py-4 px-4 md:px-6 text-gray-600">${escapeHtml(c.email)}</td>
+                    <td class="py-4 px-4 md:px-6 text-gray-500">${c.phone ? escapeHtml(c.phone) : '<span class="text-gray-300">-</span>'}</td>
+                    <td class="py-4 px-4 md:px-6 text-gray-500 text-sm tooltip" data-tooltip="${formatExactDateTime(c.created_at)}">${formatRelativeTime(c.created_at)}</td>
                     <td class="py-4 px-4 md:px-6">
-                        <span class="font-medium text-gray-800">${escapeHtml(customer.name)}</span>
-                    </td>
-                    <td class="py-4 px-4 md:px-6 text-gray-600">${escapeHtml(customer.email)}</td>
-                    <td class="py-4 px-4 md:px-6 text-gray-500">${customer.phone ? escapeHtml(customer.phone) : '<span class="text-gray-400">-</span>'}</td>
-                    <td class="py-4 px-4 md:px-6 text-gray-500 text-sm">${formatDate(customer.created_at)}</td>
-                    <td class="py-4 px-4 md:px-6">
-                        <button
-                            onclick="sendReviewToCustomer('${escapeHtml(customer.name)}', '${escapeHtml(customer.email)}')"
-                            class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 font-medium text-sm rounded-lg hover:bg-teal-100 transition-colors duration-150"
-                        >
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                            </svg>
-                            Send Review Request
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="sendReviewToCustomer('${escapeHtml(c.name)}', '${escapeHtml(c.email)}')" class="p-2 text-teal-600 hover:bg-teal-50 rounded-lg transition-colors" title="Send Review Request">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                            </button>
+                            <button onclick="openEditModal('${c.id}', '${escapeHtml(c.name)}', '${escapeHtml(c.email)}', '${escapeHtml(c.phone || '')}')" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+                            </button>
+                            <button onclick="openDeleteModal('${c.id}', '${escapeHtml(c.name)}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `).join('');
-
-            // Update selection state
             updateSelectionUI();
         }
 
-        function showCustomersEmptyState() {
-            customersTableContent.classList.add('hidden');
-            customersEmptyState.classList.remove('hidden');
-            customersEmptyState.classList.add('fade-in');
+        // =====================================================
+        // SEARCH
+        // =====================================================
+        customerSearch.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            if (!query) {
+                displayCustomers(allCustomers);
+                return;
+            }
+            const filtered = allCustomers.filter(c =>
+                c.name.toLowerCase().includes(query) ||
+                c.email.toLowerCase().includes(query) ||
+                (c.phone && c.phone.includes(query))
+            );
+            displayCustomers(filtered);
+        });
+
+        // =====================================================
+        // SEND REVIEW REQUEST
+        // =====================================================
+        async function sendReviewRequest(event) {
+            event.preventDefault();
+            if (!validateReviewForm()) return;
+
+            const customerName = customerNameInput.value.trim();
+            const customerEmail = customerEmailInput.value.trim();
+
+            sendRequestBtn.disabled = true;
+            btnText.textContent = 'Sending...';
+            btnIcon.classList.add('hidden');
+            btnSpinner.classList.remove('hidden');
+
+            try {
+                await apiCall(`${API_URL}/review-requests/send`, {
+                    method: 'POST',
+                    body: JSON.stringify({ customer_name: customerName, customer_email: customerEmail })
+                });
+                showSuccessAnimation();
+                showToast('Review request sent successfully!', 'success');
+                customerNameInput.value = '';
+                customerEmailInput.value = '';
+                validateReviewForm();
+                loadDashboardStats();
+                loadReviewRequests();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+
+            sendRequestBtn.disabled = false;
+            btnText.textContent = 'Send Review Request';
+            btnIcon.classList.remove('hidden');
+            btnSpinner.classList.add('hidden');
+            validateReviewForm();
         }
 
-        // =====================================================
-        // SEND REVIEW TO CUSTOMER (from Customers tab)
-        // =====================================================
         function sendReviewToCustomer(name, email) {
-            // Switch to Send Reviews tab
             switchTab('send-reviews');
-
-            // Fill in the form
             customerNameInput.value = name;
             customerEmailInput.value = email;
-
-            // Scroll to form and focus
+            validateReviewForm();
             customerNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-            // Highlight the form briefly
             const formCard = reviewRequestForm.closest('.bg-white');
             formCard.classList.add('ring-2', 'ring-teal-500', 'ring-offset-2');
-            setTimeout(() => {
-                formCard.classList.remove('ring-2', 'ring-teal-500', 'ring-offset-2');
-            }, 2000);
+            setTimeout(() => formCard.classList.remove('ring-2', 'ring-teal-500', 'ring-offset-2'), 2000);
         }
 
         // =====================================================
@@ -1118,172 +951,152 @@ Jane Smith,jane@example.com,+19876543210</pre>
         // =====================================================
         async function addCustomer(event) {
             event.preventDefault();
-
             if (!validateCustomerForm()) return;
 
-            const name = newCustomerName.value.trim();
-            const email = newCustomerEmail.value.trim();
-            const phone = newCustomerPhone.value.trim() || null;
-
-            // Show loading state
             saveCustomerBtn.disabled = true;
             saveCustomerText.textContent = 'Saving...';
             saveCustomerIcon.classList.add('hidden');
             saveCustomerSpinner.classList.remove('hidden');
 
             try {
-                const response = await fetch(`${API_URL}/customers`, {
+                await apiCall(`${API_URL}/customers`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ name, email, phone })
+                    body: JSON.stringify({
+                        name: newCustomerName.value.trim(),
+                        email: newCustomerEmail.value.trim(),
+                        phone: newCustomerPhone.value.trim() || null
+                    })
                 });
-
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    showToast('Customer added successfully!', 'success');
-                    newCustomerName.value = '';
-                    newCustomerEmail.value = '';
-                    newCustomerPhone.value = '';
-                    loadCustomers();
-                } else {
-                    showToast(data.message || 'Failed to add customer', 'error');
-                }
+                showSuccessAnimation();
+                showToast('Customer added successfully!', 'success');
+                newCustomerName.value = '';
+                newCustomerEmail.value = '';
+                newCustomerPhone.value = '';
+                validateCustomerForm();
+                loadCustomers();
             } catch (error) {
-                console.error('Error adding customer:', error);
-                showToast('Cannot connect to server. Please try again.', 'error');
+                showToast(error.message, 'error');
             }
 
-            // Reset button state
             saveCustomerBtn.disabled = false;
             saveCustomerText.textContent = 'Save Customer';
             saveCustomerIcon.classList.remove('hidden');
             saveCustomerSpinner.classList.add('hidden');
+            validateCustomerForm();
         }
 
         // =====================================================
-        // HELPER FUNCTIONS
+        // EDIT CUSTOMER
         // =====================================================
-        function formatDateTime(dateString) {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            }) + ' at ' + date.toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-            });
+        const editModal = document.getElementById('editCustomerModal');
+        const editForm = document.getElementById('editCustomerForm');
+        const editCustomerId = document.getElementById('editCustomerId');
+        const editCustomerName = document.getElementById('editCustomerName');
+        const editCustomerEmail = document.getElementById('editCustomerEmail');
+        const editCustomerPhone = document.getElementById('editCustomerPhone');
+        const saveEditBtn = document.getElementById('saveEditBtn');
+        const saveEditSpinner = document.getElementById('saveEditSpinner');
+
+        function openEditModal(id, name, email, phone) {
+            editCustomerId.value = id;
+            editCustomerName.value = name;
+            editCustomerEmail.value = email;
+            editCustomerPhone.value = phone;
+            editModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         }
 
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric'
-            });
+        function closeEditModal() {
+            editModal.classList.add('hidden');
+            document.body.style.overflow = '';
         }
 
-        function getStatusBadge(status) {
-            const badges = {
-                'sent': `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">
-                           <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-                           Sent
-                         </span>`,
-                'opened': `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">
-                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                            Opened
-                          </span>`,
-                'clicked': `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700">
-                             <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                             Clicked
-                           </span>`,
-                'reviewed': `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
-                              <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                              Reviewed
-                            </span>`
-            };
-            return badges[status] || `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-                                        <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
-                                        ${capitalizeFirst(status || 'Unknown')}
-                                      </span>`;
-        }
-
-        function capitalizeFirst(str) {
-            if (!str) return '';
-            return str.charAt(0).toUpperCase() + str.slice(1);
-        }
-
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
-
-        // =====================================================
-        // SEND REVIEW REQUEST
-        // =====================================================
-        async function sendReviewRequest(event) {
-            event.preventDefault();
-
-            if (!validateForm()) return;
-
-            const customerName = customerNameInput.value.trim();
-            const customerEmail = customerEmailInput.value.trim();
-
-            // Show loading state
-            sendRequestBtn.disabled = true;
-            btnText.textContent = 'Sending...';
-            btnIcon.classList.add('hidden');
-            btnSpinner.classList.remove('hidden');
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            saveEditBtn.disabled = true;
+            saveEditSpinner.classList.remove('hidden');
 
             try {
-                const response = await fetch(`${API_URL}/review-requests/send`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
+                await apiCall(`${API_URL}/customers/${editCustomerId.value}`, {
+                    method: 'PUT',
                     body: JSON.stringify({
-                        customer_name: customerName,
-                        customer_email: customerEmail
+                        name: editCustomerName.value.trim(),
+                        email: editCustomerEmail.value.trim(),
+                        phone: editCustomerPhone.value.trim() || null
                     })
                 });
-
-                const data = await response.json();
-
-                if (response.ok && data.success) {
-                    showToast('Review request sent successfully!', 'success');
-                    customerNameInput.value = '';
-                    customerEmailInput.value = '';
-                    loadDashboardStats();
-                    loadReviewRequests();
-                } else {
-                    showToast(data.message || 'Failed to send review request', 'error');
-                }
+                showToast('Customer updated successfully!', 'success');
+                closeEditModal();
+                loadCustomers();
             } catch (error) {
-                console.error('Error sending review request:', error);
-                showToast('Cannot connect to server. Please try again.', 'error');
+                showToast(error.message, 'error');
             }
 
-            // Reset button state
-            sendRequestBtn.disabled = false;
-            btnText.textContent = 'Send Review Request';
-            btnIcon.classList.remove('hidden');
-            btnSpinner.classList.add('hidden');
+            saveEditBtn.disabled = false;
+            saveEditSpinner.classList.add('hidden');
+        });
+
+        document.getElementById('closeEditModalBtn').addEventListener('click', closeEditModal);
+        document.getElementById('cancelEditBtn').addEventListener('click', closeEditModal);
+        document.getElementById('editCustomerModalBackdrop').addEventListener('click', closeEditModal);
+
+        // =====================================================
+        // DELETE CUSTOMER
+        // =====================================================
+        const deleteModal = document.getElementById('deleteModal');
+        const deleteCustomerNameSpan = document.getElementById('deleteCustomerName');
+        const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+        const deleteSpinner = document.getElementById('deleteSpinner');
+
+        function openDeleteModal(id, name) {
+            deleteCustomerId = id;
+            deleteCustomerNameSpan.textContent = name;
+            deleteModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
         }
+
+        function closeDeleteModal() {
+            deleteModal.classList.add('hidden');
+            document.body.style.overflow = '';
+            deleteCustomerId = null;
+        }
+
+        confirmDeleteBtn.addEventListener('click', async () => {
+            if (!deleteCustomerId) return;
+            confirmDeleteBtn.disabled = true;
+            deleteSpinner.classList.remove('hidden');
+
+            try {
+                await apiCall(`${API_URL}/customers/${deleteCustomerId}`, { method: 'DELETE' });
+                showToast('Customer deleted successfully!', 'success');
+                closeDeleteModal();
+                loadCustomers();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+
+            confirmDeleteBtn.disabled = false;
+            deleteSpinner.classList.add('hidden');
+        });
+
+        document.getElementById('cancelDeleteBtn').addEventListener('click', closeDeleteModal);
+        document.getElementById('deleteModalBackdrop').addEventListener('click', closeDeleteModal);
 
         // =====================================================
         // LOGOUT
         // =====================================================
+        const logoutModal = document.getElementById('logoutModal');
+
+        function openLogoutModal() {
+            logoutModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeLogoutModal() {
+            logoutModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
         function logout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
@@ -1291,284 +1104,21 @@ Jane Smith,jane@example.com,+19876543210</pre>
             window.location.href = 'login.html';
         }
 
-        // =====================================================
-        // CSV IMPORT FUNCTIONALITY
-        // =====================================================
-        const importModal = document.getElementById('importModal');
-        const importModalBackdrop = document.getElementById('importModalBackdrop');
-        const openImportModalBtn = document.getElementById('openImportModalBtn');
-        const closeImportModalBtn = document.getElementById('closeImportModalBtn');
-        const cancelImportBtn = document.getElementById('cancelImportBtn');
-        const uploadImportBtn = document.getElementById('uploadImportBtn');
-        const csvDropzone = document.getElementById('csvDropzone');
-        const csvFileInput = document.getElementById('csvFileInput');
-        const dropzoneContent = document.getElementById('dropzoneContent');
-        const selectedFileInfo = document.getElementById('selectedFileInfo');
-        const selectedFileName = document.getElementById('selectedFileName');
-        const selectedFileRows = document.getElementById('selectedFileRows');
-        const clearFileBtn = document.getElementById('clearFileBtn');
-        const importValidationErrors = document.getElementById('importValidationErrors');
-        const importErrorsList = document.getElementById('importErrorsList');
-        const importProgress = document.getElementById('importProgress');
-        const importProgressText = document.getElementById('importProgressText');
-
-        let parsedCustomers = [];
-
-        function openImportModal() {
-            importModal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            resetImportModal();
-        }
-
-        function closeImportModal() {
-            importModal.classList.add('hidden');
-            document.body.style.overflow = '';
-            resetImportModal();
-        }
-
-        function resetImportModal() {
-            csvFileInput.value = '';
-            parsedCustomers = [];
-            dropzoneContent.classList.remove('hidden');
-            selectedFileInfo.classList.add('hidden');
-            importValidationErrors.classList.add('hidden');
-            importProgress.classList.add('hidden');
-            uploadImportBtn.disabled = true;
-            importErrorsList.innerHTML = '';
-        }
-
-        function handleFileSelect(file) {
-            if (!file) return;
-
-            if (!file.name.endsWith('.csv')) {
-                showToast('Please select a CSV file', 'error');
-                return;
-            }
-
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    handleParsedCSV(results, file.name);
-                },
-                error: function(error) {
-                    showToast('Failed to parse CSV file: ' + error.message, 'error');
-                }
-            });
-        }
-
-        function handleParsedCSV(results, fileName) {
-            const { data, errors, meta } = results;
-
-            // Check for required columns
-            const headers = meta.fields || [];
-            const hasName = headers.some(h => h.toLowerCase() === 'name');
-            const hasEmail = headers.some(h => h.toLowerCase() === 'email');
-
-            if (!hasName || !hasEmail) {
-                showToast('CSV must have "name" and "email" columns', 'error');
-                return;
-            }
-
-            if (data.length === 0) {
-                showToast('CSV file is empty', 'error');
-                return;
-            }
-
-            // Normalize column names and validate rows
-            const validationErrors = [];
-            parsedCustomers = [];
-
-            data.forEach((row, index) => {
-                const rowNum = index + 2; // +2 because of header row and 0-indexing
-
-                // Normalize keys to lowercase
-                const normalizedRow = {};
-                Object.keys(row).forEach(key => {
-                    normalizedRow[key.toLowerCase().trim()] = row[key];
-                });
-
-                const name = (normalizedRow['name'] || '').trim();
-                const email = (normalizedRow['email'] || '').trim();
-                const phone = (normalizedRow['phone'] || '').trim();
-
-                // Validate
-                if (!name) {
-                    validationErrors.push({ row: rowNum, message: 'Name is required' });
-                    return;
-                }
-
-                if (!email) {
-                    validationErrors.push({ row: rowNum, message: 'Email is required' });
-                    return;
-                }
-
-                if (!isValidEmail(email)) {
-                    validationErrors.push({ row: rowNum, message: `Invalid email: ${email}` });
-                    return;
-                }
-
-                parsedCustomers.push({ name, email, phone: phone || null });
-            });
-
-            // Show file info
-            dropzoneContent.classList.add('hidden');
-            selectedFileInfo.classList.remove('hidden');
-            selectedFileName.textContent = fileName;
-            selectedFileRows.textContent = `${parsedCustomers.length} valid customer(s) found`;
-
-            // Show validation errors if any
-            if (validationErrors.length > 0) {
-                importValidationErrors.classList.remove('hidden');
-                importErrorsList.innerHTML = validationErrors.slice(0, 10).map(err =>
-                    `<li>Row ${err.row}: ${escapeHtml(err.message)}</li>`
-                ).join('');
-
-                if (validationErrors.length > 10) {
-                    importErrorsList.innerHTML += `<li class="text-gray-500">...and ${validationErrors.length - 10} more errors</li>`;
-                }
-            } else {
-                importValidationErrors.classList.add('hidden');
-            }
-
-            // Enable upload button if we have valid customers
-            uploadImportBtn.disabled = parsedCustomers.length === 0;
-        }
-
-        async function importCustomers() {
-            if (parsedCustomers.length === 0) return;
-
-            // Show progress
-            importProgress.classList.remove('hidden');
-            importProgressText.textContent = `Importing ${parsedCustomers.length} customer(s)...`;
-            uploadImportBtn.disabled = true;
-            cancelImportBtn.disabled = true;
-
-            try {
-                const response = await fetch(`${API_URL}/customers/import`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ customers: parsedCustomers })
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.success !== false) {
-                    const { success_count, skipped_count, error_count, errors } = data;
-
-                    let message = `Imported ${success_count} customer(s)`;
-                    if (skipped_count > 0) {
-                        message += `, ${skipped_count} skipped (already exist)`;
-                    }
-                    if (error_count > 0) {
-                        message += `, ${error_count} failed`;
-                    }
-
-                    showToast(message, error_count > 0 ? 'error' : 'success');
-
-                    // Show any server-side errors
-                    if (errors && errors.length > 0) {
-                        importValidationErrors.classList.remove('hidden');
-                        importErrorsList.innerHTML = errors.slice(0, 10).map(err =>
-                            `<li>Row ${err.row}: ${escapeHtml(err.message)}</li>`
-                        ).join('');
-                    }
-
-                    // Close modal and refresh if we had any successes
-                    if (success_count > 0) {
-                        closeImportModal();
-                        loadCustomers();
-                    }
-                } else {
-                    showToast(data.message || 'Failed to import customers', 'error');
-                }
-            } catch (error) {
-                console.error('Error importing customers:', error);
-                showToast('Cannot connect to server. Please try again.', 'error');
-            }
-
-            // Reset progress
-            importProgress.classList.add('hidden');
-            uploadImportBtn.disabled = parsedCustomers.length === 0;
-            cancelImportBtn.disabled = false;
-        }
-
-        // Dropzone event handlers
-        csvDropzone.addEventListener('click', () => csvFileInput.click());
-
-        csvFileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFileSelect(e.target.files[0]);
-            }
-        });
-
-        csvDropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            csvDropzone.classList.add('border-teal-500', 'bg-teal-50');
-        });
-
-        csvDropzone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            csvDropzone.classList.remove('border-teal-500', 'bg-teal-50');
-        });
-
-        csvDropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            csvDropzone.classList.remove('border-teal-500', 'bg-teal-50');
-            if (e.dataTransfer.files.length > 0) {
-                handleFileSelect(e.dataTransfer.files[0]);
-            }
-        });
-
-        clearFileBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            resetImportModal();
-        });
-
-        // Modal event handlers
-        openImportModalBtn.addEventListener('click', openImportModal);
-        closeImportModalBtn.addEventListener('click', closeImportModal);
-        cancelImportBtn.addEventListener('click', closeImportModal);
-        importModalBackdrop.addEventListener('click', closeImportModal);
-        uploadImportBtn.addEventListener('click', importCustomers);
-
-        // Close on Escape key
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && !importModal.classList.contains('hidden')) {
-                closeImportModal();
-            }
-            if (e.key === 'Escape' && !bulkSendModal.classList.contains('hidden')) {
-                closeBulkSendModal();
-            }
-        });
+        logoutBtn.addEventListener('click', openLogoutModal);
+        document.getElementById('cancelLogoutBtn').addEventListener('click', closeLogoutModal);
+        document.getElementById('confirmLogoutBtn').addEventListener('click', logout);
+        document.getElementById('logoutModalBackdrop').addEventListener('click', closeLogoutModal);
 
         // =====================================================
-        // BULK SELECTION FUNCTIONALITY
+        // BULK SELECTION
         // =====================================================
         const bulkActionBar = document.getElementById('bulkActionBar');
         const selectedCountBadge = document.getElementById('selectedCountBadge');
         const selectedCountText = document.getElementById('selectedCountText');
-        const deselectAllBtn = document.getElementById('deselectAllBtn');
-        const bulkSendBtn = document.getElementById('bulkSendBtn');
         const selectAllCustomers = document.getElementById('selectAllCustomers');
 
-        // Bulk send modal elements
-        const bulkSendModal = document.getElementById('bulkSendModal');
-        const bulkSendModalBackdrop = document.getElementById('bulkSendModalBackdrop');
-        const bulkSendCount = document.getElementById('bulkSendCount');
-        const bulkSendCustomerList = document.getElementById('bulkSendCustomerList');
-        const bulkSendProgress = document.getElementById('bulkSendProgress');
-        const bulkSendProgressText = document.getElementById('bulkSendProgressText');
-        const bulkSendFooter = document.getElementById('bulkSendFooter');
-        const cancelBulkSendBtn = document.getElementById('cancelBulkSendBtn');
-        const confirmBulkSendBtn = document.getElementById('confirmBulkSendBtn');
-
         function getSelectedCustomers() {
-            const checkboxes = document.querySelectorAll('.customer-checkbox:checked');
-            return Array.from(checkboxes).map(cb => ({
+            return Array.from(document.querySelectorAll('.customer-checkbox:checked')).map(cb => ({
                 id: cb.dataset.customerId,
                 name: cb.dataset.customerName,
                 email: cb.dataset.customerEmail
@@ -1578,66 +1128,59 @@ Jane Smith,jane@example.com,+19876543210</pre>
         function updateSelectionUI() {
             const selected = getSelectedCustomers();
             const count = selected.length;
-
             selectedCountBadge.textContent = count;
             selectedCountText.textContent = count === 1 ? 'customer selected' : 'customers selected';
 
             if (count > 0) {
                 bulkActionBar.classList.remove('hidden');
-                setTimeout(() => {
-                    bulkActionBar.classList.remove('translate-y-full');
-                }, 10);
+                setTimeout(() => bulkActionBar.classList.remove('translate-y-full'), 10);
             } else {
                 bulkActionBar.classList.add('translate-y-full');
-                setTimeout(() => {
-                    bulkActionBar.classList.add('hidden');
-                }, 300);
+                setTimeout(() => bulkActionBar.classList.add('hidden'), 300);
             }
 
-            // Update select all checkbox state
             const allCheckboxes = document.querySelectorAll('.customer-checkbox');
-            if (selectAllCustomers) {
-                selectAllCustomers.checked = allCheckboxes.length > 0 && count === allCheckboxes.length;
+            if (selectAllCustomers && allCheckboxes.length > 0) {
+                selectAllCustomers.checked = count === allCheckboxes.length;
                 selectAllCustomers.indeterminate = count > 0 && count < allCheckboxes.length;
             }
         }
 
-        function selectAllCustomersFn(checked) {
-            const checkboxes = document.querySelectorAll('.customer-checkbox');
-            checkboxes.forEach(cb => {
+        function selectAllFn(checked) {
+            document.querySelectorAll('.customer-checkbox').forEach(cb => {
                 cb.checked = checked;
-                // Add visual feedback to row
-                const row = cb.closest('tr');
-                if (checked) {
-                    row.classList.add('bg-teal-50');
-                } else {
-                    row.classList.remove('bg-teal-50');
-                }
+                cb.closest('tr').classList.toggle('bg-teal-50', checked);
             });
             updateSelectionUI();
         }
 
-        function deselectAll() {
-            selectAllCustomersFn(false);
-        }
+        customersTableBody.addEventListener('change', (e) => {
+            if (e.target.classList.contains('customer-checkbox')) {
+                e.target.closest('tr').classList.toggle('bg-teal-50', e.target.checked);
+                updateSelectionUI();
+            }
+        });
+
+        selectAllCustomers.addEventListener('change', (e) => selectAllFn(e.target.checked));
+        document.getElementById('deselectAllBtn').addEventListener('click', () => selectAllFn(false));
+
+        // =====================================================
+        // BULK SEND
+        // =====================================================
+        const bulkSendModal = document.getElementById('bulkSendModal');
+        const bulkSendCount = document.getElementById('bulkSendCount');
+        const bulkSendCustomerList = document.getElementById('bulkSendCustomerList');
+        const bulkSendProgress = document.getElementById('bulkSendProgress');
+        const bulkSendProgressText = document.getElementById('bulkSendProgressText');
+        const bulkSendFooter = document.getElementById('bulkSendFooter');
 
         function openBulkSendModal() {
             const selected = getSelectedCustomers();
             if (selected.length === 0) return;
-
             bulkSendCount.textContent = selected.length;
-            bulkSendCustomerList.innerHTML = selected.map(c =>
-                `<div class="py-1.5 px-2 text-sm text-gray-700 flex items-center gap-2">
-                    <span class="w-2 h-2 bg-teal-500 rounded-full"></span>
-                    ${escapeHtml(c.name)} <span class="text-gray-400">(${escapeHtml(c.email)})</span>
-                </div>`
-            ).join('');
-
+            bulkSendCustomerList.innerHTML = selected.map(c => `<div class="py-1.5 px-2 text-sm text-gray-700 flex items-center gap-2"><span class="w-2 h-2 bg-teal-500 rounded-full"></span>${escapeHtml(c.name)}</div>`).join('');
             bulkSendProgress.classList.add('hidden');
             bulkSendFooter.classList.remove('hidden');
-            confirmBulkSendBtn.disabled = false;
-            cancelBulkSendBtn.disabled = false;
-
             bulkSendModal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
@@ -1651,88 +1194,187 @@ Jane Smith,jane@example.com,+19876543210</pre>
             const selected = getSelectedCustomers();
             if (selected.length === 0) return;
 
-            // Show progress
             bulkSendProgress.classList.remove('hidden');
             bulkSendProgressText.textContent = `Sending to ${selected.length} customer(s)...`;
             bulkSendFooter.classList.add('hidden');
 
             try {
-                const response = await fetch(`${API_URL}/review-requests/bulk`, {
+                const data = await apiCall(`${API_URL}/review-requests/bulk`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({
-                        customer_ids: selected.map(c => c.id)
-                    })
+                    body: JSON.stringify({ customer_ids: selected.map(c => c.id) })
                 });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                    const { success_count, error_count } = data;
-
-                    let message = `Sent to ${success_count} customer(s)!`;
-                    if (error_count > 0) {
-                        message += ` ${error_count} failed.`;
-                    }
-
-                    showToast(message, error_count > 0 ? 'error' : 'success');
-
-                    // Deselect all and close modal
-                    deselectAll();
-                    closeBulkSendModal();
-
-                    // Refresh data
-                    loadDashboardStats();
-                    loadReviewRequests();
-                } else {
-                    showToast(data.message || 'Failed to send review requests', 'error');
-                    bulkSendProgress.classList.add('hidden');
-                    bulkSendFooter.classList.remove('hidden');
-                }
+                let message = `Sent to ${data.success_count} customer(s)!`;
+                if (data.error_count > 0) message += ` ${data.error_count} failed.`;
+                showToast(message, data.error_count > 0 ? 'error' : 'success');
+                if (data.success_count > 0) showSuccessAnimation();
+                selectAllFn(false);
+                closeBulkSendModal();
+                loadDashboardStats();
+                loadReviewRequests();
             } catch (error) {
-                console.error('Error sending bulk review requests:', error);
-                showToast('Cannot connect to server. Please try again.', 'error');
+                showToast(error.message, 'error');
                 bulkSendProgress.classList.add('hidden');
                 bulkSendFooter.classList.remove('hidden');
             }
         }
 
-        // Event delegation for customer checkboxes
-        customersTableBody.addEventListener('change', (e) => {
-            if (e.target.classList.contains('customer-checkbox')) {
-                const row = e.target.closest('tr');
-                if (e.target.checked) {
-                    row.classList.add('bg-teal-50');
-                } else {
-                    row.classList.remove('bg-teal-50');
+        document.getElementById('bulkSendBtn').addEventListener('click', openBulkSendModal);
+        document.getElementById('cancelBulkSendBtn').addEventListener('click', closeBulkSendModal);
+        document.getElementById('bulkSendModalBackdrop').addEventListener('click', closeBulkSendModal);
+        document.getElementById('confirmBulkSendBtn').addEventListener('click', sendBulkReviewRequests);
+
+        // =====================================================
+        // CSV IMPORT
+        // =====================================================
+        const importModal = document.getElementById('importModal');
+        const csvDropzone = document.getElementById('csvDropzone');
+        const csvFileInput = document.getElementById('csvFileInput');
+        const dropzoneContent = document.getElementById('dropzoneContent');
+        const selectedFileInfo = document.getElementById('selectedFileInfo');
+        const selectedFileName = document.getElementById('selectedFileName');
+        const selectedFileRows = document.getElementById('selectedFileRows');
+        const importValidationErrors = document.getElementById('importValidationErrors');
+        const importErrorsList = document.getElementById('importErrorsList');
+        const importProgress = document.getElementById('importProgress');
+        const importProgressText = document.getElementById('importProgressText');
+        const uploadImportBtn = document.getElementById('uploadImportBtn');
+
+        let parsedCustomers = [];
+
+        function openImportModal() {
+            resetImportModal();
+            importModal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeImportModal() {
+            importModal.classList.add('hidden');
+            document.body.style.overflow = '';
+        }
+
+        function resetImportModal() {
+            csvFileInput.value = '';
+            parsedCustomers = [];
+            dropzoneContent.classList.remove('hidden');
+            selectedFileInfo.classList.add('hidden');
+            importValidationErrors.classList.add('hidden');
+            importProgress.classList.add('hidden');
+            uploadImportBtn.disabled = true;
+        }
+
+        function handleFileSelect(file) {
+            if (!file || !file.name.endsWith('.csv')) {
+                showToast('Please select a CSV file', 'error');
+                return;
+            }
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: (results) => {
+                    const headers = results.meta.fields || [];
+                    if (!headers.some(h => h.toLowerCase() === 'name') || !headers.some(h => h.toLowerCase() === 'email')) {
+                        showToast('CSV must have "name" and "email" columns', 'error');
+                        return;
+                    }
+                    if (results.data.length === 0) {
+                        showToast('CSV file is empty', 'error');
+                        return;
+                    }
+                    const errors = [];
+                    parsedCustomers = [];
+                    results.data.forEach((row, i) => {
+                        const normalized = {};
+                        Object.keys(row).forEach(k => normalized[k.toLowerCase().trim()] = row[k]);
+                        const name = (normalized['name'] || '').trim();
+                        const email = (normalized['email'] || '').trim();
+                        const phone = (normalized['phone'] || '').trim();
+                        if (!name) { errors.push({ row: i + 2, message: 'Name is required' }); return; }
+                        if (!email || !isValidEmail(email)) { errors.push({ row: i + 2, message: `Invalid email: ${email}` }); return; }
+                        parsedCustomers.push({ name, email, phone: phone || null });
+                    });
+                    dropzoneContent.classList.add('hidden');
+                    selectedFileInfo.classList.remove('hidden');
+                    selectedFileName.textContent = file.name;
+                    selectedFileRows.textContent = `${parsedCustomers.length} valid customer(s) found`;
+                    if (errors.length > 0) {
+                        importValidationErrors.classList.remove('hidden');
+                        importErrorsList.innerHTML = errors.slice(0, 10).map(e => `<li>Row ${e.row}: ${escapeHtml(e.message)}</li>`).join('');
+                    } else {
+                        importValidationErrors.classList.add('hidden');
+                    }
+                    uploadImportBtn.disabled = parsedCustomers.length === 0;
+                },
+                error: (error) => showToast('Failed to parse CSV: ' + error.message, 'error')
+            });
+        }
+
+        async function importCustomers() {
+            if (parsedCustomers.length === 0) return;
+            importProgress.classList.remove('hidden');
+            importProgressText.textContent = `Importing ${parsedCustomers.length} customer(s)...`;
+            uploadImportBtn.disabled = true;
+
+            try {
+                const data = await apiCall(`${API_URL}/customers/import`, {
+                    method: 'POST',
+                    body: JSON.stringify({ customers: parsedCustomers })
+                });
+                let message = `Imported ${data.success_count} customer(s)`;
+                if (data.skipped_count > 0) message += `, ${data.skipped_count} skipped`;
+                if (data.error_count > 0) message += `, ${data.error_count} failed`;
+                showToast(message, data.error_count > 0 ? 'error' : 'success');
+                if (data.success_count > 0) {
+                    showSuccessAnimation();
+                    closeImportModal();
+                    loadCustomers();
                 }
-                updateSelectionUI();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+            importProgress.classList.add('hidden');
+            uploadImportBtn.disabled = parsedCustomers.length === 0;
+        }
+
+        csvDropzone.addEventListener('click', () => csvFileInput.click());
+        csvFileInput.addEventListener('change', (e) => e.target.files.length && handleFileSelect(e.target.files[0]));
+        csvDropzone.addEventListener('dragover', (e) => { e.preventDefault(); csvDropzone.classList.add('border-teal-500', 'bg-teal-50'); });
+        csvDropzone.addEventListener('dragleave', (e) => { e.preventDefault(); csvDropzone.classList.remove('border-teal-500', 'bg-teal-50'); });
+        csvDropzone.addEventListener('drop', (e) => { e.preventDefault(); csvDropzone.classList.remove('border-teal-500', 'bg-teal-50'); e.dataTransfer.files.length && handleFileSelect(e.dataTransfer.files[0]); });
+        document.getElementById('clearFileBtn').addEventListener('click', (e) => { e.stopPropagation(); resetImportModal(); });
+        document.getElementById('openImportModalBtn').addEventListener('click', openImportModal);
+        document.getElementById('closeImportModalBtn').addEventListener('click', closeImportModal);
+        document.getElementById('cancelImportBtn').addEventListener('click', closeImportModal);
+        document.getElementById('importModalBackdrop').addEventListener('click', closeImportModal);
+        uploadImportBtn.addEventListener('click', importCustomers);
+
+        // =====================================================
+        // KEYBOARD SHORTCUTS
+        // =====================================================
+        document.addEventListener('keydown', (e) => {
+            // Escape to close modals
+            if (e.key === 'Escape') {
+                if (!importModal.classList.contains('hidden')) closeImportModal();
+                else if (!bulkSendModal.classList.contains('hidden')) closeBulkSendModal();
+                else if (!logoutModal.classList.contains('hidden')) closeLogoutModal();
+                else if (!editModal.classList.contains('hidden')) closeEditModal();
+                else if (!deleteModal.classList.contains('hidden')) closeDeleteModal();
+            }
+            // 'C' to focus customer name (only if not in input)
+            if (e.key === 'c' && !['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                e.preventDefault();
+                if (!tabContentSendReviews.classList.contains('hidden')) {
+                    customerNameInput.focus();
+                } else {
+                    newCustomerName.focus();
+                }
             }
         });
-
-        // Select all checkbox
-        selectAllCustomers.addEventListener('change', (e) => {
-            selectAllCustomersFn(e.target.checked);
-        });
-
-        // Bulk action bar buttons
-        deselectAllBtn.addEventListener('click', deselectAll);
-        bulkSendBtn.addEventListener('click', openBulkSendModal);
-
-        // Bulk send modal buttons
-        cancelBulkSendBtn.addEventListener('click', closeBulkSendModal);
-        bulkSendModalBackdrop.addEventListener('click', closeBulkSendModal);
-        confirmBulkSendBtn.addEventListener('click', sendBulkReviewRequests);
 
         // =====================================================
         // EVENT LISTENERS
         // =====================================================
         reviewRequestForm.addEventListener('submit', sendReviewRequest);
         addCustomerForm.addEventListener('submit', addCustomer);
-        logoutBtn.addEventListener('click', logout);
 
         // =====================================================
         // INITIALIZE
@@ -1740,6 +1382,8 @@ Jane Smith,jane@example.com,+19876543210</pre>
         loadUserData();
         loadDashboardStats();
         loadReviewRequests();
+        validateReviewForm();
+        validateCustomerForm();
     </script>
 </body>
 </html>
