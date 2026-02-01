@@ -24,10 +24,13 @@ HOW THE SQUARE CONNECTION FLOW WORKS:
 
 import os
 import secrets
+import logging
 from flask import Blueprint, jsonify, request, redirect, session
 from app.services.auth_service import require_auth
 from app.services.supabase_service import supabase
 from app.services import square_service
+
+logger = logging.getLogger(__name__)
 
 # Create Blueprint
 # NOTE: This blueprint is registered WITHOUT url_prefix so we can have both
@@ -161,6 +164,16 @@ def oauth_callback():
     On success: Redirects to /dashboard?square_connected=true
     On error: Redirects to /dashboard?square_error=<message>
     """
+    # DEBUG: Log environment variable
+    frontend_url_debug = os.environ.get('FRONTEND_URL')
+    logger.info("==========================================")
+    logger.info(f"FRONTEND_URL from env: {frontend_url_debug}")
+    logger.info(f"FRONTEND_URL constant: {FRONTEND_URL}")
+    logger.info(f"All env vars: {list(os.environ.keys())}")
+    logger.info("==========================================")
+    print(f"DEBUG: FRONTEND_URL = {FRONTEND_URL}")
+    print(f"DEBUG: os.environ.get('FRONTEND_URL') = {frontend_url_debug}")
+
     # Check for errors from Square
     error = request.args.get('error')
     if error:
