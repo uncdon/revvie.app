@@ -47,6 +47,8 @@ def create_app(config_name='default'):
     from app.routes.review_requests import review_requests_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.customers import customers_bp
+    from app.routes.square_integration import square_bp as square_integration_bp
+    from app.routes.square_webhooks import square_webhooks_bp
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(reviews_bp, url_prefix='/api')
     app.register_blueprint(test_bp, url_prefix='/api')
@@ -58,5 +60,9 @@ def create_app(config_name='default'):
     app.register_blueprint(dashboard_bp, url_prefix='/api')
     app.register_blueprint(customers_bp, url_prefix='/api')
     app.register_blueprint(frontend_bp)  # No prefix - serves at root
+
+    # Square Integration routes
+    app.register_blueprint(square_integration_bp, url_prefix='/api/integrations/square')
+    app.register_blueprint(square_webhooks_bp, url_prefix='/webhooks')
 
     return app
