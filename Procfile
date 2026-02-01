@@ -1,2 +1,1 @@
-web: gunicorn app:app
-worker: python run_queue_processor.py
+web: gunicorn main:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info

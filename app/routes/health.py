@@ -17,4 +17,7 @@ def health_check():
     Returns:
         JSON response with status "ok" and HTTP 200
     """
-    return jsonify({'status': 'ok'}), 200
+    return jsonify({
+        'status': 'ok',
+        'message': 'Revvie API is running'
+    }), 200
