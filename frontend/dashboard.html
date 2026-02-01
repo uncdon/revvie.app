@@ -699,7 +699,11 @@ Jane Smith,jane@example.com,+19876543210</pre>
         // =====================================================
         // CONFIGURATION
         // =====================================================
-        const API_URL = 'http://localhost:5001/api';
+        // Dynamic API URL based on environment
+        const API_BASE_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:5001'
+            : window.location.origin;  // Use same origin in production
+        const API_URL = `${API_BASE_URL}/api`;
         const token = localStorage.getItem('token');
         if (!token) window.location.href = 'login.html';
 

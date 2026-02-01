@@ -142,7 +142,11 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:5001/api';
+        // Dynamic API URL based on environment
+        const API_BASE_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:5001'
+            : window.location.origin;  // Use same origin in production
+        const API_URL = `${API_BASE_URL}/api`;
 
         const form = document.getElementById('signupForm');
         const errorDiv = document.getElementById('errorMessage');
