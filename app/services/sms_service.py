@@ -76,15 +76,14 @@ TELNYX_PHONE_NUMBER = os.environ.get('TELNYX_PHONE_NUMBER')
 # Optional: Messaging Profile ID (for advanced routing)
 TELNYX_MESSAGING_PROFILE_ID = os.environ.get('TELNYX_MESSAGING_PROFILE_ID')
 
-# Initialize Telnyx client
+# Initialize Telnyx client (v4.x uses client-based API)
 telnyx_configured = False
-telnyx = None
+telnyx_client = None
 
 if TELNYX_API_KEY and TELNYX_PHONE_NUMBER:
     try:
-        import telnyx as telnyx_sdk
-        telnyx_sdk.api_key = TELNYX_API_KEY
-        telnyx = telnyx_sdk
+        from telnyx import Telnyx
+        telnyx_client = Telnyx(api_key=TELNYX_API_KEY)
         telnyx_configured = True
         logger.info("Telnyx SMS service initialized successfully")
     except ImportError:
@@ -233,88 +232,31 @@ def send_sms(to_phone: str, message: str) -> dict:
     logger.info(f"Sending SMS to {formatted_phone[:6]}***{formatted_phone[-2:]} ({len(message)} chars)")
 
     try:
-        # Send SMS via Telnyx API
-        # The Telnyx SDK handles all the HTTP stuff for us
-        telnyx_message = telnyx.Message.create(
+        # Send SMS via Telnyx API (v4.x client-based API)
+        response = telnyx_client.messages.create(
             from_=TELNYX_PHONE_NUMBER,  # Your Telnyx phone number
             to=formatted_phone,          # Recipient's phone number
             text=message,                # The message content
-            # Optional: messaging_profile_id=TELNYX_MESSAGING_PROFILE_ID
         )
 
-        # Success! Extract the message details
-        # telnyx_message.data contains the response
-        message_data = telnyx_message
+        # Success! Extract the message details from response
+        message_id = response.data.id if hasattr(response, 'data') else getattr(response, 'id', None)
 
-        logger.info(f"SMS sent successfully. Message ID: {message_data.id}")
+        logger.info(f"SMS sent successfully. Message ID: {message_id}")
 
         return {
             'success': True,
-            'message_id': message_data.id,
+            'message_id': message_id,
             'status': 'sent',
             'to': formatted_phone,
             'from': TELNYX_PHONE_NUMBER,
-            'segments': getattr(message_data, 'parts', 1)  # Number of SMS segments
-        }
-
-    except telnyx.error.InvalidRequestError as e:
-        # Invalid request (bad phone number, invalid parameters, etc.)
-        logger.error(f"Telnyx invalid request error: {e}")
-        return {
-            'success': False,
-            'message_id': None,
-            'status': 'error',
-            'error': f"Invalid request: {str(e)}",
-            'error_code': 'invalid_request'
-        }
-
-    except telnyx.error.AuthenticationError as e:
-        # API key is invalid or expired
-        logger.error(f"Telnyx authentication error: {e}")
-        return {
-            'success': False,
-            'message_id': None,
-            'status': 'error',
-            'error': 'Authentication failed. Check your TELNYX_API_KEY.',
-            'error_code': 'auth_error'
-        }
-
-    except telnyx.error.RateLimitError as e:
-        # Too many requests - you're sending too fast
-        logger.warning(f"Telnyx rate limit error: {e}")
-        return {
-            'success': False,
-            'message_id': None,
-            'status': 'error',
-            'error': 'Rate limit exceeded. Please slow down.',
-            'error_code': 'rate_limit'
-        }
-
-    except telnyx.error.APIConnectionError as e:
-        # Network error - couldn't reach Telnyx
-        logger.error(f"Telnyx connection error: {e}")
-        return {
-            'success': False,
-            'message_id': None,
-            'status': 'error',
-            'error': f"Network error: Could not connect to Telnyx. {str(e)}",
-            'error_code': 'connection_error'
-        }
-
-    except telnyx.error.APIError as e:
-        # Generic Telnyx API error
-        logger.error(f"Telnyx API error: {e}")
-        return {
-            'success': False,
-            'message_id': None,
-            'status': 'error',
-            'error': f"Telnyx API error: {str(e)}",
-            'error_code': 'api_error'
+            'segments': 1
         }
 
     except Exception as e:
-        # Catch-all for unexpected errors
-        logger.exception(f"Unexpected error sending SMS: {e}")
+        # Catch all errors - Telnyx v4 uses different exception structure
+        error_message = str(e)
+        logger.exception(f"Error sending SMS: {error_message}")
         return {
             'success': False,
             'message_id': None,
