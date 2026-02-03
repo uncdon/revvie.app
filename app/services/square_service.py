@@ -35,8 +35,13 @@ from square.environment import SquareEnvironment
 # Fernet is a symmetric encryption method (same key encrypts and decrypts)
 from cryptography.fernet import Fernet, InvalidToken
 
+from app.services.square_logger import get_square_logger, log_api_event
+
 # Load environment variables from .env file
 load_dotenv()
+
+# Get logger for API operations
+logger = get_square_logger('api')
 
 
 # ============================================================================
@@ -100,14 +105,14 @@ def get_fernet() -> Optional[Fernet]:
         encrypted = fernet.encrypt(b"my secret data")
     """
     if not TOKEN_ENCRYPTION_KEY:
-        print("WARNING: TOKEN_ENCRYPTION_KEY not set! Tokens will not be encrypted.")
+        logger.warning("TOKEN_ENCRYPTION_KEY not set! Tokens will not be encrypted.")
         return None
 
     try:
         # Fernet expects bytes, so encode the string key
         return Fernet(TOKEN_ENCRYPTION_KEY.encode())
     except Exception as e:
-        print(f"ERROR: Invalid TOKEN_ENCRYPTION_KEY format: {e}")
+        logger.error(f"Invalid TOKEN_ENCRYPTION_KEY format: {e}")
         return None
 
 
@@ -130,7 +135,7 @@ def encrypt_token(token_string: str) -> str:
 
     if not fernet:
         # No encryption key configured - return as-is (not secure!)
-        print("WARNING: Storing token without encryption!")
+        logger.warning("Storing token without encryption!")
         return token_string
 
     try:
@@ -138,7 +143,7 @@ def encrypt_token(token_string: str) -> str:
         encrypted_bytes = fernet.encrypt(token_string.encode())
         return encrypted_bytes.decode()
     except Exception as e:
-        print(f"ERROR: Failed to encrypt token: {e}")
+        logger.error(f"Failed to encrypt token: {e}")
         return token_string
 
 
@@ -169,10 +174,10 @@ def decrypt_token(encrypted_token: str) -> str:
         return decrypted_bytes.decode()
     except InvalidToken:
         # Token might not be encrypted (legacy data or test data)
-        print("WARNING: Token decryption failed - might not be encrypted")
+        logger.warning("Token decryption failed - might not be encrypted")
         return encrypted_token
     except Exception as e:
-        print(f"ERROR: Failed to decrypt token: {e}")
+        logger.error(f"Failed to decrypt token: {e}")
         return encrypted_token
 
 
@@ -240,6 +245,235 @@ def get_square_client(access_token: str) -> Square:
         token=access_token,
         environment=env
     )
+
+
+# ============================================================================
+# AUTOMATIC TOKEN REFRESH
+# ============================================================================
+# These functions handle automatic token refresh to ensure API calls never fail
+# due to expired tokens.
+
+def ensure_valid_token(integration_id: str) -> dict:
+    """
+    Ensure we have a valid access token for the given integration.
+
+    This function should be called BEFORE any Square API call. It:
+    1. Retrieves the integration from the database
+    2. Checks if the token expires within the next 24 hours
+    3. If yes, refreshes the token and updates the database
+    4. Returns the valid (possibly refreshed) access token
+
+    Args:
+        integration_id: The ID of the integration record in the database
+
+    Returns:
+        Dictionary with token information:
+        {
+            "success": True/False,
+            "access_token": "decrypted_token",  # Ready to use for API calls
+            "refreshed": True/False,             # Whether token was refreshed
+            "error": "error message"             # Only if success=False
+        }
+
+    Example:
+        token_result = ensure_valid_token(integration['id'])
+        if token_result['success']:
+            merchant = get_merchant_info(token_result['access_token'])
+        else:
+            # Handle error - maybe mark integration as failed
+            pass
+    """
+    from app.services.supabase_service import supabase
+
+    log_api_event('ensure_valid_token', details={'integration_id': integration_id})
+
+    try:
+        # Get the integration from database
+        result = supabase.table('integrations').select('*').eq(
+            'id', integration_id
+        ).execute()
+
+        if not result.data:
+            log_api_event('ensure_valid_token', success=False,
+                        error="Integration not found",
+                        details={'integration_id': integration_id})
+            return {
+                "success": False,
+                "error": "Integration not found"
+            }
+
+        integration = result.data[0]
+
+        # Parse token expiration
+        token_expires_at = integration.get('token_expires_at')
+        if token_expires_at:
+            if isinstance(token_expires_at, str):
+                token_expires_at = datetime.fromisoformat(
+                    token_expires_at.replace('Z', '+00:00')
+                )
+
+        # Check if token needs refresh (expires within 24 hours)
+        needs_refresh = check_token_expiry(token_expires_at)
+
+        if needs_refresh:
+            log_api_event('ensure_valid_token', details={
+                'integration_id': integration_id,
+                'action': 'refreshing',
+                'expires_at': str(token_expires_at)
+            })
+
+            # Decrypt refresh token
+            refresh_token = decrypt_token(integration['refresh_token'])
+
+            # Refresh the token
+            refresh_result = refresh_access_token(refresh_token)
+
+            if not refresh_result['success']:
+                # Mark integration as having an error
+                supabase.table('integrations').update({
+                    'status': 'error'
+                }).eq('id', integration_id).execute()
+
+                log_api_event('ensure_valid_token', success=False,
+                            error=f"Token refresh failed: {refresh_result.get('error')}",
+                            details={'integration_id': integration_id})
+                return {
+                    "success": False,
+                    "error": f"Token refresh failed: {refresh_result.get('error')}"
+                }
+
+            # Update database with new tokens
+            supabase.table('integrations').update({
+                'access_token': encrypt_token(refresh_result['access_token']),
+                'refresh_token': encrypt_token(refresh_result['refresh_token']),
+                'token_expires_at': refresh_result['expires_at'].isoformat(),
+                'status': 'active'  # Reset status if it was in error
+            }).eq('id', integration_id).execute()
+
+            log_api_event('ensure_valid_token', details={
+                'integration_id': integration_id,
+                'action': 'refreshed',
+                'new_expires_at': refresh_result['expires_at'].isoformat()
+            })
+
+            return {
+                "success": True,
+                "access_token": refresh_result['access_token'],
+                "refreshed": True
+            }
+
+        else:
+            # Token is still valid, just decrypt and return
+            access_token = decrypt_token(integration['access_token'])
+
+            log_api_event('ensure_valid_token', details={
+                'integration_id': integration_id,
+                'action': 'valid',
+                'expires_at': str(token_expires_at)
+            })
+
+            return {
+                "success": True,
+                "access_token": access_token,
+                "refreshed": False
+            }
+
+    except Exception as e:
+        log_api_event('ensure_valid_token', success=False,
+                    error=str(e), error_type='exception',
+                    details={'integration_id': integration_id})
+        return {
+            "success": False,
+            "error": f"Error ensuring valid token: {str(e)}"
+        }
+
+
+def refresh_all_tokens() -> dict:
+    """
+    Refresh all Square integration tokens that are expiring soon.
+
+    This function is designed to be called by a cron job (e.g., weekly)
+    to proactively refresh tokens before they expire.
+
+    Returns:
+        Dictionary with refresh results:
+        {
+            "total": 10,       # Total integrations checked
+            "refreshed": 3,    # Successfully refreshed
+            "skipped": 6,      # Still valid, no refresh needed
+            "failed": 1,       # Failed to refresh
+            "errors": [...]    # List of error details
+        }
+
+    Example:
+        # Run weekly via cron:
+        # 0 0 * * 0 cd /path/to/revvie && python -c "from app.services.square_service import refresh_all_tokens; print(refresh_all_tokens())"
+    """
+    from app.services.supabase_service import supabase
+
+    log_api_event('refresh_all_tokens', details={'action': 'started'})
+
+    results = {
+        "total": 0,
+        "refreshed": 0,
+        "skipped": 0,
+        "failed": 0,
+        "errors": []
+    }
+
+    try:
+        # Get all active Square integrations
+        integrations_result = supabase.table('integrations').select('*').eq(
+            'integration_type', 'square'
+        ).eq('status', 'active').execute()
+
+        integrations = integrations_result.data or []
+        results["total"] = len(integrations)
+
+        logger.info(f"Checking {len(integrations)} Square integrations for token refresh")
+
+        for integration in integrations:
+            integration_id = integration['id']
+            business_id = integration.get('business_id')
+
+            try:
+                token_result = ensure_valid_token(integration_id)
+
+                if token_result['success']:
+                    if token_result.get('refreshed'):
+                        results["refreshed"] += 1
+                        logger.info(f"Refreshed token for integration {integration_id} (business: {business_id})")
+                    else:
+                        results["skipped"] += 1
+                else:
+                    results["failed"] += 1
+                    results["errors"].append({
+                        "integration_id": integration_id,
+                        "business_id": business_id,
+                        "error": token_result.get('error')
+                    })
+
+            except Exception as e:
+                results["failed"] += 1
+                results["errors"].append({
+                    "integration_id": integration_id,
+                    "business_id": business_id,
+                    "error": str(e)
+                })
+
+        log_api_event('refresh_all_tokens', details={
+            'total': results['total'],
+            'refreshed': results['refreshed'],
+            'skipped': results['skipped'],
+            'failed': results['failed']
+        })
+
+        return results
+
+    except Exception as e:
+        log_api_event('refresh_all_tokens', success=False, error=str(e))
+        results["errors"].append({"error": f"Fatal error: {str(e)}"})
+        return results
 
 
 # ============================================================================
@@ -329,6 +563,8 @@ def exchange_code_for_token(authorization_code: str) -> dict:
     try:
         # Make direct HTTP request to Square's token endpoint
         # This gives us full control over which URL is called
+        log_api_event('token_exchange', details={'action': 'started'})
+
         response = requests.post(
             SQUARE_TOKEN_URL,
             json={
@@ -344,13 +580,12 @@ def exchange_code_for_token(authorization_code: str) -> dict:
             }
         )
 
-        print(f"DEBUG: Token exchange to {SQUARE_TOKEN_URL}")
-        print(f"DEBUG: Response status: {response.status_code}")
+        logger.debug(f"Token exchange response status: {response.status_code}")
 
         if response.status_code != 200:
             error_data = response.json() if response.text else {}
             error_msg = error_data.get('message', response.text)
-            print(f"ERROR: Token exchange failed: {error_msg}")
+            log_api_event('token_exchange', success=False, error=error_msg, error_type='api_error')
             return {
                 "success": False,
                 "error": error_msg,
@@ -365,6 +600,11 @@ def exchange_code_for_token(authorization_code: str) -> dict:
         else:
             expires_at = datetime.now(timezone.utc) + timedelta(days=30)
 
+        log_api_event('token_exchange', details={
+            'merchant_id': data.get('merchant_id'),
+            'expires_at': expires_at.isoformat()
+        })
+
         return {
             "success": True,
             "access_token": data.get('access_token'),
@@ -375,7 +615,7 @@ def exchange_code_for_token(authorization_code: str) -> dict:
 
     except Exception as e:
         error_message = str(e)
-        print(f"ERROR: Square OAuth exception: {error_message}")
+        log_api_event('token_exchange', success=False, error=error_message, error_type='network')
         return {
             "success": False,
             "error": f"Connection error: {error_message}",
@@ -419,6 +659,8 @@ def refresh_access_token(refresh_token: str) -> dict:
     env = SquareEnvironment.SANDBOX if SQUARE_ENVIRONMENT == "sandbox" else SquareEnvironment.PRODUCTION
     client = Square(environment=env)
 
+    log_api_event('token_refresh', details={'action': 'started'})
+
     try:
         result = client.o_auth.obtain_token(
             client_id=SQUARE_APP_ID,
@@ -434,6 +676,8 @@ def refresh_access_token(refresh_token: str) -> dict:
         else:
             expires_at = datetime.now(timezone.utc) + timedelta(days=30)
 
+        log_api_event('token_refresh', details={'expires_at': expires_at.isoformat()})
+
         return {
             "success": True,
             "access_token": result.access_token,
@@ -443,7 +687,7 @@ def refresh_access_token(refresh_token: str) -> dict:
 
     except Exception as e:
         error_message = str(e)
-        print(f"ERROR: Token refresh failed: {error_message}")
+        log_api_event('token_refresh', success=False, error=error_message, error_type='api_error')
         return {
             "success": False,
             "error": error_message,
@@ -486,6 +730,8 @@ def get_merchant_info(access_token: str) -> dict:
         if info["success"]:
             print(f"Connected to: {info['business_name']}")
     """
+    log_api_event('get_merchant', details={'action': 'started'})
+
     try:
         client = get_square_client(access_token)
 
@@ -495,6 +741,7 @@ def get_merchant_info(access_token: str) -> dict:
         merchants = list(merchant_result.items)
 
         if not merchants:
+            log_api_event('get_merchant', success=False, error="No merchant found")
             return {"success": False, "error": "No merchant found"}
 
         merchant = merchants[0]
@@ -513,6 +760,12 @@ def get_merchant_info(access_token: str) -> dict:
                     "status": loc.status,
                 })
 
+        log_api_event('get_merchant', details={
+            'merchant_id': merchant.id,
+            'business_name': merchant.business_name,
+            'location_count': len(locations)
+        })
+
         return {
             "success": True,
             "merchant_id": merchant.id,
@@ -523,7 +776,7 @@ def get_merchant_info(access_token: str) -> dict:
         }
 
     except Exception as e:
-        print(f"ERROR: Failed to get merchant info: {str(e)}")
+        log_api_event('get_merchant', success=False, error=str(e), error_type='network')
         return {
             "success": False,
             "error": f"Connection error: {str(e)}",
@@ -563,6 +816,8 @@ def get_payment_details(access_token: str, payment_id: str) -> dict:
         if payment["success"] and payment["customer_id"]:
             customer = get_customer_details(token, payment["customer_id"])
     """
+    log_api_event('get_payment', details={'payment_id': payment_id})
+
     try:
         client = get_square_client(access_token)
 
@@ -570,6 +825,8 @@ def get_payment_details(access_token: str, payment_id: str) -> dict:
 
         payment = result.payment
         if not payment:
+            log_api_event('get_payment', success=False, error="Payment not found",
+                        details={'payment_id': payment_id})
             return {"success": False, "error": "Payment not found"}
 
         amount_money = payment.amount_money
@@ -580,6 +837,12 @@ def get_payment_details(access_token: str, payment_id: str) -> dict:
             created_at = datetime.fromisoformat(
                 payment.created_at.replace("Z", "+00:00")
             )
+
+        log_api_event('get_payment', details={
+            'payment_id': payment.id,
+            'status': payment.status,
+            'has_customer': bool(payment.customer_id)
+        })
 
         return {
             "success": True,
@@ -593,7 +856,8 @@ def get_payment_details(access_token: str, payment_id: str) -> dict:
         }
 
     except Exception as e:
-        print(f"ERROR: Failed to get payment details: {str(e)}")
+        log_api_event('get_payment', success=False, error=str(e), error_type='network',
+                    details={'payment_id': payment_id})
         return {
             "success": False,
             "error": f"Connection error: {str(e)}",
@@ -636,6 +900,8 @@ def get_customer_details(access_token: str, customer_id: str) -> dict:
             elif customer["phone"]:
                 send_sms_review_request(customer["phone"], customer["name"])
     """
+    log_api_event('get_customer', details={'customer_id': customer_id})
+
     try:
         client = get_square_client(access_token)
 
@@ -643,6 +909,8 @@ def get_customer_details(access_token: str, customer_id: str) -> dict:
 
         customer = result.customer
         if not customer:
+            log_api_event('get_customer', success=False, error="Customer not found",
+                        details={'customer_id': customer_id})
             return {"success": False, "error": "Customer not found"}
 
         # Build full name from parts
@@ -653,6 +921,12 @@ def get_customer_details(access_token: str, customer_id: str) -> dict:
         # If no name parts, try the company name or nickname
         if not full_name:
             full_name = customer.company_name or customer.nickname or "Customer"
+
+        log_api_event('get_customer', details={
+            'customer_id': customer.id,
+            'has_email': bool(customer.email_address),
+            'has_phone': bool(customer.phone_number)
+        })
 
         return {
             "success": True,
@@ -665,7 +939,8 @@ def get_customer_details(access_token: str, customer_id: str) -> dict:
         }
 
     except Exception as e:
-        print(f"ERROR: Failed to get customer details: {str(e)}")
+        log_api_event('get_customer', success=False, error=str(e), error_type='network',
+                    details={'customer_id': customer_id})
         return {
             "success": False,
             "error": f"Connection error: {str(e)}",

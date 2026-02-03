@@ -43,7 +43,8 @@ wheels/
 
 # Logs
 *.log
-logs/
+logs/*
+!logs/.gitkeep
 
 # OS
 .DS_Store

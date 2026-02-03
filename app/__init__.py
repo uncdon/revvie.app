@@ -4,10 +4,19 @@ This pattern allows creating multiple instances of the app with different config
 """
 
 import os
+import sentry_sdk
+from sentry_sdk.integrations.flask import FlaskIntegration
 from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from config import config
+
+# Initialize Sentry for error tracking
+sentry_sdk.init(
+    dsn="https://703fca9893ad4d814c03ffad9b035bc0@o4510814684184576.ingest.us.sentry.io/4510814685364224",
+    integrations=[FlaskIntegration()],
+    traces_sample_rate=1.0
+)
 
 # Initialize extensions (without binding to app yet)
 db = SQLAlchemy()
@@ -49,6 +58,8 @@ def create_app(config_name='default'):
     from app.routes.customers import customers_bp
     from app.routes.square_integration import square_bp as square_integration_bp
     from app.routes.square_webhooks import square_webhooks_bp
+    from app.routes.square_logs import square_logs_bp
+    from app.routes.telnyx_webhooks import telnyx_webhooks_bp
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(reviews_bp, url_prefix='/api')
     app.register_blueprint(test_bp, url_prefix='/api')
@@ -64,5 +75,9 @@ def create_app(config_name='default'):
     # Square Integration routes
     app.register_blueprint(square_integration_bp, url_prefix='/api/integrations/square')
     app.register_blueprint(square_webhooks_bp, url_prefix='/webhooks')
+    app.register_blueprint(square_logs_bp, url_prefix='/api/integrations/square')
+
+    # Telnyx SMS webhook routes
+    app.register_blueprint(telnyx_webhooks_bp, url_prefix='/webhooks')
 
     return app

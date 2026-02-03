@@ -6,38 +6,46 @@ This is the CORE feature of Revvie - sending review requests to customers!
 THE FULL FLOW:
 ==============
 1. Business owner logs into your app (gets JWT token)
-2. They enter customer info (name, email) in your frontend
+2. They enter customer info (name, email/phone) in your frontend
 3. Frontend calls POST /api/review-requests/send with the customer info
 4. This endpoint:
    a. Verifies the business owner is authenticated
    b. Gets the business info (name, google_place_id) from their account
    c. Generates the Google review URL
-   d. Sends a beautiful email to the customer
+   d. Sends email and/or SMS based on the 'method' parameter
    e. Saves a record in the database (for tracking/analytics)
    f. Returns success/failure to the frontend
-5. Customer receives email, clicks the button, leaves a review!
+5. Customer receives email/SMS, clicks the link, leaves a review!
 
 Endpoints:
-- POST /api/review-requests/send - Send a review request email
+- POST /api/review-requests/send - Send a review request (email, SMS, or both)
 - POST /api/review-requests/bulk - Send review requests to multiple customers
 - GET /api/review-requests - Get all review requests
 """
 
+import logging
 from datetime import datetime, timezone
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import require_auth
 from app.services.email_service import send_review_request_email, generate_google_review_url
+from app.services.sms_service import send_review_request_sms, validate_phone_number
 from app.services.supabase_service import supabase
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Create the blueprint
 review_requests_bp = Blueprint('review_requests', __name__)
+
+# Valid methods for sending review requests
+VALID_METHODS = ['email', 'sms', 'both']
 
 
 @review_requests_bp.route('/review-requests/send', methods=['POST'])
 @require_auth  # Only logged-in business owners can send review requests
 def send_review_request():
     """
-    Send a review request email to a customer.
+    Send a review request to a customer via email, SMS, or both.
 
     This is the main endpoint your frontend will call when a business
     owner wants to request a review from a customer.
@@ -49,7 +57,9 @@ def send_review_request():
         Body (JSON):
         {
             "customer_name": "John",
-            "customer_email": "john@example.com"
+            "customer_email": "john@example.com",  // Required if method is 'email' or 'both'
+            "customer_phone": "+14155551234",      // Required if method is 'sms' or 'both'
+            "method": "email"                      // Options: 'email', 'sms', 'both' (default: 'email')
         }
 
     Response (success):
@@ -59,8 +69,13 @@ def send_review_request():
             "data": {
                 "customer_name": "John",
                 "customer_email": "john@example.com",
+                "customer_phone": "+14155551234",
                 "business_name": "Joe's Coffee",
-                "review_url": "https://search.google.com/local/writereview?placeid=..."
+                "review_url": "https://search.google.com/local/writereview?placeid=...",
+                "method": "both",
+                "email_sent": true,
+                "sms_sent": true,
+                "sms_sid": "msg_abc123"
             }
         }
 
@@ -79,11 +94,20 @@ def send_review_request():
         if not data:
             return jsonify({
                 "success": False,
-                "message": "No data provided. Send JSON with customer_name and customer_email."
+                "message": "No data provided. Send JSON with customer_name and customer_email/customer_phone."
             }), 400
 
         customer_name = data.get('customer_name')
         customer_email = data.get('customer_email')
+        customer_phone = data.get('customer_phone')
+        method = data.get('method', 'email').lower()  # Default to email
+
+        # Validate method
+        if method not in VALID_METHODS:
+            return jsonify({
+                "success": False,
+                "message": f"Invalid method '{method}'. Must be one of: {', '.join(VALID_METHODS)}"
+            }), 400
 
         # Validate required fields
         if not customer_name:
@@ -92,24 +116,38 @@ def send_review_request():
                 "message": "customer_name is required"
             }), 400
 
-        if not customer_email:
-            return jsonify({
-                "success": False,
-                "message": "customer_email is required"
-            }), 400
+        # Validate based on method
+        if method in ['email', 'both']:
+            if not customer_email:
+                return jsonify({
+                    "success": False,
+                    "message": "customer_email is required when method is 'email' or 'both'"
+                }), 400
+            # Basic email validation
+            if '@' not in customer_email or '.' not in customer_email:
+                return jsonify({
+                    "success": False,
+                    "message": "customer_email must be a valid email address"
+                }), 400
 
-        # Basic email validation
-        if '@' not in customer_email or '.' not in customer_email:
-            return jsonify({
-                "success": False,
-                "message": "customer_email must be a valid email address"
-            }), 400
+        if method in ['sms', 'both']:
+            if not customer_phone:
+                return jsonify({
+                    "success": False,
+                    "message": "customer_phone is required when method is 'sms' or 'both'"
+                }), 400
+            # Validate phone number format
+            is_valid, phone_result = validate_phone_number(customer_phone)
+            if not is_valid:
+                return jsonify({
+                    "success": False,
+                    "message": f"Invalid phone number: {phone_result}"
+                }), 400
+            customer_phone = phone_result  # Use formatted phone number
 
         # ============================================================
         # STEP 2: Get business info from the authenticated user
         # ============================================================
-        # request.business is set by the @require_auth decorator
-        # It contains the business data from the database
         business = request.business
 
         if not business:
@@ -121,78 +159,157 @@ def send_review_request():
         business_id = business.get('id')
         business_name = business.get('business_name')
         google_place_id = business.get('google_place_id')
+        google_review_url = business.get('google_review_url')
 
-        # Check if the business has set up their Google Place ID
-        if not google_place_id:
+        # Check if the business has set up their Google Place ID or review URL
+        if not google_place_id and not google_review_url:
             return jsonify({
                 "success": False,
-                "message": "Google Place ID not configured. Please add your Google Place ID in settings."
+                "message": "Google Place ID or Review URL not configured. Please add it in settings."
             }), 400
 
         # ============================================================
         # STEP 3: Generate the Google review URL
         # ============================================================
-        review_url = generate_google_review_url(google_place_id)
+        if google_review_url:
+            review_url = google_review_url
+        else:
+            review_url = generate_google_review_url(google_place_id)
 
         # ============================================================
-        # STEP 4: Send the email
+        # STEP 4: Send the review request(s)
         # ============================================================
-        email_result = send_review_request_email(
-            customer_name=customer_name,
-            customer_email=customer_email,
-            business_name=business_name,
-            review_url=review_url
-        )
+        email_sent = False
+        email_error = None
+        sms_sent = False
+        sms_sid = None
+        sms_status = None
+        sms_error = None
 
-        # Check if email was sent successfully
-        if not email_result['success']:
+        # Send email if method is 'email' or 'both'
+        if method in ['email', 'both']:
+            logger.info(f"Sending review request email to {customer_email}")
+            email_result = send_review_request_email(
+                customer_name=customer_name,
+                customer_email=customer_email,
+                business_name=business_name,
+                review_url=review_url
+            )
+            email_sent = email_result['success']
+            if not email_sent:
+                email_error = email_result.get('message', 'Unknown email error')
+                logger.error(f"Email failed: {email_error}")
+
+        # Send SMS if method is 'sms' or 'both'
+        if method in ['sms', 'both']:
+            logger.info(f"Sending review request SMS to {customer_phone}")
+            sms_result = send_review_request_sms(
+                customer_name=customer_name,
+                customer_phone=customer_phone,
+                business_name=business_name,
+                review_url=review_url
+            )
+            sms_sent = sms_result['success']
+            if sms_sent:
+                sms_sid = sms_result.get('message_id')
+                sms_status = 'sent'
+            else:
+                sms_error = sms_result.get('error', 'Unknown SMS error')
+                sms_status = 'failed'
+                logger.error(f"SMS failed: {sms_error}")
+
+        # ============================================================
+        # STEP 5: Determine overall success
+        # ============================================================
+        # For 'both' method, we consider it a success if at least one worked
+        if method == 'email':
+            overall_success = email_sent
+        elif method == 'sms':
+            overall_success = sms_sent
+        else:  # both
+            overall_success = email_sent or sms_sent
+
+        if not overall_success:
+            error_parts = []
+            if method in ['email', 'both'] and not email_sent:
+                error_parts.append(f"Email: {email_error}")
+            if method in ['sms', 'both'] and not sms_sent:
+                error_parts.append(f"SMS: {sms_error}")
             return jsonify({
                 "success": False,
-                "message": f"Failed to send email: {email_result['message']}"
+                "message": f"Failed to send review request. {' | '.join(error_parts)}"
             }), 500
 
         # ============================================================
-        # STEP 5: Save record to database for tracking
+        # STEP 6: Save record to database for tracking
         # ============================================================
-        # This creates a record so you can:
-        # - See how many requests were sent
-        # - Track which customers were contacted
-        # - Build analytics dashboards later
-
         review_request_data = {
             "business_id": business_id,
             "customer_name": customer_name,
             "customer_email": customer_email,
-            "status": "sent",           # Status: sent, opened, clicked, reviewed
-            "method": "email",          # Method: email, sms
-            "sent_at": datetime.now(timezone.utc).isoformat()
+            "customer_phone": customer_phone,
+            "status": "sent",
+            "method": method,
+            "sent_at": datetime.now(timezone.utc).isoformat(),
+            # SMS tracking fields
+            "sms_sid": sms_sid,
+            "sms_status": sms_status,
+            "sms_error": sms_error if not sms_sent and method in ['sms', 'both'] else None
         }
 
         # Insert into the review_requests table
         db_result = supabase.table("review_requests").insert(review_request_data).execute()
 
         if not db_result.data:
-            # Email was sent but database save failed
-            # We still return success because the customer got the email
-            # But we log this for debugging
-            print(f"Warning: Failed to save review request to database for {customer_email}")
+            logger.warning(f"Failed to save review request to database for {customer_email or customer_phone}")
 
         # ============================================================
-        # STEP 6: Return success response
+        # STEP 7: Return success response
         # ============================================================
+        response_data = {
+            "customer_name": customer_name,
+            "business_name": business_name,
+            "review_url": review_url,
+            "method": method
+        }
+
+        # Include email info if applicable
+        if method in ['email', 'both']:
+            response_data["customer_email"] = customer_email
+            response_data["email_sent"] = email_sent
+            if not email_sent:
+                response_data["email_error"] = email_error
+
+        # Include SMS info if applicable
+        if method in ['sms', 'both']:
+            response_data["customer_phone"] = customer_phone
+            response_data["sms_sent"] = sms_sent
+            if sms_sent:
+                response_data["sms_sid"] = sms_sid
+            else:
+                response_data["sms_error"] = sms_error
+
+        # Build appropriate message
+        if method == 'both':
+            if email_sent and sms_sent:
+                message = "Review request sent via email and SMS!"
+            elif email_sent:
+                message = "Review request sent via email. SMS failed."
+            else:
+                message = "Review request sent via SMS. Email failed."
+        elif method == 'email':
+            message = "Review request sent via email!"
+        else:
+            message = "Review request sent via SMS!"
+
         return jsonify({
             "success": True,
-            "message": "Review request sent!",
-            "data": {
-                "customer_name": customer_name,
-                "customer_email": customer_email,
-                "business_name": business_name,
-                "review_url": review_url
-            }
+            "message": message,
+            "data": response_data
         }), 200
 
     except Exception as e:
-        # Catch any unexpected errors
+        logger.exception(f"Unexpected error in send_review_request: {e}")
         return jsonify({
             "success": False,
             "message": f"An unexpected error occurred: {str(e)}"
@@ -215,8 +332,11 @@ def get_review_requests():
                     "id": 1,
                     "customer_name": "John",
                     "customer_email": "john@example.com",
+                    "customer_phone": "+14155551234",
                     "status": "sent",
-                    "method": "email",
+                    "method": "both",
+                    "sms_sid": "msg_abc123",
+                    "sms_status": "delivered",
                     "sent_at": "2024-01-15T10:30:00Z"
                 },
                 ...
@@ -249,7 +369,7 @@ def get_review_requests():
 @require_auth
 def send_bulk_review_requests():
     """
-    Send review request emails to multiple customers at once.
+    Send review request emails/SMS to multiple customers at once.
 
     Request:
         Headers:
@@ -257,7 +377,8 @@ def send_bulk_review_requests():
 
         Body (JSON):
         {
-            "customer_ids": ["uuid1", "uuid2", "uuid3"]
+            "customer_ids": ["uuid1", "uuid2", "uuid3"],
+            "method": "email"  // Options: 'email', 'sms', 'both' (default: 'email')
         }
 
     Response:
@@ -278,6 +399,7 @@ def send_bulk_review_requests():
             }), 400
 
         customer_ids = data.get('customer_ids', [])
+        method = data.get('method', 'email').lower()
 
         if not customer_ids:
             return jsonify({
@@ -289,6 +411,12 @@ def send_bulk_review_requests():
             return jsonify({
                 "success": False,
                 "message": "customer_ids must be an array"
+            }), 400
+
+        if method not in VALID_METHODS:
+            return jsonify({
+                "success": False,
+                "message": f"Invalid method '{method}'. Must be one of: {', '.join(VALID_METHODS)}"
             }), 400
 
         # Get business info
@@ -303,15 +431,19 @@ def send_bulk_review_requests():
         business_id = business.get('id')
         business_name = business.get('business_name')
         google_place_id = business.get('google_place_id')
+        google_review_url = business.get('google_review_url')
 
-        if not google_place_id:
+        if not google_place_id and not google_review_url:
             return jsonify({
                 "success": False,
-                "message": "Google Place ID not configured. Please add your Google Place ID in settings."
+                "message": "Google Place ID or Review URL not configured."
             }), 400
 
         # Generate review URL once (same for all customers)
-        review_url = generate_google_review_url(google_place_id)
+        if google_review_url:
+            review_url = google_review_url
+        else:
+            review_url = generate_google_review_url(google_place_id)
 
         # Fetch all customers at once
         customers_result = supabase.table("customers") \
@@ -346,42 +478,90 @@ def send_bulk_review_requests():
 
             customer_name = customer.get('name')
             customer_email = customer.get('email')
+            customer_phone = customer.get('phone')
 
-            if not customer_email:
-                errors.append({
-                    "customer_id": customer_id,
-                    "message": "Customer has no email address"
-                })
-                error_count += 1
-                continue
-
-            # Send email
-            try:
-                email_result = send_review_request_email(
-                    customer_name=customer_name,
-                    customer_email=customer_email,
-                    business_name=business_name,
-                    review_url=review_url
-                )
-
-                if email_result['success']:
-                    success_count += 1
-                    # Prepare review request record
-                    review_requests_to_insert.append({
-                        "business_id": business_id,
+            # Validate contact info based on method
+            if method in ['email', 'both'] and not customer_email:
+                if method == 'email':
+                    errors.append({
                         "customer_id": customer_id,
-                        "customer_name": customer_name,
-                        "customer_email": customer_email,
-                        "status": "sent",
-                        "method": "email",
-                        "sent_at": datetime.now(timezone.utc).isoformat()
+                        "message": "Customer has no email address"
                     })
+                    error_count += 1
+                    continue
+
+            if method in ['sms', 'both'] and not customer_phone:
+                if method == 'sms':
+                    errors.append({
+                        "customer_id": customer_id,
+                        "message": "Customer has no phone number"
+                    })
+                    error_count += 1
+                    continue
+
+            # Send based on method
+            email_sent = False
+            sms_sent = False
+            sms_sid = None
+            sms_status = None
+            sms_error = None
+
+            try:
+                # Send email
+                if method in ['email', 'both'] and customer_email:
+                    email_result = send_review_request_email(
+                        customer_name=customer_name,
+                        customer_email=customer_email,
+                        business_name=business_name,
+                        review_url=review_url
+                    )
+                    email_sent = email_result['success']
+
+                # Send SMS
+                if method in ['sms', 'both'] and customer_phone:
+                    sms_result = send_review_request_sms(
+                        customer_name=customer_name,
+                        customer_phone=customer_phone,
+                        business_name=business_name,
+                        review_url=review_url
+                    )
+                    sms_sent = sms_result['success']
+                    if sms_sent:
+                        sms_sid = sms_result.get('message_id')
+                        sms_status = 'sent'
+                    else:
+                        sms_error = sms_result.get('error')
+                        sms_status = 'failed'
+
+                # Check if at least one method succeeded
+                if method == 'email' and email_sent:
+                    success_count += 1
+                elif method == 'sms' and sms_sent:
+                    success_count += 1
+                elif method == 'both' and (email_sent or sms_sent):
+                    success_count += 1
                 else:
                     errors.append({
                         "customer_id": customer_id,
-                        "message": email_result.get('message', 'Failed to send email')
+                        "message": "Failed to send via any method"
                     })
                     error_count += 1
+                    continue
+
+                # Prepare review request record
+                review_requests_to_insert.append({
+                    "business_id": business_id,
+                    "customer_id": customer_id,
+                    "customer_name": customer_name,
+                    "customer_email": customer_email,
+                    "customer_phone": customer_phone,
+                    "status": "sent",
+                    "method": method,
+                    "sent_at": datetime.now(timezone.utc).isoformat(),
+                    "sms_sid": sms_sid,
+                    "sms_status": sms_status,
+                    "sms_error": sms_error
+                })
 
             except Exception as e:
                 errors.append({
@@ -395,7 +575,7 @@ def send_bulk_review_requests():
             try:
                 supabase.table("review_requests").insert(review_requests_to_insert).execute()
             except Exception as e:
-                print(f"Warning: Failed to save some review requests to database: {e}")
+                logger.warning(f"Failed to save some review requests to database: {e}")
 
         return jsonify({
             "success": True,

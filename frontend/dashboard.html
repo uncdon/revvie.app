@@ -218,25 +218,62 @@
                     Send Review Request
                 </h2>
                 <form id="reviewRequestForm" class="space-y-5">
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div>
-                            <label for="customerName" class="block text-sm font-semibold text-gray-700 mb-2">Customer Name <span class="text-red-400">*</span></label>
-                            <input type="text" id="customerName" name="customerName" required placeholder="e.g., John Smith" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
-                            <p id="nameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
-                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
-                                <span></span>
-                            </p>
+                    <!-- Send Method Selector -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-3">Send via <span class="text-red-400">*</span></label>
+                        <div class="flex flex-wrap gap-3">
+                            <label class="relative flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-accent-300 hover:bg-accent-50/50 transition-all duration-200 has-[:checked]:border-accent-500 has-[:checked]:bg-accent-50 has-[:checked]:shadow-sm">
+                                <input type="radio" name="sendMethod" value="email" checked class="w-4 h-4 text-accent-600 border-gray-300 focus:ring-accent-500 focus:ring-offset-0">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                <span class="text-sm font-medium text-gray-700">Email only</span>
+                            </label>
+                            <label class="relative flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-accent-300 hover:bg-accent-50/50 transition-all duration-200 has-[:checked]:border-accent-500 has-[:checked]:bg-accent-50 has-[:checked]:shadow-sm">
+                                <input type="radio" name="sendMethod" value="sms" class="w-4 h-4 text-accent-600 border-gray-300 focus:ring-accent-500 focus:ring-offset-0">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                                <span class="text-sm font-medium text-gray-700">SMS only</span>
+                            </label>
+                            <label class="relative flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-accent-300 hover:bg-accent-50/50 transition-all duration-200 has-[:checked]:border-accent-500 has-[:checked]:bg-accent-50 has-[:checked]:shadow-sm">
+                                <input type="radio" name="sendMethod" value="both" class="w-4 h-4 text-accent-600 border-gray-300 focus:ring-accent-500 focus:ring-offset-0">
+                                <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                <span class="text-sm font-medium text-gray-700">Both</span>
+                            </label>
                         </div>
-                        <div>
+                    </div>
+
+                    <!-- Customer Name (always visible) -->
+                    <div>
+                        <label for="customerName" class="block text-sm font-semibold text-gray-700 mb-2">Customer Name <span class="text-red-400">*</span></label>
+                        <input type="text" id="customerName" name="customerName" required placeholder="e.g., John Smith" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                        <p id="nameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                            <span></span>
+                        </p>
+                    </div>
+
+                    <!-- Contact Fields (show/hide based on method) -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <!-- Email Field -->
+                        <div id="emailFieldWrapper">
                             <label for="customerEmail" class="block text-sm font-semibold text-gray-700 mb-2">Customer Email <span class="text-red-400">*</span></label>
-                            <input type="email" id="customerEmail" name="customerEmail" required placeholder="e.g., john@example.com" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                            <input type="email" id="customerEmail" name="customerEmail" placeholder="e.g., john@example.com" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
                             <p id="emailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
                                 <span></span>
                             </p>
                             <p class="text-xs text-gray-400 mt-1">Format: name@example.com</p>
                         </div>
+                        <!-- Phone Field -->
+                        <div id="phoneFieldWrapper" class="hidden">
+                            <label for="customerPhone" class="block text-sm font-semibold text-gray-700 mb-2">Customer Phone <span class="text-red-400">*</span></label>
+                            <input type="tel" id="customerPhone" name="customerPhone" placeholder="e.g., (555) 123-4567" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                            <p id="phoneError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                                <span></span>
+                            </p>
+                            <p class="text-xs text-gray-400 mt-1">Format: (555) 123-4567 or +15551234567</p>
+                        </div>
                     </div>
+
                     <div class="pt-2">
                         <button type="submit" id="sendRequestBtn" disabled class="w-full md:w-auto px-8 py-3.5 bg-accent-600 text-white font-semibold rounded-xl hover:bg-accent-700 hover:shadow-lg hover:shadow-accent-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:bg-accent-600">
                             <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
@@ -264,7 +301,8 @@
                             <thead>
                                 <tr class="border-b-2 border-gray-100">
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Customer</th>
-                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Email</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Contact</th>
+                                    <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Method</th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Sent</th>
                                     <th class="text-left py-3 px-4 md:px-6 font-semibold text-gray-500 text-sm uppercase tracking-wider">Status</th>
                                 </tr>
@@ -316,14 +354,16 @@
                             <p id="newCustomerNameError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg><span></span></p>
                         </div>
                         <div>
-                            <label for="newCustomerEmail" class="block text-sm font-semibold text-gray-700 mb-2">Email <span class="text-red-400">*</span></label>
-                            <input type="email" id="newCustomerEmail" name="newCustomerEmail" required placeholder="e.g., john@example.com" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                            <label for="newCustomerEmail" class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                            <input type="email" id="newCustomerEmail" name="newCustomerEmail" placeholder="e.g., john@example.com" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
                             <p id="newCustomerEmailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg><span></span></p>
                         </div>
                         <div>
-                            <label for="newCustomerPhone" class="block text-sm font-semibold text-gray-700 mb-2">Phone <span class="text-gray-400 font-normal">(optional)</span></label>
-                            <input type="tel" id="newCustomerPhone" name="newCustomerPhone" placeholder="e.g., 555-123-4567" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                            <label for="newCustomerPhone" class="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
+                            <input type="tel" id="newCustomerPhone" name="newCustomerPhone" placeholder="e.g., +12345678900" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                            <p id="newCustomerPhoneError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg><span></span></p>
                         </div>
+                        <p id="newCustomerContactError" class="hidden text-red-500 text-sm flex items-center gap-1 md:col-span-2"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg><span>Email or phone is required</span></p>
                     </div>
                     <div class="pt-2">
                         <button type="submit" id="saveCustomerBtn" disabled class="w-full md:w-auto px-8 py-3.5 bg-accent-600 text-white font-semibold rounded-xl hover:bg-accent-700 hover:shadow-lg hover:shadow-accent-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -582,13 +622,16 @@
                         <input type="text" id="editCustomerName" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all">
                     </div>
                     <div>
-                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email <span class="text-red-400">*</span></label>
-                        <input type="email" id="editCustomerEmail" required class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all">
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                        <input type="email" id="editCustomerEmail" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all">
+                        <p id="editCustomerEmailError" class="hidden text-red-500 text-sm mt-1.5">Please enter a valid email</p>
                     </div>
                     <div>
                         <label class="block text-sm font-semibold text-gray-700 mb-2">Phone</label>
-                        <input type="tel" id="editCustomerPhone" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all">
+                        <input type="tel" id="editCustomerPhone" placeholder="+12345678900" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all">
+                        <p id="editCustomerPhoneError" class="hidden text-red-500 text-sm mt-1.5">Use format: +12345678900</p>
                     </div>
+                    <p id="editCustomerContactError" class="hidden text-red-500 text-sm">Email or phone is required</p>
                 </form>
                 <div class="px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
                     <button type="button" id="cancelEditBtn" class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-100 transition-colors">Cancel</button>
@@ -723,6 +766,11 @@ Jane Smith,jane@example.com,+19876543210</pre>
         const reviewRequestForm = document.getElementById('reviewRequestForm');
         const customerNameInput = document.getElementById('customerName');
         const customerEmailInput = document.getElementById('customerEmail');
+        const customerPhoneInput = document.getElementById('customerPhone');
+        const emailFieldWrapper = document.getElementById('emailFieldWrapper');
+        const phoneFieldWrapper = document.getElementById('phoneFieldWrapper');
+        const phoneError = document.getElementById('phoneError');
+        const sendMethodRadios = document.querySelectorAll('input[name="sendMethod"]');
         const sendRequestBtn = document.getElementById('sendRequestBtn');
         const btnText = document.getElementById('btnText');
         const btnIcon = document.getElementById('btnIcon');
@@ -762,6 +810,8 @@ Jane Smith,jane@example.com,+19876543210</pre>
         const saveCustomerSpinner = document.getElementById('saveCustomerSpinner');
         const newCustomerNameError = document.getElementById('newCustomerNameError');
         const newCustomerEmailError = document.getElementById('newCustomerEmailError');
+        const newCustomerPhoneError = document.getElementById('newCustomerPhoneError');
+        const newCustomerContactError = document.getElementById('newCustomerContactError');
 
         const customersTableSkeleton = document.getElementById('customersTableSkeleton');
         const customersTableContent = document.getElementById('customersTableContent');
@@ -819,6 +869,32 @@ Jane Smith,jane@example.com,+19876543210</pre>
             return badges[status] || `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">${status || 'Unknown'}</span>`;
         }
 
+        function getMethodBadge(method) {
+            const badges = {
+                'email': '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>Email</span>',
+                'sms': '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>SMS</span>',
+                'both': '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-50 text-purple-600"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>Both</span>'
+            };
+            return badges[method] || badges['email'];
+        }
+
+        function getContactDisplay(request) {
+            const method = request.method || 'email';
+            const email = request.customer_email ? escapeHtml(request.customer_email) : '';
+            const phone = request.customer_phone ? escapeHtml(request.customer_phone) : '';
+
+            if (method === 'both') {
+                let parts = [];
+                if (email) parts.push(`<span class="text-gray-600">${email}</span>`);
+                if (phone) parts.push(`<span class="text-gray-400 text-xs">${phone}</span>`);
+                return parts.join('<br>') || '-';
+            } else if (method === 'sms') {
+                return phone || '-';
+            } else {
+                return email || '-';
+            }
+        }
+
         // =====================================================
         // TOAST & SUCCESS ANIMATION
         // =====================================================
@@ -839,18 +915,68 @@ Jane Smith,jane@example.com,+19876543210</pre>
         // =====================================================
         // FORM VALIDATION (Real-time)
         // =====================================================
+        function getSelectedMethod() {
+            const selected = document.querySelector('input[name="sendMethod"]:checked');
+            return selected ? selected.value : 'email';
+        }
+
+        function isValidPhone(phone) {
+            // Accept various phone formats: (555) 123-4567, 555-123-4567, +15551234567, etc.
+            const cleaned = phone.replace(/[\s\-\(\)\.]/g, '');
+            return /^\+?1?\d{10,14}$/.test(cleaned);
+        }
+
+        function updateFieldVisibility() {
+            const method = getSelectedMethod();
+
+            // Show/hide email field
+            if (method === 'sms') {
+                emailFieldWrapper.classList.add('hidden');
+                customerEmailInput.removeAttribute('required');
+            } else {
+                emailFieldWrapper.classList.remove('hidden');
+                customerEmailInput.setAttribute('required', '');
+            }
+
+            // Show/hide phone field
+            if (method === 'email') {
+                phoneFieldWrapper.classList.add('hidden');
+                customerPhoneInput.removeAttribute('required');
+            } else {
+                phoneFieldWrapper.classList.remove('hidden');
+                customerPhoneInput.setAttribute('required', '');
+            }
+
+            validateReviewForm();
+        }
+
         function validateReviewForm() {
             const name = customerNameInput.value.trim();
             const email = customerEmailInput.value.trim();
+            const phone = customerPhoneInput.value.trim();
+            const method = getSelectedMethod();
             let valid = true;
 
+            // Reset error states
             nameError.classList.add('hidden');
             emailError.classList.add('hidden');
+            phoneError.classList.add('hidden');
             customerNameInput.classList.remove('border-red-400');
             customerEmailInput.classList.remove('border-red-400');
+            customerPhoneInput.classList.remove('border-red-400');
 
+            // Name is always required
             if (!name) valid = false;
-            if (!email || !isValidEmail(email)) valid = false;
+
+            // Email validation (required for 'email' and 'both')
+            if (method === 'email' || method === 'both') {
+                if (!email || !isValidEmail(email)) valid = false;
+            }
+
+            // Phone validation (required for 'sms' and 'both')
+            if (method === 'sms' || method === 'both') {
+                if (!phone || !isValidPhone(phone)) valid = false;
+            }
 
             sendRequestBtn.disabled = !valid;
             return valid;
@@ -859,13 +985,36 @@ Jane Smith,jane@example.com,+19876543210</pre>
         function validateCustomerForm() {
             const name = newCustomerName.value.trim();
             const email = newCustomerEmail.value.trim();
+            const phone = newCustomerPhone.value.trim();
             let valid = true;
 
+            // Hide all errors
             newCustomerNameError.classList.add('hidden');
             newCustomerEmailError.classList.add('hidden');
+            newCustomerPhoneError.classList.add('hidden');
+            newCustomerContactError.classList.add('hidden');
 
+            // Name is required
             if (!name) valid = false;
-            if (!email || !isValidEmail(email)) valid = false;
+
+            // At least email or phone is required
+            const hasEmail = email && isValidEmail(email);
+            const hasPhone = phone && isValidPhone(phone);
+
+            // If email provided but invalid
+            if (email && !isValidEmail(email)) valid = false;
+
+            // If phone provided but invalid
+            if (phone && !isValidPhone(phone)) valid = false;
+
+            // Must have at least one valid contact method
+            if (!hasEmail && !hasPhone) {
+                valid = false;
+                // Show contact error only if both fields have some input but are invalid
+                if ((email || phone) && !hasEmail && !hasPhone) {
+                    newCustomerContactError.classList.remove('hidden');
+                }
+            }
 
             saveCustomerBtn.disabled = !valid;
             return valid;
@@ -873,16 +1022,34 @@ Jane Smith,jane@example.com,+19876543210</pre>
 
         customerNameInput.addEventListener('input', validateReviewForm);
         customerEmailInput.addEventListener('input', validateReviewForm);
+        customerPhoneInput.addEventListener('input', validateReviewForm);
         newCustomerName.addEventListener('input', validateCustomerForm);
         newCustomerEmail.addEventListener('input', validateCustomerForm);
+        newCustomerPhone.addEventListener('input', validateCustomerForm);
+
+        // Listen for method change
+        sendMethodRadios.forEach(radio => {
+            radio.addEventListener('change', updateFieldVisibility);
+        });
 
         // Show error on blur if invalid
         customerEmailInput.addEventListener('blur', () => {
             const email = customerEmailInput.value.trim();
-            if (email && !isValidEmail(email)) {
+            const method = getSelectedMethod();
+            if ((method === 'email' || method === 'both') && email && !isValidEmail(email)) {
                 emailError.querySelector('span').textContent = 'Please enter a valid email';
                 emailError.classList.remove('hidden');
                 customerEmailInput.classList.add('border-red-400');
+            }
+        });
+
+        customerPhoneInput.addEventListener('blur', () => {
+            const phone = customerPhoneInput.value.trim();
+            const method = getSelectedMethod();
+            if ((method === 'sms' || method === 'both') && phone && !isValidPhone(phone)) {
+                phoneError.querySelector('span').textContent = 'Please enter a valid phone number';
+                phoneError.classList.remove('hidden');
+                customerPhoneInput.classList.add('border-red-400');
             }
         });
 
@@ -891,6 +1058,14 @@ Jane Smith,jane@example.com,+19876543210</pre>
             if (email && !isValidEmail(email)) {
                 newCustomerEmailError.querySelector('span').textContent = 'Please enter a valid email';
                 newCustomerEmailError.classList.remove('hidden');
+            }
+        });
+
+        newCustomerPhone.addEventListener('blur', () => {
+            const phone = newCustomerPhone.value.trim();
+            if (phone && !isValidPhone(phone)) {
+                newCustomerPhoneError.querySelector('span').textContent = 'Use format: +12345678900';
+                newCustomerPhoneError.classList.remove('hidden');
             }
         });
 
@@ -994,7 +1169,8 @@ Jane Smith,jane@example.com,+19876543210</pre>
                     requestsTableBody.innerHTML = data.data.slice(0, 10).map((r, i) => `
                         <tr class="border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-accent-50/50 transition-colors">
                             <td class="py-4 px-4 md:px-6"><span class="font-medium text-gray-800">${escapeHtml(r.customer_name)}</span></td>
-                            <td class="py-4 px-4 md:px-6 text-gray-600">${escapeHtml(r.customer_email)}</td>
+                            <td class="py-4 px-4 md:px-6">${getContactDisplay(r)}</td>
+                            <td class="py-4 px-4 md:px-6">${getMethodBadge(r.method)}</td>
                             <td class="py-4 px-4 md:px-6 text-gray-500 text-sm tooltip" data-tooltip="${formatExactDateTime(r.sent_at)}">${formatRelativeTime(r.sent_at)}</td>
                             <td class="py-4 px-4 md:px-6">${getStatusBadge(r.status)}</td>
                         </tr>
@@ -1050,18 +1226,18 @@ Jane Smith,jane@example.com,+19876543210</pre>
             customersTableBody.innerHTML = customers.map((c, i) => `
                 <tr class="border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-accent-50/50 transition-colors customer-row" data-customer-id="${c.id}">
                     <td class="py-4 px-4 md:px-6">
-                        <input type="checkbox" class="customer-checkbox w-4 h-4 text-accent-600 bg-gray-100 border-gray-300 rounded focus:ring-accent-500 cursor-pointer" data-customer-id="${c.id}" data-customer-name="${escapeHtml(c.name)}" data-customer-email="${escapeHtml(c.email)}">
+                        <input type="checkbox" class="customer-checkbox w-4 h-4 text-accent-600 bg-gray-100 border-gray-300 rounded focus:ring-accent-500 cursor-pointer" data-customer-id="${c.id}" data-customer-name="${escapeHtml(c.name)}" data-customer-email="${escapeHtml(c.email || '')}" data-customer-phone="${escapeHtml(c.phone || '')}">
                     </td>
                     <td class="py-4 px-4 md:px-6"><span class="font-medium text-gray-800">${escapeHtml(c.name)}</span></td>
-                    <td class="py-4 px-4 md:px-6 text-gray-600">${escapeHtml(c.email)}</td>
+                    <td class="py-4 px-4 md:px-6 text-gray-600">${c.email ? escapeHtml(c.email) : '<span class="text-gray-300">-</span>'}</td>
                     <td class="py-4 px-4 md:px-6 text-gray-500">${c.phone ? escapeHtml(c.phone) : '<span class="text-gray-300">-</span>'}</td>
                     <td class="py-4 px-4 md:px-6 text-gray-500 text-sm tooltip" data-tooltip="${formatExactDateTime(c.created_at)}">${formatRelativeTime(c.created_at)}</td>
                     <td class="py-4 px-4 md:px-6">
                         <div class="flex items-center gap-2">
-                            <button onclick="sendReviewToCustomer('${escapeHtml(c.name)}', '${escapeHtml(c.email)}')" class="p-2 text-accent-600 hover:bg-accent-50 rounded-lg transition-colors" title="Send Review Request">
+                            <button onclick="sendReviewToCustomer('${escapeHtml(c.name)}', '${escapeHtml(c.email || '')}', '${escapeHtml(c.phone || '')}')" class="p-2 text-accent-600 hover:bg-accent-50 rounded-lg transition-colors" title="Send Review Request">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                             </button>
-                            <button onclick="openEditModal('${c.id}', '${escapeHtml(c.name)}', '${escapeHtml(c.email)}', '${escapeHtml(c.phone || '')}')" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
+                            <button onclick="openEditModal('${c.id}', '${escapeHtml(c.name)}', '${escapeHtml(c.email || '')}', '${escapeHtml(c.phone || '')}')" class="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors" title="Edit">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                             </button>
                             <button onclick="openDeleteModal('${c.id}', '${escapeHtml(c.name)}')" class="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Delete">
@@ -1100,21 +1276,57 @@ Jane Smith,jane@example.com,+19876543210</pre>
 
             const customerName = customerNameInput.value.trim();
             const customerEmail = customerEmailInput.value.trim();
+            const customerPhone = customerPhoneInput.value.trim();
+            const method = getSelectedMethod();
 
             sendRequestBtn.disabled = true;
             btnText.textContent = 'Sending...';
             btnIcon.classList.add('hidden');
             btnSpinner.classList.remove('hidden');
 
+            // Build request payload based on method
+            const payload = {
+                customer_name: customerName,
+                method: method
+            };
+
+            if (method === 'email' || method === 'both') {
+                payload.customer_email = customerEmail;
+            }
+            if (method === 'sms' || method === 'both') {
+                payload.customer_phone = customerPhone;
+            }
+
             try {
-                await apiCall(`${API_URL}/review-requests/send`, {
+                const response = await apiCall(`${API_URL}/review-requests/send`, {
                     method: 'POST',
-                    body: JSON.stringify({ customer_name: customerName, customer_email: customerEmail })
+                    body: JSON.stringify(payload)
                 });
                 showSuccessAnimation();
-                showToast('Review request sent successfully!', 'success');
+
+                // Show appropriate success message
+                let successMsg = 'Review request sent';
+                if (method === 'email') {
+                    successMsg = 'Review request sent via email!';
+                } else if (method === 'sms') {
+                    successMsg = 'Review request sent via SMS!';
+                } else if (method === 'both') {
+                    // Check which methods succeeded
+                    const data = response?.data || {};
+                    if (data.email_sent && data.sms_sent) {
+                        successMsg = 'Review request sent via email and SMS!';
+                    } else if (data.email_sent) {
+                        successMsg = 'Review request sent via email! (SMS failed)';
+                    } else if (data.sms_sent) {
+                        successMsg = 'Review request sent via SMS! (Email failed)';
+                    }
+                }
+                showToast(successMsg, 'success');
+
+                // Clear form
                 customerNameInput.value = '';
                 customerEmailInput.value = '';
+                customerPhoneInput.value = '';
                 validateReviewForm();
                 loadDashboardStats();
                 loadReviewRequests();
@@ -1129,10 +1341,31 @@ Jane Smith,jane@example.com,+19876543210</pre>
             validateReviewForm();
         }
 
-        function sendReviewToCustomer(name, email) {
+        function sendReviewToCustomer(name, email, phone = '') {
             switchTab('send-reviews');
             customerNameInput.value = name;
-            customerEmailInput.value = email;
+            customerEmailInput.value = email || '';
+            customerPhoneInput.value = phone || '';
+
+            // Auto-select method based on available contact info
+            const hasEmail = email && email.trim();
+            const hasPhone = phone && phone.trim();
+
+            let targetMethod = 'email'; // default
+            if (hasEmail && hasPhone) {
+                targetMethod = 'both';
+            } else if (hasPhone && !hasEmail) {
+                targetMethod = 'sms';
+            } else if (hasEmail && !hasPhone) {
+                targetMethod = 'email';
+            }
+
+            const targetRadio = document.querySelector(`input[name="sendMethod"][value="${targetMethod}"]`);
+            if (targetRadio) {
+                targetRadio.checked = true;
+                updateFieldVisibility();
+            }
+
             validateReviewForm();
             customerNameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
             const formCard = reviewRequestForm.closest('.bg-white');
@@ -1188,14 +1421,54 @@ Jane Smith,jane@example.com,+19876543210</pre>
         const editCustomerName = document.getElementById('editCustomerName');
         const editCustomerEmail = document.getElementById('editCustomerEmail');
         const editCustomerPhone = document.getElementById('editCustomerPhone');
+        const editCustomerEmailError = document.getElementById('editCustomerEmailError');
+        const editCustomerPhoneError = document.getElementById('editCustomerPhoneError');
+        const editCustomerContactError = document.getElementById('editCustomerContactError');
         const saveEditBtn = document.getElementById('saveEditBtn');
         const saveEditSpinner = document.getElementById('saveEditSpinner');
+
+        function validateEditForm() {
+            const email = editCustomerEmail.value.trim();
+            const phone = editCustomerPhone.value.trim();
+            let valid = true;
+
+            // Hide all errors
+            editCustomerEmailError.classList.add('hidden');
+            editCustomerPhoneError.classList.add('hidden');
+            editCustomerContactError.classList.add('hidden');
+
+            // Validate email if provided
+            if (email && !isValidEmail(email)) {
+                editCustomerEmailError.classList.remove('hidden');
+                valid = false;
+            }
+
+            // Validate phone if provided
+            if (phone && !isValidPhone(phone)) {
+                editCustomerPhoneError.classList.remove('hidden');
+                valid = false;
+            }
+
+            // Must have at least one valid contact method
+            const hasValidEmail = email && isValidEmail(email);
+            const hasValidPhone = phone && isValidPhone(phone);
+            if (!hasValidEmail && !hasValidPhone) {
+                editCustomerContactError.classList.remove('hidden');
+                valid = false;
+            }
+
+            return valid;
+        }
 
         function openEditModal(id, name, email, phone) {
             editCustomerId.value = id;
             editCustomerName.value = name;
-            editCustomerEmail.value = email;
-            editCustomerPhone.value = phone;
+            editCustomerEmail.value = email || '';
+            editCustomerPhone.value = phone || '';
+            // Hide any previous errors
+            editCustomerEmailError.classList.add('hidden');
+            editCustomerPhoneError.classList.add('hidden');
+            editCustomerContactError.classList.add('hidden');
             editModal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
         }
@@ -1207,16 +1480,21 @@ Jane Smith,jane@example.com,+19876543210</pre>
 
         editForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            if (!validateEditForm()) return;
+
             saveEditBtn.disabled = true;
             saveEditSpinner.classList.remove('hidden');
 
             try {
+                const email = editCustomerEmail.value.trim();
+                const phone = editCustomerPhone.value.trim();
                 await apiCall(`${API_URL}/customers/${editCustomerId.value}`, {
                     method: 'PUT',
                     body: JSON.stringify({
                         name: editCustomerName.value.trim(),
-                        email: editCustomerEmail.value.trim(),
-                        phone: editCustomerPhone.value.trim() || null
+                        email: email || null,
+                        phone: phone || null
                     })
                 });
                 showToast('Customer updated successfully!', 'success');
@@ -1466,8 +1744,16 @@ Jane Smith,jane@example.com,+19876543210</pre>
                 skipEmptyLines: true,
                 complete: (results) => {
                     const headers = results.meta.fields || [];
-                    if (!headers.some(h => h.toLowerCase() === 'name') || !headers.some(h => h.toLowerCase() === 'email')) {
-                        showToast('CSV must have "name" and "email" columns', 'error');
+                    const hasName = headers.some(h => h.toLowerCase() === 'name');
+                    const hasEmail = headers.some(h => h.toLowerCase() === 'email');
+                    const hasPhone = headers.some(h => h.toLowerCase() === 'phone');
+
+                    if (!hasName) {
+                        showToast('CSV must have a "name" column', 'error');
+                        return;
+                    }
+                    if (!hasEmail && !hasPhone) {
+                        showToast('CSV must have "email" and/or "phone" column', 'error');
                         return;
                     }
                     if (results.data.length === 0) {
@@ -1482,9 +1768,33 @@ Jane Smith,jane@example.com,+19876543210</pre>
                         const name = (normalized['name'] || '').trim();
                         const email = (normalized['email'] || '').trim();
                         const phone = (normalized['phone'] || '').trim();
-                        if (!name) { errors.push({ row: i + 2, message: 'Name is required' }); return; }
-                        if (!email || !isValidEmail(email)) { errors.push({ row: i + 2, message: `Invalid email: ${email}` }); return; }
-                        parsedCustomers.push({ name, email, phone: phone || null });
+
+                        if (!name) {
+                            errors.push({ row: i + 2, message: 'Name is required' });
+                            return;
+                        }
+
+                        // Validate email if provided
+                        const validEmail = email && isValidEmail(email);
+                        const validPhone = phone && isValidPhone(phone);
+
+                        // Must have at least one valid contact method
+                        if (!validEmail && !validPhone) {
+                            if (email && !validEmail) {
+                                errors.push({ row: i + 2, message: `Invalid email: ${email}` });
+                            } else if (phone && !validPhone) {
+                                errors.push({ row: i + 2, message: `Invalid phone: ${phone}` });
+                            } else {
+                                errors.push({ row: i + 2, message: 'Email or phone is required' });
+                            }
+                            return;
+                        }
+
+                        parsedCustomers.push({
+                            name,
+                            email: validEmail ? email : null,
+                            phone: validPhone ? phone : null
+                        });
                     });
                     dropzoneContent.classList.add('hidden');
                     selectedFileInfo.classList.remove('hidden');

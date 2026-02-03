@@ -24,13 +24,13 @@ HOW THE SQUARE CONNECTION FLOW WORKS:
 
 import os
 import secrets
-import logging
 from flask import Blueprint, jsonify, request, redirect, session
 from app.services.auth_service import require_auth
 from app.services.supabase_service import supabase
 from app.services import square_service
+from app.services.square_logger import get_square_logger, log_oauth_event
 
-logger = logging.getLogger(__name__)
+logger = get_square_logger('oauth')
 
 # Create Blueprint
 # NOTE: This blueprint is registered WITHOUT url_prefix so we can have both
@@ -66,7 +66,7 @@ def get_connect_url():
 
         if square_env == "sandbox" and sandbox_token:
             # In sandbox mode, use the sandbox token directly (OAuth doesn't work in sandbox)
-            print("INFO: Sandbox mode - using sandbox access token directly")
+            log_oauth_event('sandbox_connect', business_id=business_id, details={'environment': 'sandbox'})
 
             # Get merchant info using sandbox token
             merchant_info = square_service.get_merchant_info(sandbox_token)
@@ -129,16 +129,15 @@ def get_connect_url():
         session['square_oauth_business_id'] = business_id
 
         authorization_url = square_service.get_authorization_url(state=state)
-        print(f"DEBUG: Returning Square auth URL: {authorization_url}")
+        log_oauth_event('connect_started', business_id=business_id, details={'environment': 'production'})
 
         return jsonify({
             "authorization_url": authorization_url
         }), 200
 
     except Exception as e:
-        import traceback
-        print(f"ERROR: Failed to generate Square auth URL: {str(e)}")
-        print(f"TRACEBACK: {traceback.format_exc()}")
+        log_oauth_event('connect_started', business_id=business_id, success=False, error=str(e))
+        logger.exception("Failed to generate Square auth URL")
         return jsonify({"error": "Failed to start Square connection", "details": str(e)}), 500
 
 
@@ -164,21 +163,13 @@ def oauth_callback():
     On success: Redirects to /dashboard?square_connected=true
     On error: Redirects to /dashboard?square_error=<message>
     """
-    # DEBUG: Log environment variable
-    frontend_url_debug = os.environ.get('FRONTEND_URL')
-    logger.info("==========================================")
-    logger.info(f"FRONTEND_URL from env: {frontend_url_debug}")
-    logger.info(f"FRONTEND_URL constant: {FRONTEND_URL}")
-    logger.info(f"All env vars: {list(os.environ.keys())}")
-    logger.info("==========================================")
-    print(f"DEBUG: FRONTEND_URL = {FRONTEND_URL}")
-    print(f"DEBUG: os.environ.get('FRONTEND_URL') = {frontend_url_debug}")
+    log_oauth_event('callback_received', details={'has_code': bool(request.args.get('code'))})
 
     # Check for errors from Square
     error = request.args.get('error')
     if error:
         error_description = request.args.get('error_description', 'Unknown error')
-        print(f"ERROR: Square OAuth error: {error} - {error_description}")
+        log_oauth_event('callback_error', success=False, error=f"{error}: {error_description}")
         return redirect(f"{FRONTEND_URL}/dashboard?square_error={error_description}")
 
     # Get the authorization code
@@ -186,7 +177,7 @@ def oauth_callback():
     state = request.args.get('state')
 
     if not code:
-        print("ERROR: No authorization code received from Square")
+        log_oauth_event('callback_error', success=False, error="No authorization code received")
         return redirect(f"{FRONTEND_URL}/dashboard?square_error=No authorization code received")
 
     # Verify state parameter (CSRF protection)
@@ -195,10 +186,11 @@ def oauth_callback():
     business_id = session.get('square_oauth_business_id')
 
     if not stored_state or state != stored_state:
-        print(f"ERROR: State mismatch. Expected: {stored_state}, Got: {state}")
+        logger.warning(f"State mismatch during OAuth callback. Expected: {stored_state}, Got: {state}")
         # In development, we might not have sessions working perfectly
         # If no business_id in session, we can't proceed
         if not business_id:
+            log_oauth_event('callback_error', success=False, error="Session expired - state mismatch")
             return redirect(f"{FRONTEND_URL}/dashboard?square_error=Session expired. Please try again.")
 
     # Clear the session data (one-time use)
@@ -207,11 +199,12 @@ def oauth_callback():
 
     try:
         # Exchange the authorization code for tokens
+        log_oauth_event('token_exchange', business_id=business_id, details={'action': 'started'})
         token_result = square_service.exchange_code_for_token(code)
 
         if not token_result.get('success'):
             error_msg = token_result.get('error', 'Failed to exchange code')
-            print(f"ERROR: Token exchange failed: {error_msg}")
+            log_oauth_event('token_exchange', business_id=business_id, success=False, error=error_msg)
             return redirect(f"{FRONTEND_URL}/dashboard?square_error={error_msg}")
 
         # Get merchant info to display in the UI
@@ -262,21 +255,26 @@ def oauth_callback():
             result = supabase.table('integrations').update(integration_data).eq(
                 'id', existing.data[0]['id']
             ).execute()
-            print(f"INFO: Updated Square integration for business {business_id}")
+            log_oauth_event('connect_completed', business_id=business_id,
+                          details={'action': 'updated', 'merchant_id': token_result.get('merchant_id')})
         else:
             # Create new integration
             result = supabase.table('integrations').insert(integration_data).execute()
-            print(f"INFO: Created Square integration for business {business_id}")
+            log_oauth_event('connect_completed', business_id=business_id,
+                          details={'action': 'created', 'merchant_id': token_result.get('merchant_id')})
 
         if not result.data:
-            print("ERROR: Failed to save integration to database")
+            log_oauth_event('connect_completed', business_id=business_id, success=False,
+                          error="Failed to save integration to database")
             return redirect(f"{FRONTEND_URL}/dashboard?square_error=Failed to save connection")
 
         # Success! Redirect to dashboard
+        logger.info(f"Square OAuth completed successfully for business {business_id}")
         return redirect(f"{FRONTEND_URL}/dashboard?square_connected=true")
 
     except Exception as e:
-        print(f"ERROR: Square callback exception: {str(e)}")
+        log_oauth_event('callback_error', business_id=business_id, success=False, error=str(e))
+        logger.exception("Square callback exception")
         return redirect(f"{FRONTEND_URL}/dashboard?square_error=Connection failed")
 
 
@@ -345,7 +343,7 @@ def get_status():
         }), 200
 
     except Exception as e:
-        print(f"ERROR: Failed to get Square status: {str(e)}")
+        logger.error(f"Failed to get Square status: {str(e)}")
         return jsonify({"error": "Failed to get integration status"}), 500
 
 
@@ -429,7 +427,7 @@ def update_settings():
         }), 200
 
     except Exception as e:
-        print(f"ERROR: Failed to update Square settings: {str(e)}")
+        logger.error(f"Failed to update Square settings for business {business_id}: {str(e)}")
         return jsonify({"error": "Failed to update settings"}), 500
 
 
@@ -482,7 +480,7 @@ def disconnect():
             'id', integration_id
         ).execute()
 
-        print(f"INFO: Disconnected Square for business {business_id}")
+        log_oauth_event('disconnect', business_id=business_id, details={'integration_id': integration_id})
 
         return jsonify({
             "success": True,
@@ -490,7 +488,8 @@ def disconnect():
         }), 200
 
     except Exception as e:
-        print(f"ERROR: Failed to disconnect Square: {str(e)}")
+        log_oauth_event('disconnect', business_id=business_id, success=False, error=str(e))
+        logger.exception("Failed to disconnect Square")
         return jsonify({"error": "Failed to disconnect Square"}), 500
 
 

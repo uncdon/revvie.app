@@ -1,134 +1,447 @@
 """
-SMS Service - sends text messages via Twilio.
+SMS Service - sends text messages via Telnyx.
 
-HOW TWILIO SMS WORKS:
+HOW TELNYX SMS WORKS:
 ====================
-1. You create a Twilio account at twilio.com
-2. Twilio gives you:
-   - Account SID: Your account identifier (like a username)
-   - Auth Token: Your secret key (like a password)
-   - Phone Number: A phone number Twilio provides to send SMS from
+Telnyx is a cloud communications platform (similar to Twilio but often cheaper).
+Here's how SMS sending works:
+
+1. You create a Telnyx account at telnyx.com
+2. Telnyx gives you:
+   - API Key: Your secret authentication key (starts with "KEY...")
+   - Phone Number: A phone number you purchase to send SMS from
+   - Messaging Profile ID: Groups your phone numbers for messaging (optional)
 
 3. When you want to send an SMS:
-   - Your code calls Twilio's API
-   - Twilio receives the request and verifies your credentials
-   - Twilio sends the SMS from your Twilio number to the recipient
-   - Twilio returns a confirmation with a message SID (unique ID)
+   - Your code calls Telnyx's API with the API key
+   - Telnyx verifies your credentials
+   - Telnyx sends the SMS from your Telnyx number to the recipient
+   - Telnyx returns a confirmation with a message ID
 
-4. Twilio charges per SMS sent (check their pricing)
+4. Telnyx charges per SMS segment:
+   - 1 segment = 160 characters (standard SMS)
+   - Longer messages are split into multiple segments
+   - Each segment costs money, so keep messages short!
 
-PHONE NUMBER FORMAT:
-===================
-Twilio requires E.164 format: +[country code][number]
+5. Delivery status webhooks (optional):
+   - Telnyx can notify your app when SMS is delivered/failed
+   - Configure webhook URL in Telnyx portal
+
+PHONE NUMBER FORMAT (E.164):
+============================
+Telnyx requires E.164 format: +[country code][number]
 Examples:
-  - US: +14155551234
-  - UK: +447911123456
-  - AU: +61412345678
+  - US:  +14155551234 (country code 1)
+  - UK:  +447911123456 (country code 44)
+  - AU:  +61412345678 (country code 61)
+
+IMPORTANT: Always include the + and country code!
+
+SMS CHARACTER LIMITS:
+====================
+- Standard SMS: 160 characters = 1 segment
+- With special characters (emojis, etc.): 70 characters = 1 segment
+- Keep review request messages under 160 chars to save money!
+
+SETUP INSTRUCTIONS:
+==================
+1. Sign up at https://telnyx.com
+2. Go to API Keys section, create a new API key
+3. Go to Numbers section, buy a phone number with SMS capability
+4. Add to your .env file:
+   TELNYX_API_KEY=KEYxxxxxxxxxxxxxxxxxxxxxxxx
+   TELNYX_PHONE_NUMBER=+14155551234
 """
 
 import os
-from twilio.rest import Client
-from twilio.base.exceptions import TwilioRestException
+import re
+import logging
 from dotenv import load_dotenv
 
+# Load environment variables
 load_dotenv()
 
-# Get Twilio credentials from environment variables
-TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID')
-TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER')
+# Set up logging for debugging
+logger = logging.getLogger(__name__)
 
-# Validate credentials exist
-if not all([TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_NUMBER]):
-    print("Warning: Twilio credentials not fully configured in .env file")
-    twilio_client = None
+# ============================================================================
+# CONFIGURATION
+# ============================================================================
+
+# Get Telnyx credentials from environment variables
+# These should be in your .env file - NEVER commit them to git!
+TELNYX_API_KEY = os.environ.get('TELNYX_API_KEY')
+TELNYX_PHONE_NUMBER = os.environ.get('TELNYX_PHONE_NUMBER')
+
+# Optional: Messaging Profile ID (for advanced routing)
+TELNYX_MESSAGING_PROFILE_ID = os.environ.get('TELNYX_MESSAGING_PROFILE_ID')
+
+# Initialize Telnyx client
+telnyx_configured = False
+telnyx = None
+
+if TELNYX_API_KEY and TELNYX_PHONE_NUMBER:
+    try:
+        import telnyx as telnyx_sdk
+        telnyx_sdk.api_key = TELNYX_API_KEY
+        telnyx = telnyx_sdk
+        telnyx_configured = True
+        logger.info("Telnyx SMS service initialized successfully")
+    except ImportError:
+        logger.error("Telnyx SDK not installed. Run: pip install telnyx")
+    except Exception as e:
+        logger.error(f"Failed to initialize Telnyx: {e}")
 else:
-    # Create the Twilio client
-    twilio_client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    logger.warning("Telnyx credentials not configured. Set TELNYX_API_KEY and TELNYX_PHONE_NUMBER in .env")
 
+
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
+def validate_phone_number(phone: str) -> tuple[bool, str]:
+    """
+    Validate and format a phone number to E.164 format.
+
+    E.164 format is the international standard: +[country][number]
+    Example: +14155551234 (US), +447911123456 (UK)
+
+    Args:
+        phone: Phone number in any format
+
+    Returns:
+        Tuple of (is_valid, formatted_number_or_error_message)
+
+    Examples:
+        validate_phone_number("(415) 555-1234")     -> (True, "+14155551234")
+        validate_phone_number("+1 415 555 1234")    -> (True, "+14155551234")
+        validate_phone_number("415-555-1234")       -> (True, "+14155551234")
+        validate_phone_number("123")                -> (False, "Invalid phone...")
+    """
+    if not phone:
+        return False, "Phone number is required"
+
+    # Remove all non-digit characters except +
+    cleaned = ''.join(c for c in str(phone) if c.isdigit() or c == '+')
+
+    # If starts with +, validate it has enough digits
+    if cleaned.startswith('+'):
+        # E.164 numbers are 8-15 digits after the +
+        digits_only = cleaned[1:]
+        if len(digits_only) < 8 or len(digits_only) > 15:
+            return False, f"Invalid phone number length: {phone}"
+        return True, cleaned
+
+    # No + prefix - assume US number
+    # US numbers should be 10 digits (or 11 with leading 1)
+    if len(cleaned) == 10:
+        return True, '+1' + cleaned
+    elif len(cleaned) == 11 and cleaned.startswith('1'):
+        return True, '+' + cleaned
+    else:
+        return False, f"Invalid US phone number format: {phone}. Expected 10 digits."
+
+
+def truncate_message(message: str, max_length: int = 160) -> str:
+    """
+    Truncate a message to fit in a single SMS segment.
+
+    Why? SMS messages over 160 characters are split into multiple segments,
+    and you pay for each segment. Keeping messages short saves money!
+
+    Args:
+        message: The message text
+        max_length: Maximum characters (default 160 for standard SMS)
+
+    Returns:
+        Truncated message with "..." if it was shortened
+    """
+    if len(message) <= max_length:
+        return message
+
+    # Truncate and add ellipsis
+    return message[:max_length - 3] + "..."
+
+
+# ============================================================================
+# MAIN SMS FUNCTIONS
+# ============================================================================
 
 def send_sms(to_phone: str, message: str) -> dict:
     """
-    Send an SMS message via Twilio.
+    Send an SMS message via Telnyx.
+
+    This is the core function that actually sends the SMS. It:
+    1. Validates the phone number format
+    2. Sends the message via Telnyx API
+    3. Returns the result with message ID for tracking
 
     Args:
-        to_phone: Recipient's phone number (E.164 format: +1234567890)
-        message: The text message to send (max 1600 characters)
+        to_phone: Recipient's phone number (any format, will be converted to E.164)
+        message: The text message to send
 
     Returns:
         dict with:
-            - success: True/False
-            - message_sid: Twilio's unique ID for this message (if successful)
-            - error: Error message (if failed)
+            - success: True if SMS was sent, False if failed
+            - message_id: Telnyx's unique ID for tracking (if successful)
+            - status: "sent", "queued", or error description
+            - error: Detailed error message (if failed)
+            - error_code: Telnyx error code (if applicable)
 
     Example:
         result = send_sms("+14155551234", "Hello from Revvie!")
+
         if result['success']:
-            print(f"Sent! Message ID: {result['message_sid']}")
+            print(f"SMS sent! ID: {result['message_id']}")
+            # Save message_id to database for tracking delivery status
         else:
             print(f"Failed: {result['error']}")
     """
-    # Check if Twilio is configured
-    if not twilio_client:
+    # Check if Telnyx is properly configured
+    if not telnyx_configured:
+        logger.error("Attempted to send SMS but Telnyx is not configured")
         return {
             'success': False,
-            'error': 'Twilio is not configured. Check your .env file.'
+            'message_id': None,
+            'status': 'error',
+            'error': 'Telnyx is not configured. Check TELNYX_API_KEY and TELNYX_PHONE_NUMBER in .env'
         }
 
-    # Validate inputs
-    if not to_phone:
+    # Validate phone number
+    is_valid, phone_result = validate_phone_number(to_phone)
+    if not is_valid:
+        logger.warning(f"Invalid phone number: {to_phone} - {phone_result}")
         return {
             'success': False,
-            'error': 'Recipient phone number is required'
+            'message_id': None,
+            'status': 'error',
+            'error': phone_result
         }
 
-    if not message:
+    formatted_phone = phone_result
+
+    # Validate message
+    if not message or not message.strip():
         return {
             'success': False,
+            'message_id': None,
+            'status': 'error',
             'error': 'Message content is required'
         }
 
-    # Clean up phone number (basic formatting)
-    to_phone = to_phone.strip()
-    if not to_phone.startswith('+'):
-        # Assume US number if no country code
-        to_phone = '+1' + to_phone.replace('-', '').replace(' ', '').replace('(', '').replace(')', '')
+    # Log the attempt (but don't log the full message for privacy)
+    logger.info(f"Sending SMS to {formatted_phone[:6]}***{formatted_phone[-2:]} ({len(message)} chars)")
 
     try:
-        # Send the SMS via Twilio
-        twilio_message = twilio_client.messages.create(
-            body=message,
-            from_=TWILIO_PHONE_NUMBER,
-            to=to_phone
+        # Send SMS via Telnyx API
+        # The Telnyx SDK handles all the HTTP stuff for us
+        telnyx_message = telnyx.Message.create(
+            from_=TELNYX_PHONE_NUMBER,  # Your Telnyx phone number
+            to=formatted_phone,          # Recipient's phone number
+            text=message,                # The message content
+            # Optional: messaging_profile_id=TELNYX_MESSAGING_PROFILE_ID
         )
 
-        # Success! Return the message details
+        # Success! Extract the message details
+        # telnyx_message.data contains the response
+        message_data = telnyx_message
+
+        logger.info(f"SMS sent successfully. Message ID: {message_data.id}")
+
         return {
             'success': True,
-            'message_sid': twilio_message.sid,
-            'status': twilio_message.status,  # 'queued', 'sent', 'delivered', etc.
-            'to': twilio_message.to,
-            'from': twilio_message.from_
+            'message_id': message_data.id,
+            'status': 'sent',
+            'to': formatted_phone,
+            'from': TELNYX_PHONE_NUMBER,
+            'segments': getattr(message_data, 'parts', 1)  # Number of SMS segments
         }
 
-    except TwilioRestException as e:
-        # Twilio-specific error (invalid number, insufficient funds, etc.)
+    except telnyx.error.InvalidRequestError as e:
+        # Invalid request (bad phone number, invalid parameters, etc.)
+        logger.error(f"Telnyx invalid request error: {e}")
         return {
             'success': False,
-            'error': str(e.msg),
-            'error_code': e.code
+            'message_id': None,
+            'status': 'error',
+            'error': f"Invalid request: {str(e)}",
+            'error_code': 'invalid_request'
         }
+
+    except telnyx.error.AuthenticationError as e:
+        # API key is invalid or expired
+        logger.error(f"Telnyx authentication error: {e}")
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'error',
+            'error': 'Authentication failed. Check your TELNYX_API_KEY.',
+            'error_code': 'auth_error'
+        }
+
+    except telnyx.error.RateLimitError as e:
+        # Too many requests - you're sending too fast
+        logger.warning(f"Telnyx rate limit error: {e}")
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'error',
+            'error': 'Rate limit exceeded. Please slow down.',
+            'error_code': 'rate_limit'
+        }
+
+    except telnyx.error.APIConnectionError as e:
+        # Network error - couldn't reach Telnyx
+        logger.error(f"Telnyx connection error: {e}")
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'error',
+            'error': f"Network error: Could not connect to Telnyx. {str(e)}",
+            'error_code': 'connection_error'
+        }
+
+    except telnyx.error.APIError as e:
+        # Generic Telnyx API error
+        logger.error(f"Telnyx API error: {e}")
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'error',
+            'error': f"Telnyx API error: {str(e)}",
+            'error_code': 'api_error'
+        }
+
     except Exception as e:
-        # Other errors (network issues, etc.)
+        # Catch-all for unexpected errors
+        logger.exception(f"Unexpected error sending SMS: {e}")
         return {
             'success': False,
-            'error': str(e)
+            'message_id': None,
+            'status': 'error',
+            'error': f"Unexpected error: {str(e)}",
+            'error_code': 'unknown'
         }
 
+
+def send_review_request_sms(
+    customer_name: str,
+    customer_phone: str,
+    business_name: str,
+    review_url: str
+) -> dict:
+    """
+    Send a review request SMS to a customer.
+
+    This function formats a professional, friendly review request message
+    and sends it via SMS. The message is optimized to:
+    - Be personal (uses customer's name)
+    - Be concise (under 160 characters to avoid multi-segment charges)
+    - Include a clear call-to-action (the review URL)
+
+    Args:
+        customer_name: Customer's first name (e.g., "John")
+        customer_phone: Customer's phone number (any format)
+        business_name: Your business name (e.g., "Joe's Coffee")
+        review_url: Direct link to Google review page
+
+    Returns:
+        Same format as send_sms():
+        {
+            'success': True/False,
+            'message_id': 'msg_xxx' or None,
+            'status': 'sent' or error,
+            'error': error details if failed
+        }
+
+    Example:
+        result = send_review_request_sms(
+            customer_name="John",
+            customer_phone="+14155551234",
+            business_name="Joe's Coffee",
+            review_url="https://g.page/r/xxx/review"
+        )
+
+        if result['success']:
+            # Save to database
+            save_review_request(message_id=result['message_id'], status='sent')
+    """
+    # Validate required fields
+    if not customer_phone:
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'error',
+            'error': 'Customer phone number is required'
+        }
+
+    if not review_url:
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'error',
+            'error': 'Review URL is required'
+        }
+
+    # Use defaults if name/business not provided
+    name = (customer_name or "there").split()[0]  # First name only
+    business = business_name or "us"
+
+    # Build the message - keep it SHORT!
+    # Target: under 160 characters to stay in 1 SMS segment
+    #
+    # We have multiple message templates, try shortest first
+    # that still fits the URL
+
+    # Calculate available space for the URL
+    # Template without URL: "Hi {name}! Thanks for visiting {business}. We'd love your feedback: "
+    # That's roughly 60-80 chars depending on names
+
+    # Short template (preferred - more personal)
+    short_template = f"Hi {name}! Thanks for visiting {business}. We'd love your feedback: {review_url}"
+
+    # Medium template (if short is too long somehow)
+    medium_template = f"Thanks for visiting {business}! Leave us a review: {review_url}"
+
+    # Minimal template (last resort)
+    minimal_template = f"Review {business}: {review_url}"
+
+    # Pick the best template that fits in 160 chars
+    if len(short_template) <= 160:
+        message = short_template
+    elif len(medium_template) <= 160:
+        message = medium_template
+        logger.info(f"Using medium template for {customer_phone} (short was {len(short_template)} chars)")
+    elif len(minimal_template) <= 160:
+        message = minimal_template
+        logger.warning(f"Using minimal template for {customer_phone} - review URL is very long")
+    else:
+        # URL is too long even for minimal template
+        # This shouldn't happen with proper Google review URLs
+        logger.error(f"Review URL too long ({len(review_url)} chars): {review_url[:50]}...")
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'error',
+            'error': f'Review URL is too long ({len(review_url)} chars). Max ~100 chars.'
+        }
+
+    logger.info(f"Sending review request SMS to {customer_phone} for {business} ({len(message)} chars)")
+
+    # Send the SMS
+    return send_sms(customer_phone, message)
+
+
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
 
 def format_phone_number(phone: str) -> str:
     """
     Format a phone number to E.164 format.
+
+    This is a convenience wrapper around validate_phone_number()
+    that just returns the formatted number or the original if invalid.
 
     Args:
         phone: Phone number in any format
@@ -136,15 +449,49 @@ def format_phone_number(phone: str) -> str:
     Returns:
         Phone number in E.164 format (+1234567890)
     """
-    # Remove all non-digit characters except +
-    cleaned = ''.join(c for c in phone if c.isdigit() or c == '+')
+    is_valid, result = validate_phone_number(phone)
+    return result if is_valid else phone
 
-    # If doesn't start with +, assume US number
-    if not cleaned.startswith('+'):
-        # Remove leading 1 if present, then add +1
-        if cleaned.startswith('1') and len(cleaned) == 11:
-            cleaned = '+' + cleaned
-        else:
-            cleaned = '+1' + cleaned
 
-    return cleaned
+def get_sms_status() -> dict:
+    """
+    Get the current status of the SMS service.
+
+    Useful for health checks and debugging.
+
+    Returns:
+        dict with configuration status
+    """
+    return {
+        'configured': telnyx_configured,
+        'provider': 'telnyx',
+        'phone_number': TELNYX_PHONE_NUMBER[:6] + '****' if TELNYX_PHONE_NUMBER else None,
+        'api_key_set': bool(TELNYX_API_KEY),
+    }
+
+
+# ============================================================================
+# TESTING (only runs when file is executed directly)
+# ============================================================================
+
+if __name__ == '__main__':
+    # Quick test - only runs if you execute this file directly:
+    # python -m app.services.sms_service
+
+    print("SMS Service Status:")
+    print(get_sms_status())
+
+    print("\nPhone number validation tests:")
+    test_numbers = [
+        "(415) 555-1234",
+        "+1 415 555 1234",
+        "4155551234",
+        "+447911123456",
+        "123",  # Invalid
+        "",     # Invalid
+    ]
+
+    for num in test_numbers:
+        is_valid, result = validate_phone_number(num)
+        status = "VALID" if is_valid else "INVALID"
+        print(f"  {num:20} -> {status}: {result}")

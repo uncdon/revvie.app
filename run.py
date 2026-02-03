@@ -4,6 +4,12 @@ Run this file to start the development server.
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables BEFORE importing the app
+# This ensures all services get the correct env vars
+load_dotenv()
+
 from app import create_app, db
 
 # Get configuration from environment variable, default to 'development'

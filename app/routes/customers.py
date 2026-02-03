@@ -59,7 +59,7 @@ def create_customer():
             }), 400
 
         name = data.get('name', '').strip()
-        email = data.get('email', '').strip()
+        email = data.get('email', '').strip() if data.get('email') else None
         phone = data.get('phone', '').strip() if data.get('phone') else None
 
         # Validate required fields
@@ -69,17 +69,25 @@ def create_customer():
                 "message": "Name is required"
             }), 400
 
-        if not email:
-            return jsonify({
-                "success": False,
-                "message": "Email is required"
-            }), 400
-
-        # Basic email validation
-        if '@' not in email or '.' not in email:
+        # Validate email format if provided
+        if email and not validate_email(email):
             return jsonify({
                 "success": False,
                 "message": "Please enter a valid email address"
+            }), 400
+
+        # Validate phone format if provided
+        if phone and not validate_phone(phone):
+            return jsonify({
+                "success": False,
+                "message": "Please enter a valid phone number (e.g., +12345678900)"
+            }), 400
+
+        # At least email or phone is required
+        if not email and not phone:
+            return jsonify({
+                "success": False,
+                "message": "Email or phone is required"
             }), 400
 
         business_id = request.business.get('id')
@@ -206,7 +214,7 @@ def update_customer(customer_id):
         update_data = {}
 
         if 'name' in data:
-            name = data['name'].strip()
+            name = data['name'].strip() if data['name'] else ''
             if not name:
                 return jsonify({
                     "success": False,
@@ -215,13 +223,8 @@ def update_customer(customer_id):
             update_data['name'] = name
 
         if 'email' in data:
-            email = data['email'].strip()
-            if not email:
-                return jsonify({
-                    "success": False,
-                    "message": "Email cannot be empty"
-                }), 400
-            if '@' not in email or '.' not in email:
+            email = data['email'].strip() if data['email'] else None
+            if email and not validate_email(email):
                 return jsonify({
                     "success": False,
                     "message": "Please enter a valid email address"
@@ -229,12 +232,29 @@ def update_customer(customer_id):
             update_data['email'] = email
 
         if 'phone' in data:
-            update_data['phone'] = data['phone'].strip() if data['phone'] else None
+            phone = data['phone'].strip() if data['phone'] else None
+            if phone and not validate_phone(phone):
+                return jsonify({
+                    "success": False,
+                    "message": "Please enter a valid phone number (e.g., +12345678900)"
+                }), 400
+            update_data['phone'] = phone
 
         if not update_data:
             return jsonify({
                 "success": False,
                 "message": "No fields to update"
+            }), 400
+
+        # Ensure at least email or phone will be set after update
+        current = existing.data[0]
+        final_email = update_data.get('email', current.get('email'))
+        final_phone = update_data.get('phone', current.get('phone'))
+
+        if not final_email and not final_phone:
+            return jsonify({
+                "success": False,
+                "message": "Customer must have email or phone"
             }), 400
 
         result = supabase.table("customers") \
@@ -376,13 +396,14 @@ def import_customers():
 
         business_id = request.business.get('id')
 
-        # Get existing customer emails for this business
+        # Get existing customer emails and phones for this business
         existing_result = supabase.table("customers") \
-            .select("email") \
+            .select("email, phone") \
             .eq("business_id", business_id) \
             .execute()
 
         existing_emails = {c['email'].lower() for c in existing_result.data if c.get('email')}
+        existing_phones = {c['phone'] for c in existing_result.data if c.get('phone')}
 
         success_count = 0
         skipped_count = 0
@@ -395,7 +416,7 @@ def import_customers():
 
             # Get and clean fields
             name = customer.get('name', '').strip() if customer.get('name') else ''
-            email = customer.get('email', '').strip().lower() if customer.get('email') else ''
+            email = customer.get('email', '').strip().lower() if customer.get('email') else None
             phone = customer.get('phone', '').strip() if customer.get('phone') else None
 
             # Validate name
@@ -404,37 +425,46 @@ def import_customers():
                 error_count += 1
                 continue
 
-            # Validate email
-            if not email:
-                errors.append({"row": row_num, "message": "Email is required"})
-                error_count += 1
-                continue
-
-            if not validate_email(email):
+            # Validate email format if provided
+            valid_email = email and validate_email(email)
+            if email and not valid_email:
                 errors.append({"row": row_num, "message": f"Invalid email format: {email}"})
                 error_count += 1
                 continue
 
-            # Validate phone (if provided)
-            if phone and not validate_phone(phone):
+            # Validate phone format if provided
+            valid_phone = phone and validate_phone(phone)
+            if phone and not valid_phone:
                 errors.append({"row": row_num, "message": f"Invalid phone format: {phone}"})
                 error_count += 1
                 continue
 
-            # Check for duplicates
-            if email in existing_emails:
+            # At least one valid contact method is required
+            if not valid_email and not valid_phone:
+                errors.append({"row": row_num, "message": "Email or phone is required"})
+                error_count += 1
+                continue
+
+            # Check for duplicates by email or phone
+            if valid_email and email in existing_emails:
+                skipped_count += 1
+                continue
+            if valid_phone and phone in existing_phones:
                 skipped_count += 1
                 continue
 
-            # Add to existing emails set to catch duplicates within the import
-            existing_emails.add(email)
+            # Add to existing sets to catch duplicates within the import
+            if valid_email:
+                existing_emails.add(email)
+            if valid_phone:
+                existing_phones.add(phone)
 
             # Prepare customer for insertion
             customers_to_insert.append({
                 "business_id": business_id,
                 "name": name,
-                "email": email,
-                "phone": phone if phone else None,
+                "email": email if valid_email else None,
+                "phone": phone if valid_phone else None,
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
 

@@ -38,9 +38,13 @@ from dotenv import load_dotenv
 
 from app.services.supabase_service import supabase
 from app.services import square_service
+from app.services.square_logger import get_square_logger, log_webhook_event, log_oauth_event
 
 # Load environment variables
 load_dotenv()
+
+# Get logger for webhooks
+logger = get_square_logger('webhooks')
 
 # Create Blueprint
 # Note: Registered without /api prefix since this is a webhook endpoint
@@ -79,13 +83,13 @@ def verify_square_signature(payload: bytes, signature: str, webhook_url: str) ->
         True if signature is valid, False otherwise
     """
     if not SQUARE_WEBHOOK_SIGNATURE_KEY:
-        print("WARNING: SQUARE_WEBHOOK_SIGNATURE_KEY not set, skipping verification")
+        logger.warning("SQUARE_WEBHOOK_SIGNATURE_KEY not set, skipping verification")
         # In development, you might want to skip verification
         # In production, this should return False
         return True
 
     if not signature:
-        print("ERROR: No signature provided in webhook request")
+        logger.error("No signature provided in webhook request")
         return False
 
     try:
@@ -106,7 +110,7 @@ def verify_square_signature(payload: bytes, signature: str, webhook_url: str) ->
         return hmac.compare_digest(expected_signature_b64, signature)
 
     except Exception as e:
-        print(f"ERROR: Signature verification failed: {str(e)}")
+        logger.error(f"Signature verification failed: {str(e)}")
         return False
 
 
@@ -147,9 +151,7 @@ def handle_square_webhook():
 
     Always returns 200 OK to prevent Square from retrying.
     """
-    print("\n" + "=" * 60)
-    print("SQUARE WEBHOOK RECEIVED")
-    print("=" * 60)
+    log_webhook_event('received', details={'endpoint': '/webhooks/square'})
 
     # Get raw body for signature verification
     raw_body = request.get_data()
@@ -159,36 +161,44 @@ def handle_square_webhook():
 
     # Verify signature
     if not verify_square_signature(raw_body, signature, SQUARE_WEBHOOK_URL):
-        print("ERROR: Invalid webhook signature - rejecting request")
+        log_webhook_event('signature_invalid', success=False, error="Invalid webhook signature")
         return jsonify({"error": "Invalid signature"}), 403
+
+    log_webhook_event('signature_verified')
 
     # Parse JSON body
     try:
         event = request.get_json()
     except Exception as e:
-        print(f"ERROR: Failed to parse webhook JSON: {str(e)}")
+        log_webhook_event('parse_error', success=False, error=f"Failed to parse JSON: {str(e)}")
         return jsonify({"status": "ok"}), 200  # Still return 200
 
     # Log the event
     event_type = event.get('type', 'unknown')
     event_id = event.get('event_id', 'unknown')
-    print(f"Event Type: {event_type}")
-    print(f"Event ID: {event_id}")
+    log_webhook_event('event_parsed', event_id=event_id, details={'event_type': event_type})
 
     # Only process payment.created events
     if event_type != 'payment.created':
-        print(f"Ignoring event type: {event_type}")
+        log_webhook_event('event_ignored', event_id=event_id, details={'event_type': event_type})
         return jsonify({"status": "ok", "message": f"Ignored event type: {event_type}"}), 200
 
     # Process the payment
     try:
         result = process_payment_created(event)
-        print(f"Processing result: {result}")
+        if result.get('queued'):
+            log_webhook_event('processed', event_id=event_id,
+                            payment_id=result.get('payment_id'),
+                            details={'queued_id': result.get('queued_review_request_id')})
+        elif result.get('skipped'):
+            log_webhook_event('skipped', event_id=event_id,
+                            details={'reason': result.get('reason')})
         return jsonify({"status": "ok", **result}), 200
 
     except Exception as e:
         # Log error but still return 200 to prevent retries
-        print(f"ERROR: Failed to process payment webhook: {str(e)}")
+        log_webhook_event('process_error', event_id=event_id, success=False, error=str(e))
+        logger.exception("Failed to process payment webhook")
         return jsonify({"status": "ok", "error": str(e)}), 200
 
 
@@ -218,9 +228,7 @@ def process_payment_created(event: dict) -> dict:
     customer_id = payment_data.get('customer_id')
     created_at_str = payment_data.get('created_at')
 
-    print(f"Payment ID: {payment_id}")
-    print(f"Location ID: {location_id}")
-    print(f"Customer ID: {customer_id}")
+    logger.info(f"Processing payment: payment_id={payment_id}, location_id={location_id}, customer_id={customer_id}")
 
     if not payment_id:
         return {"skipped": True, "reason": "No payment_id in event"}
@@ -229,26 +237,26 @@ def process_payment_created(event: dict) -> dict:
         return {"skipped": True, "reason": "No location_id in event"}
 
     # Step 1: Find integration by location_id
-    print(f"Looking up integration for location: {location_id}")
+    logger.debug(f"Looking up integration for location: {location_id}")
     integration_result = supabase.table('integrations').select('*').eq(
         'square_location_id', location_id
     ).eq('status', 'active').execute()
 
     if not integration_result.data:
-        print(f"No active integration found for location: {location_id}")
-        return {"skipped": True, "reason": "No integration for this location"}
+        logger.warning(f"No active integration found for location: {location_id}")
+        return {"skipped": True, "reason": "No integration for this location", "payment_id": payment_id}
 
     integration = integration_result.data[0]
     business_id = integration['business_id']
     settings = integration.get('settings', {})
 
-    print(f"Found integration for business: {business_id}")
+    logger.info(f"Found integration for business: {business_id}")
 
     # Step 2: Check if auto_send is enabled
     auto_send_enabled = settings.get('auto_send_enabled', True)
     if not auto_send_enabled:
-        print("Auto-send is disabled for this business")
-        return {"skipped": True, "reason": "Auto-send disabled"}
+        logger.info(f"Auto-send is disabled for business {business_id}")
+        return {"skipped": True, "reason": "Auto-send disabled", "payment_id": payment_id}
 
     # Step 3: Check for duplicate (already processed this payment)
     duplicate_check = supabase.table('queued_review_requests').select('id').eq(
@@ -256,61 +264,45 @@ def process_payment_created(event: dict) -> dict:
     ).execute()
 
     if duplicate_check.data:
-        print(f"Payment {payment_id} already processed - skipping duplicate")
-        return {"skipped": True, "reason": "Duplicate payment"}
+        logger.warning(f"Payment {payment_id} already processed - skipping duplicate")
+        return {"skipped": True, "reason": "Duplicate payment", "payment_id": payment_id}
 
     # Step 4: Get customer details
     if not customer_id:
-        print("No customer_id on payment - cannot send review request")
-        return {"skipped": True, "reason": "No customer_id on payment"}
+        logger.warning(f"No customer_id on payment {payment_id} - cannot send review request")
+        return {"skipped": True, "reason": "No customer_id on payment", "payment_id": payment_id}
 
-    # Decrypt access token
-    access_token = square_service.decrypt_token(integration['access_token'])
+    # Get valid access token (auto-refreshes if needed)
+    token_result = square_service.ensure_valid_token(integration['id'])
 
-    # Check if token needs refresh
-    token_expires_at = integration.get('token_expires_at')
-    if token_expires_at:
-        # Parse the timestamp
-        if isinstance(token_expires_at, str):
-            token_expires_at = datetime.fromisoformat(token_expires_at.replace('Z', '+00:00'))
+    if not token_result['success']:
+        log_oauth_event('token_refresh', business_id=business_id, success=False,
+                      error=token_result.get('error'))
+        return {"skipped": True, "reason": f"Token error: {token_result.get('error')}", "payment_id": payment_id}
 
-        if square_service.check_token_expiry(token_expires_at):
-            print("Access token expired or expiring soon - refreshing")
-            refresh_token = square_service.decrypt_token(integration['refresh_token'])
-            refresh_result = square_service.refresh_access_token(refresh_token)
+    access_token = token_result['access_token']
 
-            if refresh_result['success']:
-                # Update tokens in database
-                supabase.table('integrations').update({
-                    'access_token': square_service.encrypt_token(refresh_result['access_token']),
-                    'refresh_token': square_service.encrypt_token(refresh_result['refresh_token']),
-                    'token_expires_at': refresh_result['expires_at'].isoformat(),
-                }).eq('id', integration['id']).execute()
-
-                access_token = refresh_result['access_token']
-                print("Token refreshed successfully")
-            else:
-                print(f"ERROR: Failed to refresh token: {refresh_result.get('error')}")
-                return {"skipped": True, "reason": "Token refresh failed"}
+    if token_result.get('refreshed'):
+        log_oauth_event('token_refresh', business_id=business_id, details={'action': 'auto_refreshed'})
 
     # Get customer info from Square
-    print(f"Fetching customer details for: {customer_id}")
+    logger.info(f"Fetching customer details for: {customer_id}")
     customer_result = square_service.get_customer_details(access_token, customer_id)
 
     if not customer_result.get('success'):
-        print(f"ERROR: Failed to get customer details: {customer_result.get('error')}")
-        return {"skipped": True, "reason": f"Failed to get customer: {customer_result.get('error')}"}
+        logger.error(f"Failed to get customer details: {customer_result.get('error')}")
+        return {"skipped": True, "reason": f"Failed to get customer: {customer_result.get('error')}", "payment_id": payment_id}
 
     customer_name = customer_result.get('name', 'Customer')
     customer_email = customer_result.get('email')
     customer_phone = customer_result.get('phone')
 
-    print(f"Customer: {customer_name}, Email: {customer_email}, Phone: {customer_phone}")
+    logger.info(f"Customer found: name={customer_name}, has_email={bool(customer_email)}, has_phone={bool(customer_phone)}")
 
     # Check if we have email (required for review request)
     if not customer_email:
-        print("Customer has no email on file - cannot send review request")
-        return {"skipped": True, "reason": "No customer email"}
+        logger.warning(f"Customer {customer_id} has no email on file - cannot send review request")
+        return {"skipped": True, "reason": "No customer email", "payment_id": payment_id}
 
     # Step 5: Calculate scheduled send time
     delay_hours = settings.get('delay_hours', 2)
@@ -323,8 +315,7 @@ def process_payment_created(event: dict) -> dict:
 
     scheduled_send_at = payment_created_at + timedelta(hours=delay_hours)
 
-    print(f"Payment created at: {payment_created_at}")
-    print(f"Scheduled to send at: {scheduled_send_at} (delay: {delay_hours} hours)")
+    logger.info(f"Review request scheduled: send_at={scheduled_send_at.isoformat()}, delay_hours={delay_hours}")
 
     # Step 6: Queue the review request
     queue_data = {
@@ -341,20 +332,19 @@ def process_payment_created(event: dict) -> dict:
     insert_result = supabase.table('queued_review_requests').insert(queue_data).execute()
 
     if not insert_result.data:
-        print("ERROR: Failed to insert queued review request")
-        return {"skipped": True, "reason": "Database insert failed"}
+        logger.error(f"Failed to insert queued review request for payment {payment_id}")
+        return {"skipped": True, "reason": "Database insert failed", "payment_id": payment_id}
 
     queued_id = insert_result.data[0]['id']
-    print(f"SUCCESS: Queued review request {queued_id}")
-    print(f"  Customer: {customer_name} ({customer_email})")
-    print(f"  Scheduled: {scheduled_send_at}")
-    print("=" * 60 + "\n")
+    log_webhook_event('queued', payment_id=payment_id, business_id=business_id,
+                     details={'queued_id': queued_id, 'scheduled_send_at': scheduled_send_at.isoformat()})
 
     return {
         "queued": True,
         "queued_review_request_id": queued_id,
         "customer_name": customer_name,
         "scheduled_send_at": scheduled_send_at.isoformat(),
+        "payment_id": payment_id,
     }
 
 
