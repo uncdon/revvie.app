@@ -4,6 +4,11 @@ This file is used by gunicorn: gunicorn main:app
 """
 
 import os
+from dotenv import load_dotenv
+
+# Load environment variables before importing app
+load_dotenv()
+
 from app import create_app
 
 # Create the Flask app instance
