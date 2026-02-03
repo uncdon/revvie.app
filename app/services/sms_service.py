@@ -233,7 +233,7 @@ def send_sms(to_phone: str, message: str) -> dict:
 
     try:
         # Send SMS via Telnyx API (v4.x client-based API)
-        response = telnyx_client.messages.create(
+        response = telnyx_client.messages.send(
             from_=TELNYX_PHONE_NUMBER,  # Your Telnyx phone number
             to=formatted_phone,          # Recipient's phone number
             text=message,                # The message content
