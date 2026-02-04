@@ -103,6 +103,9 @@ def get_current_user(access_token: str) -> dict:
     """
     Verify a JWT token and return the user's info.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     # Verify token with Supabase
     user_response = supabase.auth.get_user(access_token)
 
@@ -110,9 +113,16 @@ def get_current_user(access_token: str) -> dict:
         raise Exception("Invalid or expired token")
 
     user_id = user_response.user.id
+    logger.info(f"Auth: Looking up business for user_id={user_id}")
 
     # Get the user's business details
     business_response = supabase.table("businesses").select("*").eq("id", user_id).execute()
+
+    logger.info(f"Auth: Business query returned {len(business_response.data) if business_response.data else 0} records")
+    if business_response.data:
+        logger.info(f"Auth: Found business: {business_response.data[0].get('business_name')}")
+    else:
+        logger.warning(f"Auth: No business found for user_id={user_id}")
 
     return {
         "user": {
