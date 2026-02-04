@@ -80,4 +80,44 @@ def create_app(config_name='default'):
     # Telnyx SMS webhook routes
     app.register_blueprint(telnyx_webhooks_bp, url_prefix='/webhooks')
 
+    # Start the queue processor scheduler (for processing delayed review requests)
+    start_queue_scheduler(app)
+
     return app
+
+
+def start_queue_scheduler(app):
+    """Start the background scheduler for processing queued review requests."""
+    import os
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Only start scheduler in production (not during testing or local dev reloads)
+    # Check if we're the main process (not a reloader)
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+        try:
+            from apscheduler.schedulers.background import BackgroundScheduler
+            from apscheduler.triggers.interval import IntervalTrigger
+            from app.services.queue_processor import process_queued_requests
+            from datetime import datetime
+
+            scheduler = BackgroundScheduler()
+
+            # Run every 5 minutes
+            scheduler.add_job(
+                func=process_queued_requests,
+                trigger=IntervalTrigger(minutes=5),
+                id='queue_processor',
+                name='Process queued review requests',
+                replace_existing=True,
+                next_run_time=datetime.now()  # Run immediately on startup
+            )
+
+            scheduler.start()
+            logger.info("Queue processor scheduler started - running every 5 minutes")
+
+        except ImportError:
+            logger.warning("APScheduler not installed - queue processor won't run automatically")
+        except Exception as e:
+            logger.error(f"Failed to start queue scheduler: {e}")
