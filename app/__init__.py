@@ -56,6 +56,7 @@ def create_app(config_name='default'):
     from app.routes.review_requests import review_requests_bp
     from app.routes.dashboard import dashboard_bp
     from app.routes.customers import customers_bp
+    from app.routes.csv_import import csv_import_bp
     from app.routes.square_integration import square_bp as square_integration_bp
     from app.routes.square_webhooks import square_webhooks_bp
     from app.routes.square_logs import square_logs_bp
@@ -70,6 +71,7 @@ def create_app(config_name='default'):
     app.register_blueprint(review_requests_bp, url_prefix='/api')
     app.register_blueprint(dashboard_bp, url_prefix='/api')
     app.register_blueprint(customers_bp, url_prefix='/api')
+    app.register_blueprint(csv_import_bp, url_prefix='/api/customers')
     app.register_blueprint(frontend_bp)  # No prefix - serves at root
 
     # Square Integration routes
