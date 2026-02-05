@@ -36,7 +36,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 
-from app.services.supabase_service import supabase
+from app.services.supabase_service import supabase, supabase_admin
 from app.services import square_service
 from app.services.square_logger import get_square_logger, log_webhook_event, log_oauth_event
 
@@ -329,7 +329,8 @@ def process_payment_created(event: dict) -> dict:
         'payment_id': payment_id,
     }
 
-    insert_result = supabase.table('queued_review_requests').insert(queue_data).execute()
+    # Use admin client to bypass RLS for queue insert
+    insert_result = supabase_admin.table('queued_review_requests').insert(queue_data).execute()
 
     if not insert_result.data:
         logger.error(f"Failed to insert queued review request for payment {payment_id}")

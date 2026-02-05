@@ -578,6 +578,23 @@
                                 </div>
                             </div>
 
+                            <!-- Queue Actions -->
+                            <div id="queueActionsSection" class="hidden border-t border-gray-100 pt-4 mt-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="text-sm text-gray-600">
+                                        <span id="queueReadyCount">0</span> ready to send
+                                    </div>
+                                    <button id="processQueueBtn" class="px-4 py-2 bg-accent-500 text-white text-sm font-medium rounded-lg hover:bg-accent-600 transition-colors flex items-center gap-2">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        Process Now
+                                    </button>
+                                </div>
+                                <p id="queueDebugInfo" class="text-xs text-gray-400 mt-2 hidden"></p>
+                            </div>
+
                             <!-- Actions -->
                             <div class="border-t border-gray-100 pt-6 flex items-center justify-between">
                                 <button id="testSquareConnectionBtn" class="text-sm text-gray-500 hover:text-gray-700 font-medium transition-colors duration-200 flex items-center gap-2">
@@ -769,6 +786,50 @@
                             <p id="selectedFileName" class="text-gray-800 font-medium"></p>
                             <p id="selectedFileSize" class="text-gray-500 text-sm mt-1"></p>
                             <button id="clearFileBtn" class="mt-2 text-sm text-red-500 hover:text-red-600 font-medium">Remove file</button>
+                        </div>
+                    </div>
+
+                    <!-- CSV Preview Section -->
+                    <div id="csvPreviewSection" class="hidden mt-4">
+                        <div class="bg-gradient-to-r from-accent-50 to-green-50 border border-accent-200 rounded-xl p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-semibold text-gray-800 flex items-center gap-2">
+                                    <svg class="w-5 h-5 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                                    Preview
+                                </h4>
+                                <span id="csvRowCount" class="text-sm font-medium text-accent-700 bg-accent-100 px-3 py-1 rounded-full"></span>
+                            </div>
+
+                            <!-- Column Legend -->
+                            <div class="flex flex-wrap gap-2 mb-3 text-xs">
+                                <span class="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                                    <span class="w-2 h-2 bg-green-500 rounded-full"></span> Name
+                                </span>
+                                <span class="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded-full">
+                                    <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Email
+                                </span>
+                                <span class="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                                    <span class="w-2 h-2 bg-purple-500 rounded-full"></span> Phone
+                                </span>
+                            </div>
+
+                            <!-- Preview Table -->
+                            <div class="overflow-x-auto rounded-lg border border-gray-200 bg-white">
+                                <table class="min-w-full text-sm">
+                                    <thead id="csvPreviewHeader" class="bg-gray-50">
+                                        <!-- Headers populated by JS -->
+                                    </thead>
+                                    <tbody id="csvPreviewBody" class="divide-y divide-gray-100">
+                                        <!-- Rows populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Confirmation Message -->
+                            <div class="mt-3 flex items-center gap-2 text-sm text-gray-600">
+                                <svg class="w-4 h-4 text-accent-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                                <span>Looks good? Click <strong>Import Customers</strong> to continue.</span>
+                            </div>
                         </div>
                     </div>
 
@@ -1016,6 +1077,81 @@
                             Import Complete
                         </p>
                         <div id="importSuccessSummary" class="text-sm text-green-700"></div>
+                    </div>
+
+                    <!-- Send Review Requests Prompt (shown after successful import) -->
+                    <div id="sendReviewsPrompt" class="hidden mt-4 bg-gradient-to-r from-accent-50 to-blue-50 border border-accent-200 rounded-xl p-5">
+                        <div class="text-center">
+                            <div class="inline-flex items-center justify-center w-12 h-12 bg-accent-100 rounded-full mb-3">
+                                <svg class="w-6 h-6 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                            </div>
+                            <h4 class="font-semibold text-gray-800 mb-1">Send review requests to all of them now?</h4>
+                            <p class="text-sm text-gray-600 mb-4">Get reviews from your newly imported customers</p>
+
+                            <!-- Send Options (hidden by default) -->
+                            <div id="sendOptionsSection" class="hidden mb-4">
+                                <div class="bg-white rounded-lg p-3 border border-gray-200 text-left">
+                                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">When to send?</p>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="sendTiming" value="immediate" checked class="w-4 h-4 text-accent-600 focus:ring-accent-500">
+                                            <div>
+                                                <span class="text-sm font-medium text-gray-800">Send immediately</span>
+                                                <p class="text-xs text-gray-500">Requests go out right now</p>
+                                            </div>
+                                        </label>
+                                        <label class="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                            <input type="radio" name="sendTiming" value="schedule" class="w-4 h-4 text-accent-600 focus:ring-accent-500">
+                                            <div class="flex-1">
+                                                <span class="text-sm font-medium text-gray-800">Schedule for later</span>
+                                                <p class="text-xs text-gray-500">Queue requests for delayed sending</p>
+                                            </div>
+                                        </label>
+                                        <div id="scheduleDelaySection" class="hidden pl-7 pt-2">
+                                            <label class="text-xs font-medium text-gray-600">Send after:</label>
+                                            <select id="scheduleDelayHours" class="mt-1 block w-full rounded-lg border-gray-300 text-sm focus:ring-accent-500 focus:border-accent-500">
+                                                <option value="1">1 hour</option>
+                                                <option value="2" selected>2 hours</option>
+                                                <option value="4">4 hours</option>
+                                                <option value="24">1 day</option>
+                                                <option value="48">2 days</option>
+                                                <option value="72">3 days</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div id="sendReviewsButtons" class="flex items-center justify-center gap-3">
+                                <button id="skipSendReviewsBtn" class="px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-white/50 transition-colors">
+                                    Skip for Now
+                                </button>
+                                <button id="sendToAllBtn" class="px-5 py-2.5 bg-accent-600 text-white font-semibold rounded-xl hover:bg-accent-700 transition-all flex items-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                    Send to All
+                                </button>
+                            </div>
+
+                            <!-- Sending Progress -->
+                            <div id="sendReviewsProgress" class="hidden">
+                                <div class="flex items-center justify-center gap-3">
+                                    <svg class="animate-spin h-5 w-5 text-accent-600" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                                    </svg>
+                                    <span id="sendReviewsProgressText" class="text-gray-700 font-medium">Sending review requests...</span>
+                                </div>
+                            </div>
+
+                            <!-- Success Message -->
+                            <div id="sendReviewsSuccess" class="hidden">
+                                <div class="inline-flex items-center justify-center w-10 h-10 bg-green-100 rounded-full mb-2">
+                                    <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                                </div>
+                                <p id="sendReviewsSuccessText" class="text-sm font-medium text-green-700"></p>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Import Progress -->
@@ -2022,6 +2158,54 @@
 
         const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
         let selectedFile = null;
+        let importedCustomerIds = []; // Store IDs of imported customers for review requests
+
+        // Send Review Requests elements
+        const sendReviewsPrompt = document.getElementById('sendReviewsPrompt');
+        const sendOptionsSection = document.getElementById('sendOptionsSection');
+        const scheduleDelaySection = document.getElementById('scheduleDelaySection');
+        const sendReviewsButtons = document.getElementById('sendReviewsButtons');
+        const sendReviewsProgress = document.getElementById('sendReviewsProgress');
+        const sendReviewsProgressText = document.getElementById('sendReviewsProgressText');
+        const sendReviewsSuccess = document.getElementById('sendReviewsSuccess');
+        const sendReviewsSuccessText = document.getElementById('sendReviewsSuccessText');
+
+        // CSV Preview elements
+        const csvPreviewSection = document.getElementById('csvPreviewSection');
+        const csvPreviewHeader = document.getElementById('csvPreviewHeader');
+        const csvPreviewBody = document.getElementById('csvPreviewBody');
+        const csvRowCount = document.getElementById('csvRowCount');
+
+        // Column name patterns for highlighting
+        const NAME_PATTERNS = ['name', 'customer', 'client', 'fullname', 'full_name', 'customer_name', 'client_name', 'first', 'last'];
+        const EMAIL_PATTERNS = ['email', 'e-mail', 'mail', 'email_address', 'customer_email'];
+        const PHONE_PATTERNS = ['phone', 'mobile', 'cell', 'telephone', 'tel', 'contact', 'number', 'customer_phone'];
+
+        function detectColumnType(header) {
+            const h = header.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (NAME_PATTERNS.some(p => h.includes(p))) return 'name';
+            if (EMAIL_PATTERNS.some(p => h.includes(p))) return 'email';
+            if (PHONE_PATTERNS.some(p => h.includes(p))) return 'phone';
+            return 'default';
+        }
+
+        function getColumnClass(type) {
+            switch(type) {
+                case 'name': return 'bg-green-50 text-green-800 border-green-200';
+                case 'email': return 'bg-blue-50 text-blue-800 border-blue-200';
+                case 'phone': return 'bg-purple-50 text-purple-800 border-purple-200';
+                default: return 'bg-gray-50 text-gray-700';
+            }
+        }
+
+        function getHeaderClass(type) {
+            switch(type) {
+                case 'name': return 'bg-green-100 text-green-800 font-semibold';
+                case 'email': return 'bg-blue-100 text-blue-800 font-semibold';
+                case 'phone': return 'bg-purple-100 text-purple-800 font-semibold';
+                default: return 'bg-gray-100 text-gray-700';
+            }
+        }
 
         function formatFileSize(bytes) {
             if (bytes < 1024) return bytes + ' B';
@@ -2043,12 +2227,23 @@
         function resetImportModal() {
             csvFileInput.value = '';
             selectedFile = null;
+            importedCustomerIds = [];
             dropzoneContent.classList.remove('hidden');
             selectedFileInfo.classList.add('hidden');
+            csvPreviewSection.classList.add('hidden');
+            csvPreviewHeader.innerHTML = '';
+            csvPreviewBody.innerHTML = '';
             importValidationErrors.classList.add('hidden');
             importSuccessInfo.classList.add('hidden');
             importProgress.classList.add('hidden');
             uploadImportBtn.disabled = true;
+            // Reset send reviews prompt
+            sendReviewsPrompt.classList.add('hidden');
+            sendOptionsSection.classList.add('hidden');
+            scheduleDelaySection.classList.add('hidden');
+            sendReviewsButtons.classList.remove('hidden');
+            sendReviewsProgress.classList.add('hidden');
+            sendReviewsSuccess.classList.add('hidden');
         }
 
         function handleFileSelect(file) {
@@ -2079,7 +2274,66 @@
             selectedFileSize.textContent = formatFileSize(file.size);
             importValidationErrors.classList.add('hidden');
             importSuccessInfo.classList.add('hidden');
-            uploadImportBtn.disabled = false;
+
+            // Parse CSV for preview using Papa Parse
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                preview: 10, // Only parse first 10 rows for preview
+                complete: function(results) {
+                    if (results.errors.length > 0 && results.data.length === 0) {
+                        showToast('Could not parse CSV file. Please check the format.', 'error');
+                        csvPreviewSection.classList.add('hidden');
+                        uploadImportBtn.disabled = true;
+                        return;
+                    }
+
+                    const headers = results.meta.fields || [];
+                    const data = results.data;
+
+                    if (headers.length === 0) {
+                        showToast('No columns found in CSV file.', 'error');
+                        csvPreviewSection.classList.add('hidden');
+                        uploadImportBtn.disabled = true;
+                        return;
+                    }
+
+                    // Detect column types for highlighting
+                    const columnTypes = headers.map(h => detectColumnType(h));
+
+                    // Build header row
+                    csvPreviewHeader.innerHTML = `<tr>${headers.map((h, i) =>
+                        `<th class="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider border-b ${getHeaderClass(columnTypes[i])}">${escapeHtml(h)}</th>`
+                    ).join('')}</tr>`;
+
+                    // Build data rows
+                    csvPreviewBody.innerHTML = data.map(row =>
+                        `<tr class="hover:bg-gray-50">${headers.map((h, i) =>
+                            `<td class="px-3 py-2 text-sm whitespace-nowrap max-w-[200px] truncate ${columnTypes[i] !== 'default' ? getColumnClass(columnTypes[i]) : ''}">${escapeHtml(row[h] || '')}</td>`
+                        ).join('')}</tr>`
+                    ).join('');
+
+                    // Count total rows (re-parse without preview limit to get count)
+                    Papa.parse(file, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(fullResults) {
+                            const totalRows = fullResults.data.length;
+                            csvRowCount.textContent = `${totalRows} customer${totalRows !== 1 ? 's' : ''} found`;
+                        }
+                    });
+
+                    // Show preview section
+                    csvPreviewSection.classList.remove('hidden');
+                    uploadImportBtn.disabled = false;
+                },
+                error: function(error) {
+                    console.error('CSV parse error:', error);
+                    showToast('Failed to parse CSV file.', 'error');
+                    csvPreviewSection.classList.add('hidden');
+                    uploadImportBtn.disabled = true;
+                }
+            });
         }
 
         async function importCustomers() {
@@ -2129,6 +2383,10 @@
                 const imported = data.imported || 0;
                 const updated = data.updated || 0;
                 const skipped = data.skipped || 0;
+                const importedCustomers = data.customers || [];
+
+                // Store imported customer IDs for review requests
+                importedCustomerIds = importedCustomers.map(c => c.id);
 
                 // Build success message
                 let toastMessage = '';
@@ -2172,6 +2430,11 @@
                 if (imported > 0 || updated > 0) {
                     showSuccessAnimation();
                     loadCustomers();
+
+                    // Show send review requests prompt if customers were imported
+                    if (importedCustomerIds.length > 0) {
+                        sendReviewsPrompt.classList.remove('hidden');
+                    }
                 }
 
                 // Reset file selection but keep modal open to show results
@@ -2179,6 +2442,7 @@
                 csvFileInput.value = '';
                 dropzoneContent.classList.remove('hidden');
                 selectedFileInfo.classList.add('hidden');
+                csvPreviewSection.classList.add('hidden');
 
             } catch (error) {
                 console.error('Import error:', error);
@@ -2265,6 +2529,95 @@
         document.getElementById('downloadExampleCsvBtn').addEventListener('click', downloadExampleCsv);
         uploadImportBtn.addEventListener('click', importCustomers);
         setupExportGuides();
+
+        // Send review requests after import
+        document.getElementById('skipSendReviewsBtn').addEventListener('click', () => {
+            sendReviewsPrompt.classList.add('hidden');
+            importedCustomerIds = [];
+        });
+
+        document.getElementById('sendToAllBtn').addEventListener('click', () => {
+            // First click shows options, second click sends
+            if (sendOptionsSection.classList.contains('hidden')) {
+                sendOptionsSection.classList.remove('hidden');
+                document.getElementById('sendToAllBtn').innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                    Confirm & Send
+                `;
+            } else {
+                sendImportedReviewRequests();
+            }
+        });
+
+        // Toggle schedule delay section based on radio selection
+        document.querySelectorAll('input[name="sendTiming"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'schedule') {
+                    scheduleDelaySection.classList.remove('hidden');
+                } else {
+                    scheduleDelaySection.classList.add('hidden');
+                }
+            });
+        });
+
+        async function sendImportedReviewRequests() {
+            if (importedCustomerIds.length === 0) return;
+
+            const timing = document.querySelector('input[name="sendTiming"]:checked').value;
+            const delayHours = parseInt(document.getElementById('scheduleDelayHours').value) || 2;
+
+            // Hide buttons, show progress
+            sendReviewsButtons.classList.add('hidden');
+            sendOptionsSection.classList.add('hidden');
+            sendReviewsProgress.classList.remove('hidden');
+            sendReviewsProgressText.textContent = timing === 'immediate'
+                ? `Sending to ${importedCustomerIds.length} customer(s)...`
+                : `Scheduling ${importedCustomerIds.length} review request(s)...`;
+
+            try {
+                if (timing === 'immediate') {
+                    // Send immediately using bulk endpoint
+                    const data = await apiCall(`${API_URL}/review-requests/bulk`, {
+                        method: 'POST',
+                        body: JSON.stringify({ customer_ids: importedCustomerIds })
+                    });
+
+                    sendReviewsProgress.classList.add('hidden');
+                    sendReviewsSuccess.classList.remove('hidden');
+                    sendReviewsSuccessText.textContent = `Sent ${data.success_count} review request(s)!`;
+                    if (data.error_count > 0) {
+                        sendReviewsSuccessText.textContent += ` (${data.error_count} failed)`;
+                    }
+                    showToast(`Sent ${data.success_count} review request(s)!`, 'success');
+                    showSuccessAnimation();
+                    loadDashboardStats();
+                    loadReviewRequests();
+                } else {
+                    // Queue for later using queue endpoint
+                    const data = await apiCall(`${API_URL}/review-requests/queue-bulk`, {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            customer_ids: importedCustomerIds,
+                            delay_hours: delayHours
+                        })
+                    });
+
+                    sendReviewsProgress.classList.add('hidden');
+                    sendReviewsSuccess.classList.remove('hidden');
+                    sendReviewsSuccessText.textContent = `Queued ${data.queued_count || importedCustomerIds.length} review request(s)!`;
+                    showToast(`Queued ${data.queued_count || importedCustomerIds.length} review request(s) for later!`, 'success');
+                }
+
+                importedCustomerIds = [];
+
+            } catch (error) {
+                console.error('Send review requests error:', error);
+                showToast(error.message || 'Failed to send review requests', 'error');
+                sendReviewsProgress.classList.add('hidden');
+                sendReviewsButtons.classList.remove('hidden');
+                sendOptionsSection.classList.remove('hidden');
+            }
+        }
 
         // =====================================================
         // KEYBOARD SHORTCUTS
@@ -2606,6 +2959,96 @@
                 setTimeout(() => banner.remove(), 400);
             }
         }
+
+        // =====================================================
+        // QUEUE DEBUG & PROCESSING
+        // =====================================================
+        const queueActionsSection = document.getElementById('queueActionsSection');
+        const queueReadyCount = document.getElementById('queueReadyCount');
+        const queueDebugInfo = document.getElementById('queueDebugInfo');
+        const processQueueBtn = document.getElementById('processQueueBtn');
+        const squareStats = document.getElementById('squareStats');
+        const squareStatsSent = document.getElementById('squareStatsSent');
+        const squareStatsQueued = document.getElementById('squareStatsQueued');
+
+        async function loadQueueStatus() {
+            try {
+                const data = await apiCall(`${API_URL}/review-requests/queue/debug`);
+                if (data.success) {
+                    // Update stats
+                    squareStatsQueued.textContent = data.total_queued;
+                    queueReadyCount.textContent = data.ready_to_send;
+
+                    // Show queue actions if there are queued items
+                    if (data.total_queued > 0) {
+                        squareStats.classList.remove('hidden');
+                        queueActionsSection.classList.remove('hidden');
+
+                        // Show debug info if items are stuck
+                        if (data.total_queued > 0 && data.ready_to_send === 0) {
+                            const firstItem = data.items[0];
+                            if (firstItem) {
+                                queueDebugInfo.textContent = `Next scheduled: ${new Date(firstItem.scheduled_send_at).toLocaleString()}`;
+                                queueDebugInfo.classList.remove('hidden');
+                            }
+                        } else {
+                            queueDebugInfo.classList.add('hidden');
+                        }
+                    } else {
+                        queueActionsSection.classList.add('hidden');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load queue status:', error);
+            }
+        }
+
+        processQueueBtn?.addEventListener('click', async () => {
+            processQueueBtn.disabled = true;
+            const originalHTML = processQueueBtn.innerHTML;
+            processQueueBtn.innerHTML = `
+                <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+                Processing...
+            `;
+
+            try {
+                const data = await apiCall(`${API_URL}/review-requests/queue/process`, {
+                    method: 'POST'
+                });
+
+                if (data.success) {
+                    const result = data.result;
+                    if (result.sent > 0) {
+                        showToast(`Processed! ${result.sent} sent, ${result.failed} failed`, 'success');
+                        showSuccessAnimation();
+                    } else if (result.processed === 0) {
+                        showToast('No requests ready to process', 'info');
+                    } else {
+                        showToast(`Processed ${result.processed} requests, ${result.failed} failed`, 'error');
+                    }
+
+                    // Refresh queue status
+                    await loadQueueStatus();
+                    loadReviewRequests();
+                    loadDashboardStats();
+                }
+            } catch (error) {
+                showToast('Failed to process queue: ' + error.message, 'error');
+            } finally {
+                processQueueBtn.disabled = false;
+                processQueueBtn.innerHTML = originalHTML;
+            }
+        });
+
+        // Load queue status when Square section is shown
+        const originalShowSquareConnected = showSquareConnected;
+        showSquareConnected = function(data) {
+            originalShowSquareConnected(data);
+            loadQueueStatus();
+        };
 
         // =====================================================
         // INITIALIZE

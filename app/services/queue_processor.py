@@ -39,7 +39,7 @@ import time
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 
-from app.services.supabase_service import supabase
+from app.services.supabase_service import supabase_admin as supabase  # Use admin client to bypass RLS
 from app.services.email_service import send_review_request_email, generate_google_review_url
 from app.services.sms_service import send_review_request_sms
 from app.services.square_logger import get_square_logger, log_queue_event
@@ -95,17 +95,34 @@ def process_queued_requests() -> dict:
 
     try:
         # Get current time in UTC
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
 
         # Query for queued requests that are ready to send
-        logger.debug(f"Querying for requests ready to send (before {now})")
+        logger.info(f"Queue processor running - current time: {now_iso}")
 
+        # First, let's see how many are queued total
+        total_queued_result = supabase.table('queued_review_requests').select(
+            'id, scheduled_send_at', count='exact'
+        ).eq(
+            'status', 'queued'
+        ).execute()
+
+        total_queued = len(total_queued_result.data) if total_queued_result.data else 0
+        logger.info(f"Total queued requests: {total_queued}")
+
+        # Log some sample scheduled times for debugging
+        if total_queued_result.data and total_queued > 0:
+            sample = total_queued_result.data[0]
+            logger.info(f"Sample queued item - scheduled_send_at: {sample.get('scheduled_send_at')}")
+
+        # Query for queued requests that are ready to send
         query_result = supabase.table('queued_review_requests').select(
             '*'
         ).eq(
             'status', 'queued'
         ).lte(
-            'scheduled_send_at', now
+            'scheduled_send_at', now_iso
         ).order(
             'scheduled_send_at', desc=False  # Oldest first
         ).limit(
@@ -113,10 +130,15 @@ def process_queued_requests() -> dict:
         ).execute()
 
         queued_requests = query_result.data or []
-        log_queue_event('batch_query', details={'found': len(queued_requests)})
+        logger.info(f"Requests ready to send (scheduled_send_at <= {now_iso}): {len(queued_requests)}")
+        log_queue_event('batch_query', details={'found': len(queued_requests), 'total_queued': total_queued})
 
         if not queued_requests:
-            logger.info("No queued requests ready to send")
+            # Extra debugging: check if there are ANY queued items and why they're not ready
+            if total_queued > 0:
+                logger.info(f"Found {total_queued} queued items but none ready to send yet")
+                for item in total_queued_result.data[:3]:  # Log first 3
+                    logger.info(f"  - ID {item['id']}: scheduled for {item.get('scheduled_send_at')}")
             return results
 
         # Process each request

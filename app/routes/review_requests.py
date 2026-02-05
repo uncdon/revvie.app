@@ -24,12 +24,12 @@ Endpoints:
 """
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import require_auth
 from app.services.email_service import send_review_request_email, generate_google_review_url
 from app.services.sms_service import send_review_request_sms, validate_phone_number
-from app.services.supabase_service import supabase
+from app.services.supabase_service import supabase, supabase_admin
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -588,4 +588,227 @@ def send_bulk_review_requests():
         return jsonify({
             "success": False,
             "message": f"An error occurred: {str(e)}"
+        }), 500
+
+
+@review_requests_bp.route('/review-requests/queue-bulk', methods=['POST'])
+@require_auth
+def queue_bulk_review_requests():
+    """
+    Queue review requests for multiple customers to be sent later.
+
+    This is used after CSV import to schedule review requests.
+
+    Request body:
+    {
+        "customer_ids": ["uuid1", "uuid2", ...],
+        "delay_hours": 2  // How many hours from now to send (default: 2)
+    }
+
+    Returns:
+    {
+        "success": true,
+        "queued_count": 47,
+        "error_count": 0,
+        "errors": []
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        customer_ids = data.get('customer_ids', [])
+        delay_hours = data.get('delay_hours', 2)
+
+        if not customer_ids:
+            return jsonify({
+                "success": False,
+                "message": "No customer IDs provided"
+            }), 400
+
+        if not isinstance(customer_ids, list):
+            return jsonify({
+                "success": False,
+                "message": "customer_ids must be an array"
+            }), 400
+
+        # Validate delay_hours
+        try:
+            delay_hours = int(delay_hours)
+            if delay_hours < 0:
+                delay_hours = 0
+            if delay_hours > 168:  # Max 1 week
+                delay_hours = 168
+        except (ValueError, TypeError):
+            delay_hours = 2
+
+        business_id = request.business.get('id')
+        business_name = request.business.get('name')
+
+        # Fetch all customers
+        customers_result = supabase.table("customers") \
+            .select("id, name, email, phone") \
+            .in_("id", customer_ids) \
+            .eq("business_id", business_id) \
+            .execute()
+
+        customers = customers_result.data or []
+
+        if not customers:
+            return jsonify({
+                "success": False,
+                "message": "No valid customers found"
+            }), 404
+
+        # Calculate scheduled send time
+        scheduled_time = datetime.now(timezone.utc) + timedelta(hours=delay_hours)
+
+        queued_count = 0
+        error_count = 0
+        errors = []
+        queue_records = []
+
+        for customer in customers:
+            # Must have email or phone
+            if not customer.get('email') and not customer.get('phone'):
+                errors.append({
+                    "customer_id": customer['id'],
+                    "message": "Customer has no email or phone"
+                })
+                error_count += 1
+                continue
+
+            # Determine method based on available contact info
+            if customer.get('email') and customer.get('phone'):
+                method = 'both'
+            elif customer.get('email'):
+                method = 'email'
+            else:
+                method = 'sms'
+
+            queue_records.append({
+                "business_id": business_id,
+                "customer_name": customer.get('name', 'Customer'),
+                "customer_email": customer.get('email'),
+                "customer_phone": customer.get('phone'),
+                "status": "queued",
+                "method": method,
+                "scheduled_send_at": scheduled_time.isoformat(),
+                "integration_source": "csv_import",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+            queued_count += 1
+
+        # Bulk insert into queue (use admin client to bypass RLS)
+        if queue_records:
+            try:
+                supabase_admin.table("queued_review_requests").insert(queue_records).execute()
+                logger.info(f"Queued {queued_count} review requests for business {business_id}")
+            except Exception as e:
+                logger.error(f"Failed to queue review requests: {e}")
+                return jsonify({
+                    "success": False,
+                    "message": f"Failed to queue requests: {str(e)}"
+                }), 500
+
+        return jsonify({
+            "success": True,
+            "queued_count": queued_count,
+            "error_count": error_count,
+            "errors": errors,
+            "scheduled_for": scheduled_time.isoformat()
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Queue bulk error: {e}")
+        return jsonify({
+            "success": False,
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+
+
+@review_requests_bp.route('/review-requests/queue/debug', methods=['GET'])
+@require_auth
+def debug_queue():
+    """
+    Debug endpoint to inspect the queue status.
+
+    Returns current time, queued items, and why they might not be processing.
+    """
+    try:
+        business_id = request.business.get('id')
+        now = datetime.now(timezone.utc)
+        now_iso = now.isoformat()
+
+        # Get all queued items for this business
+        queued_result = supabase.table("queued_review_requests") \
+            .select("*") \
+            .eq("business_id", business_id) \
+            .eq("status", "queued") \
+            .order("scheduled_send_at", desc=False) \
+            .limit(50) \
+            .execute()
+
+        queued_items = queued_result.data or []
+
+        # Analyze each item
+        analysis = []
+        for item in queued_items:
+            scheduled_at = item.get('scheduled_send_at')
+            is_ready = scheduled_at <= now_iso if scheduled_at else False
+
+            analysis.append({
+                "id": item['id'],
+                "customer_name": item.get('customer_name'),
+                "customer_email": item.get('customer_email'),
+                "customer_phone": item.get('customer_phone'),
+                "method": item.get('method'),
+                "scheduled_send_at": scheduled_at,
+                "created_at": item.get('created_at'),
+                "is_ready_to_send": is_ready,
+                "reason_not_ready": None if is_ready else f"Scheduled for {scheduled_at}, current time is {now_iso}"
+            })
+
+        # Count how many are ready
+        ready_count = sum(1 for a in analysis if a['is_ready_to_send'])
+
+        return jsonify({
+            "success": True,
+            "server_time_utc": now_iso,
+            "total_queued": len(queued_items),
+            "ready_to_send": ready_count,
+            "items": analysis
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Queue debug error: {e}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        }), 500
+
+
+@review_requests_bp.route('/review-requests/queue/process', methods=['POST'])
+@require_auth
+def manually_process_queue():
+    """
+    Manually trigger the queue processor.
+
+    This is useful for debugging or forcing immediate processing.
+    """
+    try:
+        from app.services.queue_processor import process_queued_requests
+
+        logger.info("Manually triggered queue processing")
+        result = process_queued_requests()
+
+        return jsonify({
+            "success": True,
+            "message": "Queue processing completed",
+            "result": result
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Manual queue process error: {e}")
+        return jsonify({
+            "success": False,
+            "message": str(e)
         }), 500
