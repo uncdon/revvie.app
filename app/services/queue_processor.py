@@ -34,7 +34,6 @@ Option 3: Use a cron job
     */15 * * * * cd /path/to/revvie && source venv/bin/activate && python -c "from app.services.queue_processor import process_queued_requests; process_queued_requests()"
 """
 
-import os
 import time
 from datetime import datetime, timezone
 from dotenv import load_dotenv
@@ -248,7 +247,13 @@ def process_queued_requests() -> dict:
                                   })
 
                     # Mark as sent in queue with SMS tracking info
-                    mark_request_sent(request_id, sms_sid=sms_sid, sms_status=sms_status)
+                    # CRITICAL: Verify the status update succeeded
+                    if not mark_request_sent(request_id, sms_sid=sms_sid, sms_status=sms_status):
+                        # Status update failed - this is critical because email was already sent
+                        # but the record is still marked as 'queued', leading to potential duplicates
+                        logger.error(f"CRITICAL: Email sent but status update failed for {request_id}. "
+                                   f"Customer: {customer_email or customer_phone}")
+                        results["errors"].append(f"Status update failed for {request_id} (email was sent)")
 
                     # Create record in review_requests table
                     create_review_request_record(
@@ -269,7 +274,8 @@ def process_queued_requests() -> dict:
                     log_queue_event('request_failed', request_id=request_id,
                                   business_id=business_id, customer_email=customer_email,
                                   success=False, error=error_msg)
-                    mark_request_failed(request_id, error_msg, sms_error=sms_error)
+                    if not mark_request_failed(request_id, error_msg, sms_error=sms_error):
+                        logger.error(f"Failed to update status to 'failed' for request {request_id}")
                     results["failed"] += 1
                     results["errors"].append(f"{customer_email or customer_phone}: {error_msg}")
 
@@ -277,7 +283,8 @@ def process_queued_requests() -> dict:
                 log_queue_event('request_failed', request_id=request_id,
                               success=False, error=str(e))
                 logger.exception(f"Exception processing request {request_id}")
-                mark_request_failed(request_id, str(e))
+                if not mark_request_failed(request_id, str(e)):
+                    logger.error(f"Failed to update status to 'failed' for request {request_id}")
                 results["failed"] += 1
                 results["errors"].append(f"Request {request_id}: {str(e)}")
 
@@ -298,7 +305,7 @@ def process_queued_requests() -> dict:
         return results
 
 
-def mark_request_sent(request_id: str, sms_sid: str = None, sms_status: str = None) -> None:
+def mark_request_sent(request_id: str, sms_sid: str = None, sms_status: str = None) -> bool:
     """
     Update a queued request status to 'sent'.
 
@@ -306,6 +313,9 @@ def mark_request_sent(request_id: str, sms_sid: str = None, sms_status: str = No
         request_id: The ID of the queued_review_requests record
         sms_sid: Telnyx message ID (if SMS was sent)
         sms_status: SMS delivery status
+
+    Returns:
+        bool: True if update succeeded, False otherwise
     """
     try:
         update_data = {'status': 'sent'}
@@ -314,12 +324,21 @@ def mark_request_sent(request_id: str, sms_sid: str = None, sms_status: str = No
         if sms_status:
             update_data['sms_status'] = sms_status
 
-        supabase.table('queued_review_requests').update(update_data).eq('id', request_id).execute()
+        result = supabase.table('queued_review_requests').update(update_data).eq('id', request_id).execute()
+
+        # Verify the update actually worked
+        if not result.data:
+            logger.error(f"mark_request_sent: No rows updated for request {request_id}")
+            return False
+
+        logger.debug(f"Successfully marked request {request_id} as sent")
+        return True
     except Exception as e:
         logger.error(f"Failed to mark request {request_id} as sent: {e}")
+        return False
 
 
-def mark_request_failed(request_id: str, error_message: str, sms_error: str = None) -> None:
+def mark_request_failed(request_id: str, error_message: str, sms_error: str = None) -> bool:
     """
     Update a queued request status to 'failed'.
 
@@ -327,6 +346,9 @@ def mark_request_failed(request_id: str, error_message: str, sms_error: str = No
         request_id: The ID of the queued_review_requests record
         error_message: Description of why it failed
         sms_error: SMS-specific error message
+
+    Returns:
+        bool: True if update succeeded, False otherwise
     """
     try:
         update_data = {'status': 'failed'}
@@ -334,9 +356,18 @@ def mark_request_failed(request_id: str, error_message: str, sms_error: str = No
             update_data['sms_status'] = 'failed'
             update_data['sms_error'] = sms_error
 
-        supabase.table('queued_review_requests').update(update_data).eq('id', request_id).execute()
+        result = supabase.table('queued_review_requests').update(update_data).eq('id', request_id).execute()
+
+        # Verify the update actually worked
+        if not result.data:
+            logger.error(f"mark_request_failed: No rows updated for request {request_id}")
+            return False
+
+        logger.debug(f"Successfully marked request {request_id} as failed: {error_message}")
+        return True
     except Exception as e:
         logger.error(f"Failed to mark request {request_id} as failed: {e}")
+        return False
 
 
 def mark_request_skipped(request_id: str, reason: str) -> None:
@@ -398,6 +429,73 @@ def create_review_request_record(
     except Exception as e:
         # Don't fail the whole process if this record fails
         logger.error(f"Failed to create review_requests record: {e}")
+
+
+def diagnose_stuck_items() -> dict:
+    """
+    Diagnose items that might be stuck in 'queued' status.
+
+    This function helps debug issues where items remain queued despite
+    being past their scheduled send time.
+
+    Returns:
+        dict: Diagnostic information about stuck items
+    """
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    results = {
+        "current_time_utc": now_iso,
+        "total_queued": 0,
+        "ready_to_send": 0,
+        "not_yet_ready": 0,
+        "stuck_items": [],
+        "sample_items": []
+    }
+
+    try:
+        # Get all queued items
+        queued_result = supabase.table('queued_review_requests').select(
+            'id, customer_email, customer_phone, scheduled_send_at, created_at, status'
+        ).eq(
+            'status', 'queued'
+        ).order(
+            'scheduled_send_at', desc=False
+        ).limit(100).execute()
+
+        queued_items = queued_result.data or []
+        results["total_queued"] = len(queued_items)
+
+        for item in queued_items:
+            scheduled_at = item.get('scheduled_send_at')
+            is_ready = scheduled_at and scheduled_at <= now_iso
+
+            if is_ready:
+                results["ready_to_send"] += 1
+                # These are potentially stuck - should have been processed
+                results["stuck_items"].append({
+                    "id": item['id'],
+                    "customer": item.get('customer_email') or item.get('customer_phone'),
+                    "scheduled_send_at": scheduled_at,
+                    "created_at": item.get('created_at'),
+                    "minutes_overdue": round((now - datetime.fromisoformat(scheduled_at.replace('Z', '+00:00'))).total_seconds() / 60, 1) if scheduled_at else None
+                })
+            else:
+                results["not_yet_ready"] += 1
+                if len(results["sample_items"]) < 5:
+                    results["sample_items"].append({
+                        "id": item['id'],
+                        "customer": item.get('customer_email') or item.get('customer_phone'),
+                        "scheduled_send_at": scheduled_at
+                    })
+
+        logger.info(f"Diagnosis: {results['total_queued']} queued, {results['ready_to_send']} ready, {results['not_yet_ready']} pending")
+
+    except Exception as e:
+        logger.error(f"Error during diagnosis: {e}")
+        results["error"] = str(e)
+
+    return results
 
 
 def run_processor_continuously(interval: int = PROCESS_INTERVAL) -> None:
@@ -467,7 +565,7 @@ def run_processor_with_scheduler() -> None:
             id='queue_processor',
             name='Process queued review requests',
             replace_existing=True,
-            next_run_time=datetime.now()
+            next_run_time=datetime.now(timezone.utc)
         )
 
         # Start the scheduler

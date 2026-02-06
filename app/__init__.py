@@ -102,7 +102,7 @@ def start_queue_scheduler(app):
             from apscheduler.schedulers.background import BackgroundScheduler
             from apscheduler.triggers.interval import IntervalTrigger
             from app.services.queue_processor import process_queued_requests
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             scheduler = BackgroundScheduler()
 
@@ -113,7 +113,7 @@ def start_queue_scheduler(app):
                 id='queue_processor',
                 name='Process queued review requests',
                 replace_existing=True,
-                next_run_time=datetime.now()  # Run immediately on startup
+                next_run_time=datetime.now(timezone.utc)  # Run immediately on startup (timezone-aware)
             )
 
             scheduler.start()
