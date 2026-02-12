@@ -31,6 +31,13 @@ def signup():
     return send_from_directory(FRONTEND_FOLDER, 'signup.html')
 
 
+@frontend_bp.route('/onboarding')
+@frontend_bp.route('/onboarding.html')
+def onboarding():
+    """Serve onboarding page."""
+    return send_from_directory(FRONTEND_FOLDER, 'onboarding.html')
+
+
 @frontend_bp.route('/dashboard')
 @frontend_bp.route('/dashboard.html')
 def dashboard():

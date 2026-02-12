@@ -201,7 +201,8 @@
                     localStorage.setItem('token', data.session.access_token);
                     localStorage.setItem('user', JSON.stringify(data.user));
                     btnText.textContent = 'Success!';
-                    setTimeout(() => window.location.href = 'dashboard.html', 500);
+                    const redirect = data.redirect || '/dashboard';
+                    setTimeout(() => window.location.href = redirect, 500);
                 } else {
                     showError(data.error || 'Invalid email or password. Please try again.');
                     form.classList.add('shake');
@@ -226,9 +227,14 @@
             submitBtn.disabled = false;
         }
 
-        // If user is already logged in, redirect to dashboard
+        // If user is already logged in, redirect appropriately
         if (localStorage.getItem('token')) {
-            window.location.href = 'dashboard.html';
+            const biz = JSON.parse(localStorage.getItem('business') || '{}');
+            if (biz.google_place_id) {
+                window.location.href = '/dashboard';
+            } else {
+                window.location.href = '/onboarding';
+            }
         }
     </script>
 </body>

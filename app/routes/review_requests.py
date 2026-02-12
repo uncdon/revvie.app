@@ -28,6 +28,7 @@ from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import require_auth
 from app.services.email_service import send_review_request_email, generate_google_review_url
+from app.services.google_places import get_review_url as places_review_url
 from app.services.sms_service import send_review_request_sms, validate_phone_number
 from app.services.supabase_service import supabase, supabase_admin
 
@@ -164,17 +165,15 @@ def send_review_request():
         # Check if the business has set up their Google Place ID or review URL
         if not google_place_id and not google_review_url:
             return jsonify({
-                "success": False,
-                "message": "Google Place ID or Review URL not configured. Please add it in settings."
+                "error": "Please connect your Google Business Profile first",
+                "action": "Go to Settings \u2192 Connect Google Business",
+                "redirect": "/onboarding"
             }), 400
 
         # ============================================================
         # STEP 3: Generate the Google review URL
         # ============================================================
-        if google_review_url:
-            review_url = google_review_url
-        else:
-            review_url = generate_google_review_url(google_place_id)
+        review_url = google_review_url or places_review_url(google_place_id)
 
         # ============================================================
         # STEP 4: Send the review request(s)
@@ -435,15 +434,13 @@ def send_bulk_review_requests():
 
         if not google_place_id and not google_review_url:
             return jsonify({
-                "success": False,
-                "message": "Google Place ID or Review URL not configured."
+                "error": "Please connect your Google Business Profile first",
+                "action": "Go to Settings \u2192 Connect Google Business",
+                "redirect": "/onboarding"
             }), 400
 
         # Generate review URL once (same for all customers)
-        if google_review_url:
-            review_url = google_review_url
-        else:
-            review_url = generate_google_review_url(google_place_id)
+        review_url = google_review_url or places_review_url(google_place_id)
 
         # Fetch all customers at once
         customers_result = supabase.table("customers") \

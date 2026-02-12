@@ -41,7 +41,6 @@ def select_place():
         result = supabase.table('businesses').update({
             'google_place_id': place_id,
             'google_review_url': review_url,
-            'onboarding_step': 2,
         }).eq('id', business_id).execute()
 
         if not result.data:

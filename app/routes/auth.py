@@ -9,6 +9,7 @@ Endpoints:
 
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import signup_user, login_user, get_current_user, require_auth
+from app.services.supabase_service import supabase
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -60,6 +61,7 @@ def signup():
 
         return jsonify({
             "message": "Account created successfully",
+            "redirect": "/onboarding",
             **result
         }), 201
 
@@ -108,8 +110,23 @@ def login():
         # Authenticate
         result = login_user(email, password)
 
+        # Check onboarding status to determine redirect
+        redirect = "/dashboard"
+        try:
+            user_id = result['user']['id']
+            biz = supabase.table('businesses').select('*').eq('id', user_id).execute()
+            if biz.data:
+                b = biz.data[0]
+                if not b.get('google_place_id'):
+                    redirect = "/onboarding"
+            else:
+                redirect = "/onboarding"
+        except Exception:
+            pass  # Default to dashboard if check fails
+
         return jsonify({
             "message": "Login successful",
+            "redirect": redirect,
             **result
         }), 200
 

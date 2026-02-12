@@ -245,7 +245,7 @@
                     localStorage.setItem('user', JSON.stringify(data.user));
                     localStorage.setItem('business', JSON.stringify(data.business));
                     btnText.textContent = 'Success!';
-                    setTimeout(() => window.location.href = 'dashboard.html', 500);
+                    setTimeout(() => window.location.href = data.redirect || '/onboarding', 500);
                 } else {
                     showError(data.error || 'Signup failed. Please try again.');
                     form.classList.add('shake');
