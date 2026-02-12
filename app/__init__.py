@@ -95,31 +95,34 @@ def start_queue_scheduler(app):
 
     logger = logging.getLogger(__name__)
 
-    # Only start scheduler in production (not during testing or local dev reloads)
-    # Check if we're the main process (not a reloader)
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
-        try:
-            from apscheduler.schedulers.background import BackgroundScheduler
-            from apscheduler.triggers.interval import IntervalTrigger
-            from app.services.queue_processor import process_queued_requests
-            from datetime import datetime, timezone
+    # In debug mode with werkzeug reloader, only start in the child process
+    # to avoid running the scheduler twice. In production (gunicorn), always start.
+    if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        logger.info("Skipping queue scheduler in werkzeug reloader parent process")
+        return
 
-            scheduler = BackgroundScheduler()
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.interval import IntervalTrigger
+        from app.services.queue_processor import process_queued_requests
+        from datetime import datetime, timezone
 
-            # Run every 5 minutes
-            scheduler.add_job(
-                func=process_queued_requests,
-                trigger=IntervalTrigger(minutes=5),
-                id='queue_processor',
-                name='Process queued review requests',
-                replace_existing=True,
-                next_run_time=datetime.now(timezone.utc)  # Run immediately on startup (timezone-aware)
-            )
+        scheduler = BackgroundScheduler()
 
-            scheduler.start()
-            logger.info("Queue processor scheduler started - running every 5 minutes")
+        # Run every 5 minutes
+        scheduler.add_job(
+            func=process_queued_requests,
+            trigger=IntervalTrigger(minutes=5),
+            id='queue_processor',
+            name='Process queued review requests',
+            replace_existing=True,
+            next_run_time=datetime.now(timezone.utc)  # Run immediately on startup (timezone-aware)
+        )
 
-        except ImportError:
-            logger.warning("APScheduler not installed - queue processor won't run automatically")
-        except Exception as e:
-            logger.error(f"Failed to start queue scheduler: {e}")
+        scheduler.start()
+        logger.info("Queue processor scheduler started - running every 5 minutes")
+
+    except ImportError:
+        logger.warning("APScheduler not installed - queue processor won't run automatically")
+    except Exception as e:
+        logger.error(f"Failed to start queue scheduler: {e}")

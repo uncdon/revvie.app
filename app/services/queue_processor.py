@@ -142,8 +142,20 @@ def process_queued_requests() -> dict:
 
         # Process each request
         for req in queued_requests:
-            results["processed"] += 1
             request_id = req['id']
+
+            # Claim this request by setting status to 'processing'.
+            # This prevents duplicate sends when multiple workers run concurrently.
+            claim_result = supabase.table('queued_review_requests').update(
+                {'status': 'processing'}
+            ).eq('id', request_id).eq('status', 'queued').execute()
+
+            if not claim_result.data:
+                # Another worker already claimed this request, skip it
+                logger.debug(f"Request {request_id} already claimed by another worker, skipping")
+                continue
+
+            results["processed"] += 1
             customer_name = req['customer_name']
             customer_email = req.get('customer_email')
             customer_phone = req.get('customer_phone')

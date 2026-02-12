@@ -13,7 +13,9 @@ from app import create_app
 
 # Create the Flask app instance
 # This must be called 'app' for gunicorn to find it
-app = create_app()
+# Default to 'production' since this is the gunicorn entry point
+config_name = os.environ.get('FLASK_ENV', 'production')
+app = create_app(config_name)
 
 if __name__ == '__main__':
     # For local development, use PORT from environment or default to 5001
