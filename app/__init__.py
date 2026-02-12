@@ -90,16 +90,9 @@ def create_app(config_name='default'):
 
 def start_queue_scheduler(app):
     """Start the background scheduler for processing queued review requests."""
-    import os
     import logging
 
     logger = logging.getLogger(__name__)
-
-    # In debug mode with werkzeug reloader, only start in the child process
-    # to avoid running the scheduler twice. In production (gunicorn), always start.
-    if app.debug and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-        logger.info("Skipping queue scheduler in werkzeug reloader parent process")
-        return
 
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
