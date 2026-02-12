@@ -144,17 +144,6 @@ def process_queued_requests() -> dict:
         for req in queued_requests:
             request_id = req['id']
 
-            # Claim this request by setting status to 'processing'.
-            # This prevents duplicate sends when multiple workers run concurrently.
-            claim_result = supabase.table('queued_review_requests').update(
-                {'status': 'processing'}
-            ).eq('id', request_id).eq('status', 'queued').execute()
-
-            if not claim_result.data:
-                # Another worker already claimed this request, skip it
-                logger.debug(f"Request {request_id} already claimed by another worker, skipping")
-                continue
-
             results["processed"] += 1
             customer_name = req['customer_name']
             customer_email = req.get('customer_email')
@@ -336,11 +325,11 @@ def mark_request_sent(request_id: str, sms_sid: str = None, sms_status: str = No
         if sms_status:
             update_data['sms_status'] = sms_status
 
-        result = supabase.table('queued_review_requests').update(update_data).eq('id', request_id).execute()
+        result = supabase.table('queued_review_requests').update(update_data).eq('id', request_id).eq('status', 'queued').execute()
 
-        # Verify the update actually worked
+        # Verify the update actually worked (also serves as duplicate-send prevention)
         if not result.data:
-            logger.error(f"mark_request_sent: No rows updated for request {request_id}")
+            logger.error(f"mark_request_sent: No rows updated for request {request_id} (may already be processed)")
             return False
 
         logger.debug(f"Successfully marked request {request_id} as sent")
@@ -368,11 +357,11 @@ def mark_request_failed(request_id: str, error_message: str, sms_error: str = No
             update_data['sms_status'] = 'failed'
             update_data['sms_error'] = sms_error
 
-        result = supabase.table('queued_review_requests').update(update_data).eq('id', request_id).execute()
+        result = supabase.table('queued_review_requests').update(update_data).eq('id', request_id).eq('status', 'queued').execute()
 
         # Verify the update actually worked
         if not result.data:
-            logger.error(f"mark_request_failed: No rows updated for request {request_id}")
+            logger.error(f"mark_request_failed: No rows updated for request {request_id} (may already be processed)")
             return False
 
         logger.debug(f"Successfully marked request {request_id} as failed: {error_message}")
