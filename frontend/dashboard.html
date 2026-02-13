@@ -245,7 +245,7 @@
                     </div>
                     <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.1s;">
                         <div class="flex items-center justify-between">
-                            <div><p id="statReviewsReceived" class="text-4xl font-bold">0</p><p class="text-blue-100 mt-1 text-sm font-medium">Reviews Received</p></div>
+                            <div><p id="statReviewsReceived" class="text-4xl font-bold">0</p><p class="text-blue-100 mt-1 text-sm font-medium">Links Clicked</p></div>
                             <div class="text-4xl opacity-80">&#11088;</div>
                         </div>
                     </div>
@@ -1351,8 +1351,9 @@
             const badges = {
                 'sent': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Sent</span>',
                 'opened': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Opened</span>',
-                'clicked': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700"><span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>Clicked</span>',
-                'reviewed': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Reviewed</span>'
+                'clicked': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">&#128070; Clicked</span>',
+                'reviewed': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Reviewed</span>',
+                'failed': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Failed</span>'
             };
             return badges[status] || `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">${status || 'Unknown'}</span>`;
         }
@@ -1663,7 +1664,7 @@
                 statsSkeleton.classList.add('hidden');
                 statsContent.classList.remove('hidden');
                 statRequestsSent.textContent = data.total_requests_sent || 0;
-                statReviewsReceived.textContent = data.reviews_received || 0;
+                statReviewsReceived.textContent = data.total_clicked || 0;
                 statConversionRate.textContent = `${data.conversion_rate || 0}%`;
             } catch (error) {
                 statsSkeleton.classList.add('hidden');

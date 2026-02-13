@@ -17,7 +17,7 @@ This service wraps the SendGrid Python library to make sending emails easy.
 import os
 import certifi
 from sendgrid import SendGridAPIClient
-from sendgrid.helpers.mail import Mail, Email, To, Content
+from sendgrid.helpers.mail import Mail, Email, To, Content, TrackingSettings, ClickTracking
 
 # Fix SSL certificate issues on some systems (e.g., macOS)
 os.environ.setdefault('SSL_CERT_FILE', certifi.where())
@@ -80,6 +80,12 @@ def send_email(to_email: str, subject: str, html_body: str) -> dict:
             html_content=Content("text/html", html_body)  # Email body (HTML)
         )
 
+        # Disable SendGrid click tracking so review URLs aren't wrapped
+        # in sendgrid.net redirects (we'll build our own link tracking)
+        message.tracking_settings = TrackingSettings(
+            click_tracking=ClickTracking(enable=False, enable_text=False)
+        )
+
         # Create the SendGrid client with your API key
         # This client handles authentication and HTTP requests to SendGrid
         sg = SendGridAPIClient(api_key)
@@ -127,29 +133,6 @@ def send_email(to_email: str, subject: str, html_body: str) -> dict:
             "message": f"Failed to send email: {error_message}",
             "status_code": None
         }
-
-
-def generate_google_review_url(google_place_id: str) -> str:
-    """
-    Generate a Google review URL from a Place ID.
-
-    Google Place ID is a unique identifier for any place on Google Maps.
-    You can find it by:
-    1. Go to: https://developers.google.com/maps/documentation/places/web-service/place-id
-    2. Search for your business
-    3. Copy the Place ID (starts with "ChIJ...")
-
-    Args:
-        google_place_id: The Google Place ID (e.g., "ChIJN1t_tDeuEmsRUsoyG83frY4")
-
-    Returns:
-        The direct URL to write a review for that place
-
-    Example:
-        url = generate_google_review_url("ChIJN1t_tDeuEmsRUsoyG83frY4")
-        # Returns: https://search.google.com/local/writereview?placeid=ChIJN1t_tDeuEmsRUsoyG83frY4
-    """
-    return f"https://search.google.com/local/writereview?placeid={google_place_id}"
 
 
 def send_review_request_email(
@@ -233,7 +216,7 @@ def send_review_request_email(
                                 <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
                                     <tr>
                                         <td style="border-radius: 6px; background-color: #4F46E5;">
-                                            <a href="{review_url}" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                            <a clicktracking="off" href="{review_url}" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
                                                 Leave us a Google Review
                                             </a>
                                         </td>

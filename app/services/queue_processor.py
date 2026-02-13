@@ -39,9 +39,11 @@ from datetime import datetime, timezone
 from dotenv import load_dotenv
 
 from app.services.supabase_service import supabase_admin as supabase  # Use admin client to bypass RLS
-from app.services.email_service import send_review_request_email, generate_google_review_url
+from app.services.email_service import send_review_request_email
+from app.services.google_places import get_review_url as generate_google_review_url
 from app.services.sms_service import send_review_request_sms
 from app.services.square_logger import get_square_logger, log_queue_event
+from app.services import link_tracker
 
 # Load environment variables
 load_dotenv()
@@ -190,6 +192,18 @@ def process_queued_requests() -> dict:
                     results["skipped"] += 1
                     continue
 
+                # Create tracking link (use short URL for click tracking)
+                tracking_link = link_tracker.create_tracking_link(
+                    business_id=business_id,
+                    destination_url=review_url,
+                    queued_request_id=req['id'],
+                )
+                if tracking_link:
+                    send_url = tracking_link['short_url']
+                else:
+                    logger.warning(f"Failed to create tracking link for queued request {request_id}, using direct review URL")
+                    send_url = review_url
+
                 # Send based on method
                 email_sent = False
                 email_error = None
@@ -205,7 +219,7 @@ def process_queued_requests() -> dict:
                         customer_name=customer_name,
                         customer_email=customer_email,
                         business_name=business_name,
-                        review_url=review_url
+                        review_url=send_url
                     )
                     email_sent = email_result['success']
                     if not email_sent:
@@ -219,7 +233,7 @@ def process_queued_requests() -> dict:
                         customer_name=customer_name,
                         customer_phone=customer_phone,
                         business_name=business_name,
-                        review_url=review_url
+                        review_url=send_url
                     )
                     sms_sent = sms_result['success']
                     if sms_sent:
@@ -267,6 +281,15 @@ def process_queued_requests() -> dict:
                         sms_status=sms_status,
                         sms_error=sms_error if not sms_sent else None
                     )
+
+                    # Link tracking record to the queued request
+                    if tracking_link:
+                        try:
+                            supabase.table('tracking_links').update(
+                                {'queued_request_id': req['id']}
+                            ).eq('id', tracking_link['id']).execute()
+                        except Exception as e:
+                            logger.warning(f"Failed to link tracking record to queued request {request_id}: {e}")
 
                     results["sent"] += 1
                 else:

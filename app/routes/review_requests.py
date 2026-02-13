@@ -27,10 +27,11 @@ import logging
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import require_auth
-from app.services.email_service import send_review_request_email, generate_google_review_url
+from app.services.email_service import send_review_request_email
 from app.services.google_places import get_review_url as places_review_url
 from app.services.sms_service import send_review_request_sms, validate_phone_number
 from app.services.supabase_service import supabase, supabase_admin
+from app.services import link_tracker
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -175,6 +176,17 @@ def send_review_request():
         # ============================================================
         review_url = google_review_url or places_review_url(google_place_id)
 
+        # Create tracking link (review_request_id linked after DB insert)
+        tracking_link = link_tracker.create_tracking_link(
+            business_id=business_id,
+            destination_url=review_url,
+        )
+        if tracking_link:
+            send_url = tracking_link['short_url']
+        else:
+            logger.warning("Failed to create tracking link, using direct review URL")
+            send_url = review_url
+
         # ============================================================
         # STEP 4: Send the review request(s)
         # ============================================================
@@ -192,7 +204,7 @@ def send_review_request():
                 customer_name=customer_name,
                 customer_email=customer_email,
                 business_name=business_name,
-                review_url=review_url
+                review_url=send_url
             )
             email_sent = email_result['success']
             if not email_sent:
@@ -206,7 +218,7 @@ def send_review_request():
                 customer_name=customer_name,
                 customer_phone=customer_phone,
                 business_name=business_name,
-                review_url=review_url
+                review_url=send_url
             )
             sms_sent = sms_result['success']
             if sms_sent:
@@ -261,6 +273,16 @@ def send_review_request():
 
         if not db_result.data:
             logger.warning(f"Failed to save review request to database for {customer_email or customer_phone}")
+
+        # Link tracking record to review request
+        if db_result.data and tracking_link:
+            review_request_id = db_result.data[0]['id']
+            try:
+                supabase_admin.table("tracking_links").update(
+                    {"review_request_id": review_request_id}
+                ).eq("id", tracking_link['id']).execute()
+            except Exception as e:
+                logger.warning(f"Failed to link tracking record: {e}")
 
         # ============================================================
         # STEP 7: Return success response
@@ -461,6 +483,7 @@ def send_bulk_review_requests():
         error_count = 0
         errors = []
         review_requests_to_insert = []
+        bulk_tracking_links = []  # [(customer_id, tracking_link_dict), ...]
 
         for customer_id in customer_ids:
             customer = customers.get(customer_id)
@@ -502,15 +525,23 @@ def send_bulk_review_requests():
             sms_sid = None
             sms_status = None
             sms_error = None
+            customer_tracking_link = None
 
             try:
+                # Create tracking link for this customer
+                customer_tracking_link = link_tracker.create_tracking_link(
+                    business_id=business_id,
+                    destination_url=review_url,
+                )
+                customer_send_url = customer_tracking_link['short_url'] if customer_tracking_link else review_url
+
                 # Send email
                 if method in ['email', 'both'] and customer_email:
                     email_result = send_review_request_email(
                         customer_name=customer_name,
                         customer_email=customer_email,
                         business_name=business_name,
-                        review_url=review_url
+                        review_url=customer_send_url
                     )
                     email_sent = email_result['success']
 
@@ -520,7 +551,7 @@ def send_bulk_review_requests():
                         customer_name=customer_name,
                         customer_phone=customer_phone,
                         business_name=business_name,
-                        review_url=review_url
+                        review_url=customer_send_url
                     )
                     sms_sent = sms_result['success']
                     if sms_sent:
@@ -560,6 +591,10 @@ def send_bulk_review_requests():
                     "sms_error": sms_error
                 })
 
+                # Store tracking link for post-insert association
+                if customer_tracking_link:
+                    bulk_tracking_links.append((customer_id, customer_tracking_link))
+
             except Exception as e:
                 errors.append({
                     "customer_id": customer_id,
@@ -570,7 +605,24 @@ def send_bulk_review_requests():
         # Bulk insert all successful review requests
         if review_requests_to_insert:
             try:
-                supabase.table("review_requests").insert(review_requests_to_insert).execute()
+                insert_result = supabase.table("review_requests").insert(review_requests_to_insert).execute()
+
+                # Link tracking records to review requests
+                if insert_result.data and bulk_tracking_links:
+                    rr_by_customer = {
+                        rr['customer_id']: rr['id']
+                        for rr in insert_result.data
+                        if rr.get('customer_id')
+                    }
+                    for cust_id, tl in bulk_tracking_links:
+                        rr_id = rr_by_customer.get(cust_id)
+                        if rr_id:
+                            try:
+                                supabase_admin.table("tracking_links").update(
+                                    {"review_request_id": rr_id}
+                                ).eq("id", tl['id']).execute()
+                            except Exception as e:
+                                logger.warning(f"Failed to link tracking record for customer {cust_id}: {e}")
             except Exception as e:
                 logger.warning(f"Failed to save some review requests to database: {e}")
 

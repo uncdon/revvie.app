@@ -62,6 +62,9 @@ def create_app(config_name='default'):
     from app.routes.square_logs import square_logs_bp
     from app.routes.telnyx_webhooks import telnyx_webhooks_bp
     from app.routes.places import places_bp
+    from app.routes.analytics import analytics_bp
+    from app.routes.link_redirect import link_redirect_bp
+    app.register_blueprint(link_redirect_bp)  # No prefix - /r/<code> at root
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(reviews_bp, url_prefix='/api')
     app.register_blueprint(test_bp, url_prefix='/api')
@@ -82,6 +85,9 @@ def create_app(config_name='default'):
 
     # Google Places API
     app.register_blueprint(places_bp, url_prefix='/api')
+
+    # Analytics
+    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
 
     # Telnyx SMS webhook routes
     app.register_blueprint(telnyx_webhooks_bp, url_prefix='/webhooks')
