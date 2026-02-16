@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to Revvie!</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        accent: {
+                            500: '#6FCF97',
+                            600: '#6FCF97',
+                            700: '#5DBF87',
+                        },
+                        page: '#f8f8f8',
+                    },
+                    fontFamily: {
+                        'display': ['"Atkinson Hyperlegible"', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-page min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+
+        <!-- Success icon -->
+        <div class="text-6xl mb-6">🎉</div>
+
+        <h1 class="font-display text-2xl font-bold text-gray-900 mb-3">
+            Welcome to Revvie!
+        </h1>
+
+        <p class="text-gray-600 text-lg mb-2">
+            Your 14-day free trial has started.
+        </p>
+
+        <p class="text-gray-500 text-sm mb-8" id="trialMessage">
+            You won't be charged until your trial ends.
+        </p>
+
+        <!-- Dashboard button -->
+        <a href="/dashboard"
+           class="inline-block w-full bg-accent-500 hover:bg-accent-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200 text-lg">
+            Go to Dashboard &rarr;
+        </a>
+    </div>
+
+    <script>
+        // Try to fetch trial end date from billing status
+        (async function() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            try {
+                const res = await fetch('/api/billing/status', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.trial_ends_at) {
+                        const trialEnd = new Date(data.trial_ends_at);
+                        const formatted = trialEnd.toLocaleDateString('en-US', {
+                            month: 'long', day: 'numeric', year: 'numeric'
+                        });
+                        document.getElementById('trialMessage').textContent =
+                            'You won\'t be charged until ' + formatted + '.';
+                    }
+                }
+            } catch (e) {
+                // Keep default message
+            }
+        })();
+    </script>
+
+</body>
+</html>

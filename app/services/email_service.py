@@ -259,3 +259,388 @@ def send_review_request_email(
         subject=subject,
         html_body=html_body
     )
+
+
+# =============================================================================
+# BILLING EMAILS
+# =============================================================================
+
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'http://localhost:5000')
+
+
+def send_trial_welcome_email(email: str, business_name: str, trial_end_date: str) -> dict:
+    """
+    Send a welcome email when a business starts their 14-day free trial.
+
+    Args:
+        email: Business owner's email
+        business_name: Name of the business
+        trial_end_date: Human-readable trial end date (e.g., "March 1, 2026")
+
+    Returns:
+        dict: Same format as send_email()
+    """
+    subject = "Your 14-day free trial has started!"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+            <tr>
+                <td align="center" style="padding: 40px 20px;">
+                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+                        <!-- Header -->
+                        <tr>
+                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                                    Revvie
+                                </h1>
+                            </td>
+                        </tr>
+
+                        <!-- Body -->
+                        <tr>
+                            <td style="padding: 40px;">
+                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
+                                    Welcome to Revvie!
+                                </h2>
+
+                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Your 14-day free trial for <strong>{business_name}</strong> is now active.
+                                    You won't be charged until <strong>{trial_end_date}</strong>.
+                                </p>
+
+                                <p style="margin: 0 0 10px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Here's what you can do during your trial:
+                                </p>
+
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 25px 0;">
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; Send unlimited review requests</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; Import customers via CSV</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; Connect Square integration</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; View click analytics</td>
+                                    </tr>
+                                </table>
+
+                                <!-- CTA Button -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                                    <tr>
+                                        <td style="border-radius: 6px; background-color: #4F46E5;">
+                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                                Go to Dashboard &rarr;
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin: 25px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+                                    Questions? Just reply to this email.
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                                    Revvie &mdash; Get more Google reviews, automatically.
+                                </p>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    return send_email(to_email=email, subject=subject, html_body=html_body)
+
+
+def send_trial_ending_email(email: str, business_name: str, trial_end_date: str, days_remaining: int) -> dict:
+    """
+    Send a reminder email when the trial is about to end.
+
+    Triggered by Stripe's trial_will_end event (3 days before expiry).
+
+    Args:
+        email: Business owner's email
+        business_name: Name of the business
+        trial_end_date: Human-readable trial end date
+        days_remaining: Number of days left in trial
+
+    Returns:
+        dict: Same format as send_email()
+    """
+    subject = f"Your Revvie trial ends in {days_remaining} days"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+            <tr>
+                <td align="center" style="padding: 40px 20px;">
+                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+                        <!-- Header -->
+                        <tr>
+                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                                    Revvie
+                                </h1>
+                            </td>
+                        </tr>
+
+                        <!-- Body -->
+                        <tr>
+                            <td style="padding: 40px;">
+                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
+                                    Your trial is ending soon
+                                </h2>
+
+                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Your free trial for <strong>{business_name}</strong> ends on
+                                    <strong>{trial_end_date}</strong> ({days_remaining} days from now).
+                                    After that, you'll be charged <strong>$79/month</strong> to continue using Revvie.
+                                </p>
+
+                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    You've been doing great! Keep the momentum going &mdash; your customers
+                                    are already seeing your review requests and clicking through.
+                                    Don't let that progress stop.
+                                </p>
+
+                                <!-- CTA Buttons -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 15px auto;">
+                                    <tr>
+                                        <td style="border-radius: 6px; background-color: #4F46E5;">
+                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                                Manage Billing &rarr;
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin: 0; text-align: center;">
+                                    <a href="{APP_BASE_URL}/dashboard" style="color: #4F46E5; text-decoration: none; font-size: 14px;">
+                                        Continue to Dashboard
+                                    </a>
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                                    Revvie &mdash; Get more Google reviews, automatically.
+                                </p>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    return send_email(to_email=email, subject=subject, html_body=html_body)
+
+
+def send_payment_failed_email(email: str, business_name: str) -> dict:
+    """
+    Send a notification when a payment fails.
+
+    Args:
+        email: Business owner's email
+        business_name: Name of the business
+
+    Returns:
+        dict: Same format as send_email()
+    """
+    subject = "Action required: Payment failed for Revvie"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+            <tr>
+                <td align="center" style="padding: 40px 20px;">
+                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+                        <!-- Header -->
+                        <tr>
+                            <td style="background-color: #DC2626; padding: 30px 40px; border-radius: 8px 8px 0 0;">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                                    Revvie
+                                </h1>
+                            </td>
+                        </tr>
+
+                        <!-- Body -->
+                        <tr>
+                            <td style="padding: 40px;">
+                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
+                                    Payment Failed
+                                </h2>
+
+                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    We couldn't process the payment for your <strong>{business_name}</strong> Revvie subscription.
+                                    Please update your payment method to keep your account active.
+                                </p>
+
+                                <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Your account will be paused if payment isn't received within 7 days.
+                                    Update your card now to avoid any interruption.
+                                </p>
+
+                                <!-- CTA Button -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                                    <tr>
+                                        <td style="border-radius: 6px; background-color: #DC2626;">
+                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                                Update Payment Method &rarr;
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin: 25px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+                                    Questions? Just reply to this email.
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                                    Revvie &mdash; Get more Google reviews, automatically.
+                                </p>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    return send_email(to_email=email, subject=subject, html_body=html_body)
+
+
+def send_subscription_canceled_email(email: str, business_name: str) -> dict:
+    """
+    Send a notification when a subscription is canceled.
+
+    Args:
+        email: Business owner's email
+        business_name: Name of the business
+
+    Returns:
+        dict: Same format as send_email()
+    """
+    subject = "Your Revvie subscription has been canceled"
+
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
+            <tr>
+                <td align="center" style="padding: 40px 20px;">
+                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+                        <!-- Header -->
+                        <tr>
+                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
+                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
+                                    Revvie
+                                </h1>
+                            </td>
+                        </tr>
+
+                        <!-- Body -->
+                        <tr>
+                            <td style="padding: 40px;">
+                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
+                                    We're sorry to see you go
+                                </h2>
+
+                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Your Revvie subscription for <strong>{business_name}</strong> has been canceled.
+                                    You'll retain access until the end of your current billing period.
+                                </p>
+
+                                <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
+                                    Changed your mind? You can reactivate anytime.
+                                </p>
+
+                                <!-- CTA Button -->
+                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+                                    <tr>
+                                        <td style="border-radius: 6px; background-color: #4F46E5;">
+                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
+                                                Reactivate &rarr;
+                                            </a>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <p style="margin: 25px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
+                                    We'd love your feedback &mdash; just reply to this email.
+                                </p>
+                            </td>
+                        </tr>
+
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
+                                    Revvie &mdash; Get more Google reviews, automatically.
+                                </p>
+                            </td>
+                        </tr>
+
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
+
+    return send_email(to_email=email, subject=subject, html_body=html_body)

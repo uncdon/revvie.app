@@ -64,6 +64,7 @@ def create_app(config_name='default'):
     from app.routes.places import places_bp
     from app.routes.analytics import analytics_bp
     from app.routes.link_redirect import link_redirect_bp
+    from app.routes.billing import billing_bp, billing_pages_bp
     app.register_blueprint(link_redirect_bp)  # No prefix - /r/<code> at root
     app.register_blueprint(health_bp, url_prefix='/api')
     app.register_blueprint(reviews_bp, url_prefix='/api')
@@ -91,6 +92,10 @@ def create_app(config_name='default'):
 
     # Telnyx SMS webhook routes
     app.register_blueprint(telnyx_webhooks_bp, url_prefix='/webhooks')
+
+    # Billing / Stripe
+    app.register_blueprint(billing_bp, url_prefix='/api')
+    app.register_blueprint(billing_pages_bp)  # No prefix - /billing/success and /billing/canceled
 
     # Start the queue processor scheduler (for processing delayed review requests)
     start_queue_scheduler(app)

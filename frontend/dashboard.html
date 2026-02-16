@@ -112,6 +112,26 @@
         </div>
     </div>
 
+    <!-- PAST DUE BANNER -->
+    <div id="pastDueBanner" style="display:none" class="bg-red-50 border-b border-red-200 p-3 text-center z-[59]">
+        <p class="text-red-800 text-sm font-medium">
+            &#9888;&#65039; Your payment failed. Please
+            <button onclick="openBillingPortal()" class="underline font-semibold hover:text-red-900">update your payment method</button>
+            to avoid losing access.
+        </p>
+    </div>
+
+    <!-- TRIAL COUNTDOWN BANNER -->
+    <div id="trialBanner" style="display:none" class="bg-accent-50 border-b border-green-200 p-3 text-center z-[58]">
+        <div class="flex items-center justify-center gap-3 flex-wrap">
+            <p class="text-gray-700 text-sm">
+                <span class="font-semibold" id="trialBannerText">Free Trial: 14 days remaining</span>
+                <span class="text-gray-500 ml-1" id="trialBannerSubtext"></span>
+            </p>
+            <button onclick="openBillingPortal()" class="text-accent-700 text-sm font-semibold underline hover:text-accent-400">Manage Billing</button>
+        </div>
+    </div>
+
     <!-- TOAST CONTAINER -->
     <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
 
@@ -674,7 +694,82 @@
                         <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🔜</div>
                         <div>
                             <p class="font-medium text-gray-700">More integrations coming soon</p>
-                            <p class="text-sm text-gray-500">Stripe, Clover, Toast, and more...</p>
+                            <p class="text-sm text-gray-500">Clover, Toast, and more...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Billing Section -->
+                <div id="billingSection" class="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                    <!-- Loading skeleton -->
+                    <div id="billingSkeleton" class="p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <div class="w-8 h-8 rounded-lg skeleton"></div>
+                            <div class="h-5 w-24 rounded skeleton"></div>
+                        </div>
+                        <div class="h-4 w-48 rounded skeleton mb-2"></div>
+                        <div class="h-4 w-36 rounded skeleton"></div>
+                    </div>
+
+                    <!-- Billing content (populated by JS) -->
+                    <div id="billingContent" class="hidden">
+                        <!-- Header -->
+                        <div class="px-6 pt-6 pb-4 border-b border-gray-100">
+                            <div class="flex items-center gap-3">
+                                <div class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-xl">💳</div>
+                                <h3 class="text-lg font-bold text-gray-800">Billing</h3>
+                            </div>
+                        </div>
+
+                        <!-- Trialing State -->
+                        <div id="billingTrialing" class="p-6 hidden">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-medium text-gray-500">Status</span>
+                            </div>
+                            <p class="text-lg font-semibold text-gray-800 mb-1" id="billingTrialText">Free Trial</p>
+                            <p class="text-sm text-gray-500 mb-5">After trial: $79/month</p>
+                            <button onclick="openBillingPortal()" class="w-full py-3 bg-accent-500 text-white font-semibold rounded-xl hover:bg-accent-700 transition-colors duration-200">
+                                Manage Billing &rarr;
+                            </button>
+                        </div>
+
+                        <!-- Active State -->
+                        <div id="billingActive" class="p-6 hidden">
+                            <div class="space-y-3 mb-5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Status</span>
+                                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700 bg-green-50 px-3 py-1 rounded-full">
+                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                        Active
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Plan</span>
+                                    <span class="text-sm font-medium text-gray-800">Revvie &mdash; $79/month</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Next payment</span>
+                                    <span class="text-sm font-medium text-gray-800" id="billingNextPayment">—</span>
+                                </div>
+                            </div>
+                            <button onclick="openBillingPortal()" class="w-full py-3 bg-accent-500 text-white font-semibold rounded-xl hover:bg-accent-700 transition-colors duration-200">
+                                Manage Billing &rarr;
+                            </button>
+                        </div>
+
+                        <!-- Past Due State -->
+                        <div id="billingPastDue" class="p-6 hidden">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-medium text-gray-500">Status</span>
+                            </div>
+                            <div class="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700 bg-red-50 px-3 py-1 rounded-full mb-3">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                Payment Failed
+                            </div>
+                            <p class="text-sm text-gray-500 mb-5">Please update your payment method to keep your account active.</p>
+                            <button onclick="openBillingPortal()" class="w-full py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition-colors duration-200">
+                                Update Payment Method &rarr;
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1245,6 +1340,91 @@
         window.addEventListener('online', () => offlineBanner.classList.add('hidden'));
         window.addEventListener('offline', () => offlineBanner.classList.remove('hidden'));
         if (!navigator.onLine) offlineBanner.classList.remove('hidden');
+
+        // =====================================================
+        // BILLING STATUS CHECK
+        // =====================================================
+        (async function checkBillingStatus() {
+            try {
+                const res = await fetch(`${API_URL}/billing/status`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) return;
+                const billing = await res.json();
+
+                if (billing.status === 'none' || billing.status === 'canceled' || billing.status === 'unpaid') {
+                    window.location.href = '/subscribe';
+                    return;
+                }
+
+                // Top banners
+                if (billing.status === 'past_due') {
+                    document.getElementById('pastDueBanner').style.display = '';
+                }
+
+                if (billing.status === 'trialing') {
+                    const banner = document.getElementById('trialBanner');
+                    const bannerText = document.getElementById('trialBannerText');
+                    const bannerSubtext = document.getElementById('trialBannerSubtext');
+                    const days = billing.days_remaining_in_trial;
+
+                    bannerText.textContent = 'Free Trial: ' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
+
+                    if (billing.trial_ends_at) {
+                        const endDate = new Date(billing.trial_ends_at).toLocaleDateString('en-US', {
+                            month: 'long', day: 'numeric', year: 'numeric'
+                        });
+                        bannerSubtext.textContent = 'Your trial ends ' + endDate + '. After that: $79/month.';
+                    }
+
+                    banner.style.display = '';
+                }
+
+                // Billing section card in Integrations tab
+                document.getElementById('billingSkeleton').classList.add('hidden');
+                document.getElementById('billingContent').classList.remove('hidden');
+
+                if (billing.status === 'trialing') {
+                    const days = billing.days_remaining_in_trial;
+                    document.getElementById('billingTrialText').textContent =
+                        'Free Trial (' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining)';
+                    document.getElementById('billingTrialing').classList.remove('hidden');
+                } else if (billing.status === 'active') {
+                    if (billing.subscription_ends_at) {
+                        document.getElementById('billingNextPayment').textContent =
+                            new Date(billing.subscription_ends_at).toLocaleDateString('en-US', {
+                                month: 'long', day: 'numeric', year: 'numeric'
+                            });
+                    }
+                    document.getElementById('billingActive').classList.remove('hidden');
+                } else if (billing.status === 'past_due') {
+                    document.getElementById('billingPastDue').classList.remove('hidden');
+                }
+            } catch (e) {
+                // Don't block dashboard if billing check fails
+                document.getElementById('billingSkeleton').classList.add('hidden');
+            }
+        })();
+
+        async function openBillingPortal() {
+            try {
+                const res = await fetch(`${API_URL}/billing/create-portal`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await res.json();
+                if (res.ok && data.portal_url) {
+                    window.location.href = data.portal_url;
+                } else {
+                    alert(data.error || 'Unable to open billing portal.');
+                }
+            } catch (e) {
+                alert('Network error. Please try again.');
+            }
+        }
 
         // =====================================================
         // ELEMENT REFERENCES

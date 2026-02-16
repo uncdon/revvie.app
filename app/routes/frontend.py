@@ -43,3 +43,9 @@ def onboarding():
 def dashboard():
     """Serve dashboard page."""
     return send_from_directory(FRONTEND_FOLDER, 'dashboard.html')
+
+
+@frontend_bp.route('/subscribe')
+def subscribe():
+    """Serve subscription paywall page."""
+    return send_from_directory(FRONTEND_FOLDER, 'subscribe.html')

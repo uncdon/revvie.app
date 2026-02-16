@@ -1,0 +1,613 @@
+"""
+Stripe Billing Service - handles subscriptions, checkout, and billing events.
+
+Stripe is used for:
+- Creating customers and linking them to businesses
+- Generating Checkout sessions for new subscriptions (with 14-day trial)
+- Customer Portal for self-service billing management
+- Processing webhook events (subscription changes, payments)
+
+FLOW:
+=====
+1. Business signs up -> free trial starts automatically
+2. After onboarding, we create a Stripe customer + Checkout session
+3. Stripe handles the trial period and first charge
+4. Webhooks keep our database in sync with Stripe's state
+5. Business can manage billing via Stripe Customer Portal
+
+ENVIRONMENT VARIABLES:
+======================
+    STRIPE_SECRET_KEY       - Stripe API secret key
+    STRIPE_PRICE_ID         - Price ID for the subscription plan
+    APP_BASE_URL            - Base URL for redirect URLs
+"""
+
+import os
+import logging
+from datetime import datetime, timezone
+
+import stripe
+from dotenv import load_dotenv
+
+from app.services.supabase_service import supabase_admin as supabase
+from app.services.email_service import (
+    send_trial_welcome_email,
+    send_trial_ending_email,
+    send_payment_failed_email,
+    send_subscription_canceled_email,
+)
+
+load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+# Configure Stripe
+stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+
+PRICE_ID = os.getenv('STRIPE_PRICE_ID')
+APP_BASE_URL = os.getenv('APP_BASE_URL', 'http://localhost:5000')
+
+
+# =============================================================================
+# FUNCTION 1: CREATE CUSTOMER
+# =============================================================================
+
+def create_customer(business_id: str, email: str, business_name: str):
+    """
+    Create a Stripe customer for a business and save the ID to the database.
+
+    Args:
+        business_id: The business UUID
+        email: Business owner's email
+        business_name: Name of the business
+
+    Returns:
+        stripe.Customer object, or None on error
+    """
+    try:
+        customer = stripe.Customer.create(
+            email=email,
+            name=business_name,
+            metadata={
+                'business_id': business_id,
+                'source': 'revvie'
+            }
+        )
+
+        logger.info(f"Created Stripe customer {customer.id} for business {business_id}")
+
+        # Save stripe_customer_id to businesses table
+        supabase.table('businesses').update({
+            'stripe_customer_id': customer.id
+        }).eq('id', business_id).execute()
+
+        return customer
+
+    except Exception as e:
+        logger.error(f"Failed to create Stripe customer for business {business_id}: {e}")
+        return None
+
+
+# =============================================================================
+# FUNCTION 2: CREATE CHECKOUT SESSION
+# =============================================================================
+
+def create_checkout_session(business_id: str, email: str, business_name: str, discount_percent: int = None):
+    """
+    Create a Stripe Checkout session for a new subscription.
+
+    This is the hosted payment page the business owner sees when entering
+    their card details. Includes a 14-day free trial.
+
+    Args:
+        business_id: The business UUID
+        email: Business owner's email
+        business_name: Name of the business
+        discount_percent: Optional one-time discount (e.g., 50 for 50% off first month)
+
+    Returns:
+        stripe.checkout.Session object, or None on error
+    """
+    try:
+        # Get or create Stripe customer
+        biz_result = supabase.table('businesses').select(
+            'stripe_customer_id'
+        ).eq('id', business_id).execute()
+
+        stripe_customer_id = None
+        if biz_result.data:
+            stripe_customer_id = biz_result.data[0].get('stripe_customer_id')
+
+        if not stripe_customer_id:
+            customer = create_customer(business_id, email, business_name)
+            if not customer:
+                logger.error(f"Cannot create checkout session: failed to create customer for {business_id}")
+                return None
+            stripe_customer_id = customer.id
+
+        # Build discounts if applicable
+        discounts = []
+        if discount_percent:
+            coupon = stripe.Coupon.create(
+                percent_off=discount_percent,
+                duration='once',
+                name='Referral Discount'
+            )
+            discounts = [{'coupon': coupon.id}]
+            logger.info(f"Created {discount_percent}% discount coupon {coupon.id} for business {business_id}")
+
+        # Create checkout session
+        session = stripe.checkout.Session.create(
+            customer=stripe_customer_id,
+            payment_method_types=['card'],
+            line_items=[{
+                'price': PRICE_ID,
+                'quantity': 1
+            }],
+            mode='subscription',
+            subscription_data={
+                'trial_period_days': 14,
+                'metadata': {
+                    'business_id': business_id
+                }
+            },
+            discounts=discounts,
+            success_url=f'{APP_BASE_URL}/billing/success?session_id={{CHECKOUT_SESSION_ID}}',
+            cancel_url=f'{APP_BASE_URL}/billing/canceled',
+            metadata={
+                'business_id': business_id
+            }
+        )
+
+        logger.info(f"Created checkout session {session.id} for business {business_id}")
+        return session
+
+    except Exception as e:
+        logger.error(f"Failed to create checkout session for business {business_id}: {e}")
+        return None
+
+
+# =============================================================================
+# FUNCTION 3: CREATE PORTAL SESSION
+# =============================================================================
+
+def create_portal_session(business_id: str):
+    """
+    Create a Stripe Customer Portal session.
+
+    The portal lets the business owner:
+    - Update their credit card
+    - Cancel their subscription
+    - View past invoices
+
+    Args:
+        business_id: The business UUID
+
+    Returns:
+        stripe.billing_portal.Session object, or None on error
+    """
+    try:
+        biz_result = supabase.table('businesses').select(
+            'stripe_customer_id'
+        ).eq('id', business_id).execute()
+
+        if not biz_result.data:
+            logger.warning(f"Business {business_id} not found for portal session")
+            return None
+
+        stripe_customer_id = biz_result.data[0].get('stripe_customer_id')
+        if not stripe_customer_id:
+            logger.warning(f"Business {business_id} has no Stripe customer ID - billing not set up")
+            return None
+
+        session = stripe.billing_portal.Session.create(
+            customer=stripe_customer_id,
+            return_url=f'{APP_BASE_URL}/dashboard'
+        )
+
+        logger.info(f"Created portal session for business {business_id}")
+        return session
+
+    except Exception as e:
+        logger.error(f"Failed to create portal session for business {business_id}: {e}")
+        return None
+
+
+# =============================================================================
+# FUNCTION 4: GET SUBSCRIPTION STATUS
+# =============================================================================
+
+def get_subscription_status(business_id: str) -> dict:
+    """
+    Get the current subscription status for a business.
+
+    Args:
+        business_id: The business UUID
+
+    Returns:
+        dict with status info:
+        {
+            'status': 'trialing' | 'active' | 'past_due' | 'canceled' | 'unpaid' | 'none',
+            'trial_ends_at': ISO timestamp or None,
+            'subscription_ends_at': ISO timestamp or None,
+            'is_active': bool,
+            'days_remaining_in_trial': int or None,
+            'stripe_customer_id': str or None
+        }
+    """
+    try:
+        biz_result = supabase.table('businesses').select(
+            'stripe_customer_id, stripe_subscription_id, subscription_status, '
+            'trial_ends_at, subscription_ends_at'
+        ).eq('id', business_id).execute()
+
+        if not biz_result.data:
+            return {
+                'status': 'none',
+                'trial_ends_at': None,
+                'subscription_ends_at': None,
+                'is_active': False,
+                'days_remaining_in_trial': None,
+                'stripe_customer_id': None
+            }
+
+        biz = biz_result.data[0]
+        status = biz.get('subscription_status') or 'none'
+        trial_ends_at = biz.get('trial_ends_at')
+        is_active = status in ['trialing', 'active']
+
+        # Calculate days remaining in trial
+        days_remaining = None
+        if status == 'trialing' and trial_ends_at:
+            try:
+                trial_end = datetime.fromisoformat(trial_ends_at.replace('Z', '+00:00'))
+                delta = trial_end - datetime.now(timezone.utc)
+                days_remaining = max(0, delta.days)
+            except Exception:
+                pass
+
+        return {
+            'status': status,
+            'trial_ends_at': trial_ends_at,
+            'subscription_ends_at': biz.get('subscription_ends_at'),
+            'is_active': is_active,
+            'days_remaining_in_trial': days_remaining,
+            'stripe_customer_id': biz.get('stripe_customer_id')
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get subscription status for business {business_id}: {e}")
+        return {
+            'status': 'none',
+            'trial_ends_at': None,
+            'subscription_ends_at': None,
+            'is_active': False,
+            'days_remaining_in_trial': None,
+            'stripe_customer_id': None
+        }
+
+
+# =============================================================================
+# FUNCTION 5: HANDLE SUBSCRIPTION CREATED
+# =============================================================================
+
+def handle_subscription_created(subscription, business_id: str) -> None:
+    """
+    Update database when a new subscription is created.
+
+    Called by the webhook handler when we receive a
+    customer.subscription.created event.
+
+    Args:
+        subscription: The Stripe Subscription object
+        business_id: The business UUID from subscription metadata
+    """
+    try:
+        # Convert Unix timestamps to ISO format
+        trial_ends_at = None
+        if subscription.trial_end:
+            trial_ends_at = datetime.fromtimestamp(
+                subscription.trial_end, tz=timezone.utc
+            ).isoformat()
+
+        # current_period_end moved to subscription items in newer Stripe API versions
+        subscription_ends_at = None
+        period_end = getattr(subscription, 'current_period_end', None)
+        if not period_end:
+            # Fall back to billing_cycle_anchor
+            period_end = getattr(subscription, 'billing_cycle_anchor', None)
+        if period_end:
+            subscription_ends_at = datetime.fromtimestamp(
+                period_end, tz=timezone.utc
+            ).isoformat()
+
+        # Update businesses table
+        supabase.table('businesses').update({
+            'stripe_subscription_id': subscription.id,
+            'subscription_status': subscription.status,
+            'trial_ends_at': trial_ends_at,
+            'subscription_ends_at': subscription_ends_at
+        }).eq('id', business_id).execute()
+
+        logger.info(f"Subscription {subscription.id} created for business {business_id} "
+                     f"(status: {subscription.status})")
+
+        # Log billing event
+        _log_billing_event(business_id, 'subscription_created', {
+            'subscription_id': subscription.id,
+            'status': subscription.status,
+            'trial_end': trial_ends_at
+        })
+
+        # Send trial welcome email if trialing
+        if subscription.status == 'trialing':
+            _send_trial_welcome(business_id, subscription)
+
+    except Exception as e:
+        logger.error(f"Failed to handle subscription created for business {business_id}: {e}")
+
+
+# =============================================================================
+# FUNCTION 6: HANDLE SUBSCRIPTION UPDATED
+# =============================================================================
+
+def handle_subscription_updated(subscription, business_id: str) -> None:
+    """
+    Update database when a subscription changes.
+
+    Called by the webhook handler for customer.subscription.updated events.
+    Handles status transitions like trial -> active, active -> past_due, etc.
+
+    Args:
+        subscription: The Stripe Subscription object
+        business_id: The business UUID from subscription metadata
+    """
+    try:
+        # Get current status before updating
+        biz_result = supabase.table('businesses').select(
+            'subscription_status'
+        ).eq('id', business_id).execute()
+
+        old_status = None
+        if biz_result.data:
+            old_status = biz_result.data[0].get('subscription_status')
+
+        new_status = subscription.status
+
+        # Convert timestamps
+        trial_ends_at = None
+        if subscription.trial_end:
+            trial_ends_at = datetime.fromtimestamp(
+                subscription.trial_end, tz=timezone.utc
+            ).isoformat()
+
+        # current_period_end moved to subscription items in newer Stripe API versions
+        subscription_ends_at = None
+        period_end = getattr(subscription, 'current_period_end', None)
+        if not period_end:
+            period_end = getattr(subscription, 'billing_cycle_anchor', None)
+        if period_end:
+            subscription_ends_at = datetime.fromtimestamp(
+                period_end, tz=timezone.utc
+            ).isoformat()
+
+        # Update businesses table
+        supabase.table('businesses').update({
+            'subscription_status': new_status,
+            'trial_ends_at': trial_ends_at,
+            'subscription_ends_at': subscription_ends_at
+        }).eq('id', business_id).execute()
+
+        logger.info(f"Subscription updated for business {business_id}: "
+                     f"{old_status} -> {new_status}")
+
+        # Log billing event
+        _log_billing_event(business_id, 'subscription_updated', {
+            'subscription_id': subscription.id,
+            'old_status': old_status,
+            'new_status': new_status
+        })
+
+        # Handle status transitions
+        if old_status != new_status:
+            if new_status == 'past_due':
+                _send_payment_failed(business_id)
+            elif new_status == 'canceled':
+                _send_cancellation(business_id)
+
+    except Exception as e:
+        logger.error(f"Failed to handle subscription updated for business {business_id}: {e}")
+
+
+# =============================================================================
+# FUNCTION 7: HANDLE SUBSCRIPTION DELETED
+# =============================================================================
+
+def handle_subscription_deleted(subscription, business_id: str) -> None:
+    """
+    Handle subscription fully canceled/deleted.
+
+    Called by the webhook handler for customer.subscription.deleted events.
+
+    Args:
+        subscription: The Stripe Subscription object
+        business_id: The business UUID from subscription metadata
+    """
+    try:
+        supabase.table('businesses').update({
+            'subscription_status': 'canceled'
+        }).eq('id', business_id).execute()
+
+        logger.info(f"Subscription deleted for business {business_id}")
+
+        _log_billing_event(business_id, 'subscription_deleted', {
+            'subscription_id': subscription.id
+        })
+
+        _send_cancellation(business_id)
+
+    except Exception as e:
+        logger.error(f"Failed to handle subscription deleted for business {business_id}: {e}")
+
+
+# =============================================================================
+# FUNCTION 8: HANDLE PAYMENT SUCCEEDED
+# =============================================================================
+
+def handle_payment_succeeded(invoice, business_id: str) -> None:
+    """
+    Handle successful payment.
+
+    Called by the webhook handler for invoice.payment_succeeded events.
+
+    Args:
+        invoice: The Stripe Invoice object
+        business_id: The business UUID
+    """
+    try:
+        amount = (invoice.amount_paid or 0) / 100
+
+        _log_billing_event(business_id, 'payment_succeeded', {
+            'invoice_id': invoice.id,
+            'amount': amount,
+            'description': f'Payment of ${amount:.2f}'
+        })
+
+        logger.info(f"Payment succeeded for business {business_id}: ${amount:.2f}")
+
+        # If was past_due, update to active
+        biz_result = supabase.table('businesses').select(
+            'subscription_status'
+        ).eq('id', business_id).execute()
+
+        if biz_result.data and biz_result.data[0].get('subscription_status') == 'past_due':
+            supabase.table('businesses').update({
+                'subscription_status': 'active'
+            }).eq('id', business_id).execute()
+            logger.info(f"Business {business_id} status updated from past_due to active")
+
+    except Exception as e:
+        logger.error(f"Failed to handle payment succeeded for business {business_id}: {e}")
+
+
+# =============================================================================
+# FUNCTION 9: HANDLE PAYMENT FAILED
+# =============================================================================
+
+def handle_payment_failed(invoice, business_id: str) -> None:
+    """
+    Handle failed payment.
+
+    Called by the webhook handler for invoice.payment_failed events.
+
+    Args:
+        invoice: The Stripe Invoice object
+        business_id: The business UUID
+    """
+    try:
+        supabase.table('businesses').update({
+            'subscription_status': 'past_due'
+        }).eq('id', business_id).execute()
+
+        _log_billing_event(business_id, 'payment_failed', {
+            'invoice_id': invoice.id,
+            'amount': (invoice.amount_due or 0) / 100
+        })
+
+        logger.info(f"Payment failed for business {business_id}")
+
+        _send_payment_failed(business_id)
+
+    except Exception as e:
+        logger.error(f"Failed to handle payment failed for business {business_id}: {e}")
+
+
+# =============================================================================
+# PRIVATE HELPERS
+# =============================================================================
+
+def _log_billing_event(business_id: str, event_type: str, details: dict) -> None:
+    """Log a billing event to the billing_events table."""
+    try:
+        supabase.table('billing_events').insert({
+            'business_id': business_id,
+            'event_type': event_type,
+            'description': details.get('description', ''),
+            'amount': details.get('amount'),
+            'status': details.get('status'),
+            'raw_event': details,
+        }).execute()
+    except Exception as e:
+        logger.error(f"Failed to log billing event '{event_type}' for business {business_id}: {e}")
+
+
+def _get_business_info(business_id: str) -> dict | None:
+    """Get the business owner's email and name from the database."""
+    try:
+        result = supabase.table('businesses').select(
+            'email, business_name'
+        ).eq('id', business_id).execute()
+        if result.data:
+            return result.data[0]
+    except Exception as e:
+        logger.error(f"Failed to get business info for {business_id}: {e}")
+    return None
+
+
+def _format_trial_end(subscription) -> str:
+    """Format the trial end date from a Stripe subscription as a readable string."""
+    if subscription.trial_end:
+        dt = datetime.fromtimestamp(subscription.trial_end, tz=timezone.utc)
+        return dt.strftime('%B %d, %Y')
+    return 'the end of your trial'
+
+
+def _send_trial_welcome(business_id: str, subscription) -> None:
+    """Send a welcome email when a trial subscription starts."""
+    try:
+        biz = _get_business_info(business_id)
+        if not biz or not biz.get('email'):
+            return
+
+        trial_end_date = _format_trial_end(subscription)
+
+        send_trial_welcome_email(
+            email=biz['email'],
+            business_name=biz.get('business_name', 'your business'),
+            trial_end_date=trial_end_date
+        )
+        logger.info(f"Sent trial welcome email to business {business_id}")
+    except Exception as e:
+        logger.error(f"Failed to send trial welcome email for business {business_id}: {e}")
+
+
+def _send_payment_failed(business_id: str) -> None:
+    """Send email when a payment fails."""
+    try:
+        biz = _get_business_info(business_id)
+        if not biz or not biz.get('email'):
+            return
+
+        send_payment_failed_email(
+            email=biz['email'],
+            business_name=biz.get('business_name', 'your business')
+        )
+        logger.info(f"Sent payment failed email to business {business_id}")
+    except Exception as e:
+        logger.error(f"Failed to send payment failed email for business {business_id}: {e}")
+
+
+def _send_cancellation(business_id: str) -> None:
+    """Send email when subscription is canceled."""
+    try:
+        biz = _get_business_info(business_id)
+        if not biz or not biz.get('email'):
+            return
+
+        send_subscription_canceled_email(
+            email=biz['email'],
+            business_name=biz.get('business_name', 'your business')
+        )
+        logger.info(f"Sent cancellation email to business {business_id}")
+    except Exception as e:
+        logger.error(f"Failed to send cancellation email for business {business_id}: {e}")

@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Start Your Free Trial - *revvie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        accent: {
+                            500: '#6FCF97',
+                            600: '#6FCF97',
+                            700: '#5DBF87',
+                        },
+                        page: '#f8f8f8',
+                    },
+                    fontFamily: {
+                        'display': ['"Atkinson Hyperlegible"', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-page min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+
+        <!-- Logo -->
+        <h1 class="text-3xl font-bold text-accent-500 font-display mb-6">*revvie</h1>
+
+        <!-- Headline -->
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">
+            Start Your Free 14-Day Trial
+        </h2>
+
+        <p class="text-gray-500 mb-8">
+            Get more Google reviews on autopilot.
+        </p>
+
+        <!-- Feature list -->
+        <div class="text-left space-y-3 mb-8">
+            <div class="flex items-start gap-3">
+                <span class="text-accent-500 font-bold text-lg mt-0.5">&#10003;</span>
+                <span class="text-gray-700">Automated review requests via SMS & Email</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="text-accent-500 font-bold text-lg mt-0.5">&#10003;</span>
+                <span class="text-gray-700">Square POS integration</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="text-accent-500 font-bold text-lg mt-0.5">&#10003;</span>
+                <span class="text-gray-700">CSV import from any booking system</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="text-accent-500 font-bold text-lg mt-0.5">&#10003;</span>
+                <span class="text-gray-700">Click tracking & analytics</span>
+            </div>
+            <div class="flex items-start gap-3">
+                <span class="text-accent-500 font-bold text-lg mt-0.5">&#10003;</span>
+                <span class="text-gray-700">No setup fees</span>
+            </div>
+        </div>
+
+        <!-- Pricing -->
+        <p class="text-gray-900 font-semibold text-lg mb-1">$79/month after trial</p>
+        <p class="text-gray-500 text-sm mb-6">Cancel anytime</p>
+
+        <!-- CTA Button -->
+        <button onclick="startTrial()"
+                id="trialBtn"
+                class="w-full bg-accent-500 hover:bg-accent-700 text-white font-bold py-4 px-6 rounded-xl transition-colors duration-200 text-lg mb-4">
+            Start Free Trial &mdash; No charge for 14 days
+        </button>
+
+        <!-- Trust badge -->
+        <div class="flex items-center justify-center gap-2 text-gray-400 text-sm mb-6">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+            </svg>
+            <span>Secured by Stripe</span>
+        </div>
+
+        <p class="text-gray-400 text-xs">
+            Your card won't be charged for 14 days. Cancel anytime from your dashboard.
+        </p>
+
+        <!-- Error message -->
+        <div id="errorMessage" class="hidden mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm"></div>
+    </div>
+
+    <script>
+        async function startTrial() {
+            const btn = document.getElementById('trialBtn');
+            const errorDiv = document.getElementById('errorMessage');
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+            btn.classList.add('opacity-75');
+            errorDiv.classList.add('hidden');
+
+            try {
+                const res = await fetch('/api/billing/create-checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                } else {
+                    errorDiv.textContent = data.error || 'Something went wrong. Please try again.';
+                    errorDiv.classList.remove('hidden');
+                    btn.disabled = false;
+                    btn.textContent = 'Start Free Trial \u2014 No charge for 14 days';
+                    btn.classList.remove('opacity-75');
+                }
+            } catch (e) {
+                errorDiv.textContent = 'Network error. Please check your connection and try again.';
+                errorDiv.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'Start Free Trial \u2014 No charge for 14 days';
+                btn.classList.remove('opacity-75');
+            }
+        }
+
+        // If not logged in, redirect to login
+        if (!localStorage.getItem('token')) {
+            window.location.href = '/login';
+        }
+    </script>
+
+</body>
+</html>

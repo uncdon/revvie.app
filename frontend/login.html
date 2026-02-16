@@ -230,10 +230,15 @@
         // If user is already logged in, redirect appropriately
         if (localStorage.getItem('token')) {
             const biz = JSON.parse(localStorage.getItem('business') || '{}');
-            if (biz.google_place_id) {
-                window.location.href = '/dashboard';
-            } else {
+            if (!biz.google_place_id) {
                 window.location.href = '/onboarding';
+            } else {
+                const subStatus = biz.subscription_status || 'none';
+                if (subStatus === 'none' || subStatus === 'canceled' || subStatus === 'unpaid') {
+                    window.location.href = '/subscribe';
+                } else {
+                    window.location.href = '/dashboard';
+                }
             }
         }
     </script>

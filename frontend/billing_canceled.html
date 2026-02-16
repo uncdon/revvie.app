@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkout Canceled - Revvie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        accent: {
+                            500: '#6FCF97',
+                            600: '#6FCF97',
+                            700: '#5DBF87',
+                        },
+                        page: '#f8f8f8',
+                    },
+                    fontFamily: {
+                        'display': ['"Atkinson Hyperlegible"', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-page min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+
+        <h1 class="font-display text-2xl font-bold text-gray-900 mb-3">
+            No problem!
+        </h1>
+
+        <p class="text-gray-600 text-lg mb-8">
+            You can start your free trial anytime.
+        </p>
+
+        <!-- Start Free Trial button -->
+        <button onclick="startTrial()"
+                id="trialBtn"
+                class="w-full bg-accent-500 hover:bg-accent-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200 text-lg mb-3">
+            Start Free Trial &rarr;
+        </button>
+
+        <!-- Dashboard link -->
+        <a href="/dashboard"
+           class="inline-block w-full text-gray-500 hover:text-gray-700 font-medium py-3 px-6 transition-colors duration-200">
+            Go to Dashboard
+        </a>
+    </div>
+
+    <script>
+        async function startTrial() {
+            const btn = document.getElementById('trialBtn');
+            const token = localStorage.getItem('token');
+
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Loading...';
+
+            try {
+                const res = await fetch('/api/billing/create-checkout', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': 'Bearer ' + token,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await res.json();
+
+                if (res.ok && data.checkout_url) {
+                    window.location.href = data.checkout_url;
+                } else {
+                    alert(data.error || 'Something went wrong. Please try again.');
+                    btn.disabled = false;
+                    btn.innerHTML = 'Start Free Trial &rarr;';
+                }
+            } catch (e) {
+                alert('Network error. Please check your connection.');
+                btn.disabled = false;
+                btn.innerHTML = 'Start Free Trial &rarr;';
+            }
+        }
+    </script>
+
+</body>
+</html>

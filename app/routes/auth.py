@@ -110,7 +110,7 @@ def login():
         # Authenticate
         result = login_user(email, password)
 
-        # Check onboarding status to determine redirect
+        # Check onboarding + subscription status to determine redirect
         redirect = "/dashboard"
         try:
             user_id = result['user']['id']
@@ -119,6 +119,12 @@ def login():
                 b = biz.data[0]
                 if not b.get('google_place_id'):
                     redirect = "/onboarding"
+                else:
+                    # Onboarding complete — check subscription status
+                    sub_status = b.get('subscription_status') or 'none'
+                    if sub_status in ('none', 'canceled', 'unpaid'):
+                        redirect = "/subscribe"
+                    # 'trialing', 'active', 'past_due' all go to /dashboard
             else:
                 redirect = "/onboarding"
         except Exception:

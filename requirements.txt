@@ -61,6 +61,7 @@ squareup==44.0.0.20260122
 storage3==2.27.2
 StrEnum==0.4.15
 strictyaml==1.7.3
+stripe==14.3.0
 supabase==2.27.2
 supabase-auth==2.27.2
 supabase-functions==2.27.2
