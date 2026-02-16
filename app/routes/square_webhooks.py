@@ -299,10 +299,20 @@ def process_payment_created(event: dict) -> dict:
 
     logger.info(f"Customer found: name={customer_name}, has_email={bool(customer_email)}, has_phone={bool(customer_phone)}")
 
-    # Check if we have email (required for review request)
-    if not customer_email:
-        logger.warning(f"Customer {customer_id} has no email on file - cannot send review request")
-        return {"skipped": True, "reason": "No customer email", "payment_id": payment_id}
+    # Check if we have at least one contact method (email or phone)
+    if not customer_email and not customer_phone:
+        logger.warning(f"Customer {customer_id} has no email or phone on file - cannot send review request")
+        return {"skipped": True, "reason": "No customer email or phone", "payment_id": payment_id}
+
+    # Determine send method based on available contact info
+    if customer_email and customer_phone:
+        send_method = 'both'
+    elif customer_email:
+        send_method = 'email'
+    else:
+        send_method = 'sms'
+
+    logger.info(f"Send method determined: {send_method}")
 
     # Step 5: Calculate scheduled send time
     delay_hours = settings.get('delay_hours', 2)
@@ -325,6 +335,7 @@ def process_payment_created(event: dict) -> dict:
         'customer_phone': customer_phone,
         'scheduled_send_at': scheduled_send_at.isoformat(),
         'status': 'queued',
+        'method': send_method,
         'integration_source': 'square',
         'payment_id': payment_id,
     }
