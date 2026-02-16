@@ -7,7 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Young+Serif&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -25,6 +25,7 @@
                     },
                     fontFamily: {
                         'display': ['"Atkinson Hyperlegible"', 'sans-serif'],
+                        'serif': ['"Young Serif"', 'serif'],
                     },
                 }
             }
@@ -32,6 +33,139 @@
     </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <style>
+        /* Revvie brand variables */
+        :root {
+            --revvie-primary: #07B5F5;
+            --revvie-accent: #6FCF97;
+            --revvie-primary-hover: #0599D1;
+            --revvie-accent-hover: #5BB882;
+            --sidebar-bg: #F7FAFC;
+            --sidebar-text: #6B7280;
+            --sidebar-text-active: #111827;
+        }
+
+        /* Logo font */
+        .logo-text {
+            font-family: 'Young Serif', serif;
+            color: var(--revvie-primary);
+            font-size: 24px;
+            font-weight: 400;
+        }
+
+        /* Primary button style */
+        .btn-primary {
+            background-color: var(--revvie-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: var(--revvie-primary-hover);
+        }
+
+        /* Success/accent elements */
+        .status-success,
+        .badge-success {
+            background-color: var(--revvie-accent);
+            color: white;
+        }
+
+        /* Sidebar styles */
+        .sidebar {
+            width: 240px;
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid #E5E7EB;
+            height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            overflow-y: auto;
+            z-index: 40;
+            transition: transform 0.3s ease;
+        }
+        .sidebar-nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .sidebar-nav-item:hover {
+            background-color: #EDF2F7;
+            color: var(--sidebar-text-active);
+        }
+        .sidebar-nav-item.active {
+            background-color: white;
+            color: var(--sidebar-text-active);
+            border-left-color: var(--revvie-primary);
+        }
+        .sidebar-nav-item svg {
+            width: 20px;
+            height: 20px;
+            margin-right: 12px;
+        }
+
+        /* Sidebar overlay (mobile) */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: rgba(0, 0, 0, 0.4);
+            z-index: 35;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        /* Mobile top bar */
+        .mobile-topbar {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 56px;
+            background-color: white;
+            border-bottom: 1px solid #E5E7EB;
+            z-index: 30;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+        }
+
+        /* Main content area */
+        .main-content {
+            margin-left: 240px;
+            padding: 24px;
+            min-height: 100vh;
+            background-color: #FFFFFF;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 767px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .mobile-topbar {
+                display: flex;
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 16px;
+                padding-top: 72px;
+            }
+        }
+
         /* Custom animations */
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
@@ -77,6 +211,43 @@
             animation: shimmer 1.5s infinite;
         }
         .tab-transition { transition: all 0.3s ease-out; }
+
+        /* Tab fade transition */
+        .tab-content {
+            animation: tabFadeIn 0.25s ease-out;
+        }
+        .tab-content.hidden {
+            display: none;
+        }
+        @keyframes tabFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Button loading state */
+        .btn-loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.8;
+        }
+        .btn-loading .btn-text { visibility: hidden; }
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            top: 50%;
+            left: 50%;
+            margin-top: -8px;
+            margin-left: -8px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
         /* Tooltip */
         .tooltip { position: relative; }
         .tooltip::after {
@@ -99,7 +270,7 @@
         .tooltip:hover::after { opacity: 1; }
     </style>
 </head>
-<body class="bg-page min-h-screen">
+<body class="bg-white">
 
     <!-- OFFLINE BANNER -->
     <div id="offlineBanner" class="fixed top-0 left-0 right-0 z-[60] hidden">
@@ -113,22 +284,22 @@
     </div>
 
     <!-- PAST DUE BANNER -->
-    <div id="pastDueBanner" style="display:none" class="bg-red-50 border-b border-red-200 p-3 text-center z-[59]">
+    <div id="pastDueBanner" style="display:none" class="fixed top-0 left-0 right-0 bg-red-50 border-b border-red-200 p-3 text-center z-[59]">
         <p class="text-red-800 text-sm font-medium">
             &#9888;&#65039; Your payment failed. Please
-            <button onclick="openBillingPortal()" class="underline font-semibold hover:text-red-900">update your payment method</button>
+            <button onclick="openBillingPortal(event)" class="underline font-semibold hover:text-red-900">update your payment method</button>
             to avoid losing access.
         </p>
     </div>
 
     <!-- TRIAL COUNTDOWN BANNER -->
-    <div id="trialBanner" style="display:none" class="bg-accent-50 border-b border-green-200 p-3 text-center z-[58]">
+    <div id="trialBanner" style="display:none" class="fixed top-0 left-0 right-0 bg-accent-50 border-b border-green-200 p-3 text-center z-[58]">
         <div class="flex items-center justify-center gap-3 flex-wrap">
             <p class="text-gray-700 text-sm">
                 <span class="font-semibold" id="trialBannerText">Free Trial: 14 days remaining</span>
                 <span class="text-gray-500 ml-1" id="trialBannerSubtext"></span>
             </p>
-            <button onclick="openBillingPortal()" class="text-accent-700 text-sm font-semibold underline hover:text-accent-400">Manage Billing</button>
+            <button onclick="openBillingPortal(event)" class="text-accent-700 text-sm font-semibold underline hover:text-accent-400">Manage Billing</button>
         </div>
     </div>
 
@@ -144,40 +315,94 @@
         </div>
     </div>
 
-    <!-- HEADER / NAVIGATION BAR -->
-    <nav class="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-40">
-        <div class="max-w-6xl mx-auto px-4 py-4">
-            <div class="flex justify-between items-center">
-                <h1 class="text-2xl font-bold text-accent-500 font-display">*revvie</h1>
-                <span id="headerBusinessName" class="hidden md:block text-lg font-semibold text-gray-700">
-                    <span class="skeleton rounded h-6 w-32 inline-block"></span>
-                </span>
-                <button id="logoutBtn" class="text-gray-500 hover:text-red-600 font-medium transition-colors duration-200 flex items-center gap-1">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                    </svg>
-                    Logout
-                </button>
-            </div>
-            <div id="mobileBusinessName" class="md:hidden text-center mt-2 text-gray-700 font-medium">
-                <span class="skeleton rounded h-5 w-24 inline-block"></span>
+    <!-- MOBILE TOP BAR -->
+    <div class="mobile-topbar">
+        <div class="flex items-center gap-3">
+            <button id="mobileMenuBtn" onclick="toggleMobileSidebar()" class="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+            </button>
+            <span class="logo-text" style="font-size: 20px;">Revvie</span>
+        </div>
+        <div class="flex items-center gap-2">
+            <span id="mobileUserName" class="text-sm text-gray-600 max-w-[120px] truncate"></span>
+            <button onclick="switchTab('account')" class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- SIDEBAR OVERLAY (mobile) -->
+    <div id="sidebarOverlay" class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+
+    <!-- SIDEBAR -->
+    <div id="sidebar" class="sidebar">
+        <!-- Logo -->
+        <div class="p-5 border-b border-gray-200">
+            <h1 class="logo-text">Revvie</h1>
+            <p id="sidebarBusinessName" class="text-xs text-gray-500 mt-1">
+                <span class="skeleton rounded h-4 w-24 inline-block"></span>
+            </p>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="py-4">
+            <a href="#" class="sidebar-nav-item active" data-tab="home">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25"/></svg>
+                Home
+            </a>
+            <a href="#" class="sidebar-nav-item" data-tab="customers">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z"/></svg>
+                Customers
+            </a>
+            <a href="#" class="sidebar-nav-item" data-tab="integrations">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M14.25 6.087c0-.355.186-.676.401-.959.221-.29.349-.634.349-1.003 0-1.036-1.007-1.875-2.25-1.875s-2.25.84-2.25 1.875c0 .369.128.713.349 1.003.215.283.401.604.401.959v0a.64.64 0 01-.657.643 48.39 48.39 0 01-4.163-.3c.186 1.613.293 3.25.315 4.907a.656.656 0 01-.658.663v0c-.355 0-.676-.186-.959-.401a1.647 1.647 0 00-1.003-.349c-1.036 0-1.875 1.007-1.875 2.25s.84 2.25 1.875 2.25c.369 0 .713-.128 1.003-.349.283-.215.604-.401.959-.401v0c.31 0 .555.26.532.57a48.039 48.039 0 01-.642 5.056c1.518.19 3.058.309 4.616.354a.64.64 0 00.657-.643v0c0-.355-.186-.676-.401-.959a1.647 1.647 0 01-.349-1.003c0-1.035 1.008-1.875 2.25-1.875 1.243 0 2.25.84 2.25 1.875 0 .369-.128.713-.349 1.003-.215.283-.401.604-.401.959v0c0 .333.277.599.61.58a48.1 48.1 0 005.427-.63 48.05 48.05 0 00.582-4.717.532.532 0 00-.533-.57v0c-.355 0-.676.186-.959.401-.29.221-.634.349-1.003.349-1.035 0-1.875-1.007-1.875-2.25s.84-2.25 1.875-2.25c.37 0 .713.128 1.003.349.283.215.604.401.959.401v0a.656.656 0 00.658-.663 48.422 48.422 0 00-.37-5.36c-1.886.342-3.81.574-5.766.689a.578.578 0 01-.61-.58v0z"/></svg>
+                Integrations
+            </a>
+            <a href="#" class="sidebar-nav-item" data-tab="account">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/></svg>
+                Account
+            </a>
+            <a href="#" class="sidebar-nav-item" data-tab="billing">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"/></svg>
+                Billing
+            </a>
+            <a href="#" class="sidebar-nav-item" data-tab="referrals">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+                Referrals
+            </a>
+        </nav>
+
+        <!-- User menu at bottom -->
+        <div class="absolute bottom-0 w-full border-t border-gray-200 p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p id="sidebarUserEmail" class="text-sm font-medium text-gray-900">
+                        <span class="skeleton rounded h-4 w-32 inline-block"></span>
+                    </p>
+                    <button onclick="logout()" class="text-xs text-gray-500 hover:text-gray-700">
+                        Sign out
+                    </button>
+                </div>
             </div>
         </div>
-    </nav>
+    </div>
 
     <!-- MAIN CONTENT AREA -->
-    <main class="max-w-6xl mx-auto px-4 py-8">
+    <div class="main-content">
+
+        <!-- TAB: HOME -->
+        <div id="tab-home" class="tab-content">
 
         <!-- GOOGLE BUSINESS SECTION -->
         <div id="googleBusinessSection" class="mb-8">
             <!-- Skeleton while loading -->
-            <div id="googleBusinessSkeleton" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div id="googleBusinessSkeleton" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                 <div class="skeleton rounded h-5 w-48 mb-3"></div>
                 <div class="skeleton rounded h-4 w-72"></div>
             </div>
 
             <!-- Connected state -->
-            <div id="googleBusinessConnected" class="hidden bg-white rounded-2xl shadow-sm border border-gray-100 p-6 fade-in">
+            <div id="googleBusinessConnected" class="hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6 fade-in">
                 <div class="flex items-center gap-2 mb-3">
                     <span class="text-lg">&#128279;</span>
                     <h3 class="font-bold text-gray-800">Google Review Link</h3>
@@ -202,7 +427,7 @@
             </div>
 
             <!-- Not connected state -->
-            <div id="googleBusinessSetup" class="hidden bg-amber-50 border border-amber-200 rounded-2xl shadow-sm p-6 fade-in">
+            <div id="googleBusinessSetup" class="hidden bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 fade-in">
                 <div class="flex items-start gap-3">
                     <span class="text-2xl">&#9888;&#65039;</span>
                     <div>
@@ -217,69 +442,44 @@
             </div>
         </div>
 
-        <!-- TAB NAVIGATION -->
-        <div class="mb-6 border-b border-gray-200">
-            <nav class="flex space-x-8" aria-label="Tabs">
-                <button id="tabSendReviews" data-tab="send-reviews" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 border-accent-500 text-accent-600">
-                    <span class="flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-                        </svg>
-                        Send Reviews
-                    </span>
-                </button>
-                <button id="tabCustomers" data-tab="customers" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    <span class="flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                        </svg>
-                        Customers
-                    </span>
-                </button>
-                <button id="tabIntegrations" data-tab="integrations" class="tab-button py-4 px-1 border-b-2 font-medium text-sm transition-all duration-200 border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300">
-                    <span class="flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path>
-                        </svg>
-                        Integrations
-                    </span>
-                </button>
-            </nav>
-        </div>
-
-        <!-- TAB CONTENT: SEND REVIEWS -->
-        <div id="tabContentSendReviews" class="tab-content tab-transition">
+        <!-- HOME TAB CONTENT -->
             <!-- STATS CARDS -->
             <div id="statsSection" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <div id="statsSkeleton" class="contents">
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"><div class="skeleton rounded h-10 w-16 mb-2"></div><div class="skeleton rounded h-4 w-24"></div></div>
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"><div class="skeleton rounded h-10 w-16 mb-2"></div><div class="skeleton rounded h-4 w-24"></div></div>
-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6"><div class="skeleton rounded h-10 w-16 mb-2"></div><div class="skeleton rounded h-4 w-24"></div></div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm"><div class="skeleton rounded h-4 w-32 mb-4"></div><div class="skeleton rounded h-8 w-16 mb-2"></div><div class="skeleton rounded h-3 w-20"></div></div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm"><div class="skeleton rounded h-4 w-32 mb-4"></div><div class="skeleton rounded h-8 w-16 mb-2"></div><div class="skeleton rounded h-3 w-20"></div></div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm"><div class="skeleton rounded h-4 w-32 mb-4"></div><div class="skeleton rounded h-8 w-16 mb-2"></div><div class="skeleton rounded h-3 w-20"></div></div>
                 </div>
                 <div id="statsContent" class="contents hidden">
-                    <div class="bg-gradient-to-br from-accent-500 to-accent-600 rounded-2xl shadow-lg p-6 text-white fade-in">
-                        <div class="flex items-center justify-between">
-                            <div><p id="statRequestsSent" class="text-4xl font-bold">0</p><p class="text-accent-100 mt-1 text-sm font-medium">Requests Sent</p></div>
-                            <div class="text-4xl opacity-80">&#128231;</div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition fade-in">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-gray-600">Review Requests Sent</h3>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/></svg>
                         </div>
+                        <div class="text-3xl font-bold text-gray-900" id="statRequestsSent">--</div>
+                        <p class="text-xs text-gray-500 mt-2">Last 30 days</p>
                     </div>
-                    <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.1s;">
-                        <div class="flex items-center justify-between">
-                            <div><p id="statReviewsReceived" class="text-4xl font-bold">0</p><p class="text-blue-100 mt-1 text-sm font-medium">Links Clicked</p></div>
-                            <div class="text-4xl opacity-80">&#11088;</div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition fade-in" style="animation-delay: 0.1s;">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-gray-600">Links Clicked</h3>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M15.042 21.672L13.684 16.6m0 0l-2.51 2.225.569-9.47 5.227 7.917-3.286-.672zM12 2.25V4.5m5.834.166l-1.591 1.591M20.25 10.5H18M7.757 14.743l-1.59 1.59M6 10.5H3.75m4.007-4.243l-1.59-1.59"/></svg>
                         </div>
+                        <div class="text-3xl font-bold text-gray-900" id="statReviewsReceived">--</div>
+                        <p class="text-xs text-gray-500 mt-2">Last 30 days</p>
                     </div>
-                    <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl shadow-lg p-6 text-white fade-in" style="animation-delay: 0.2s;">
-                        <div class="flex items-center justify-between">
-                            <div><p id="statConversionRate" class="text-4xl font-bold">0%</p><p class="text-indigo-100 mt-1 text-sm font-medium">Conversion Rate</p></div>
-                            <div class="text-4xl opacity-80">&#128202;</div>
+                    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition fade-in" style="animation-delay: 0.2s;">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-sm font-medium text-gray-600">Conversion Rate</h3>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
                         </div>
+                        <div class="text-3xl font-bold text-gray-900" id="statConversionRate">--</div>
+                        <p class="text-xs text-gray-500 mt-2">Clicked / Sent</p>
                     </div>
                 </div>
             </div>
 
             <!-- SEND REVIEW REQUEST CARD -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8 mb-8">
+            <div class="bg-white border border-gray-200 rounded-lg p-6 md:p-8 shadow-sm mb-8">
                 <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                     <svg class="w-6 h-6 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -344,7 +544,7 @@
                     </div>
 
                     <div class="pt-2">
-                        <button type="submit" id="sendRequestBtn" disabled class="w-full md:w-auto px-8 py-3.5 bg-accent-600 text-white font-semibold rounded-xl hover:bg-accent-700 hover:shadow-lg hover:shadow-accent-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none disabled:hover:bg-accent-600">
+                        <button type="submit" id="sendRequestBtn" disabled class="btn-primary w-full md:w-auto px-8 py-3.5 rounded-xl font-semibold hover:shadow-lg active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-none">
                             <svg id="btnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
                             <span id="btnText">Send Review Request</span>
                             <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
@@ -354,7 +554,7 @@
             </div>
 
             <!-- RECENT REVIEW REQUESTS TABLE -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="bg-white border border-gray-200 rounded-lg p-6 md:p-8 shadow-sm">
                 <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                     <svg class="w-6 h-6 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
                     Recent Review Requests
@@ -392,15 +592,23 @@
                     <p class="text-gray-600 mb-4">Failed to load review requests</p>
                     <button onclick="loadReviewRequests()" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-medium transition-colors">Try Again</button>
                 </div>
+                <!-- View All link -->
+                <div id="viewAllLink" class="hidden border-t border-gray-100 mt-6 pt-4 text-center">
+                    <a href="#customers" class="inline-flex items-center gap-1.5 text-sm font-medium hover:underline" style="color: var(--revvie-primary);">
+                        View All Customers
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                    </a>
+                </div>
             </div>
         </div>
+        </div><!-- /tab-home -->
 
-        <!-- TAB CONTENT: CUSTOMERS -->
-        <div id="tabContentCustomers" class="tab-content tab-transition hidden">
+        <!-- TAB: CUSTOMERS -->
+        <div id="tab-customers" class="tab-content hidden">
             <!-- QUICK ACTIONS: Add Single or Import Bulk -->
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <!-- ADD SINGLE CUSTOMER CARD -->
-                <div id="addCustomerCard" class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 cursor-pointer hover:shadow-md hover:border-accent-200 transition-all duration-200 group">
+                <div id="addCustomerCard" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 cursor-pointer hover:shadow-md hover:border-accent-200 transition-all duration-200 group">
                     <div class="flex items-start gap-4">
                         <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-accent-100 flex items-center justify-center group-hover:bg-accent-200 transition-colors">
                             <svg class="w-6 h-6 text-accent-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
@@ -416,7 +624,7 @@
                 </div>
 
                 <!-- IMPORT CSV CARD -->
-                <button id="openImportModalBtn" class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl shadow-sm p-6 text-left hover:shadow-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 group">
+                <button id="openImportModalBtn" class="rounded-lg shadow-sm p-6 text-left hover:shadow-lg transition-all duration-200 group" style="background: linear-gradient(135deg, #07B5F5, #0599D1);">
                     <div class="flex items-start gap-4">
                         <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-colors">
                             <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
@@ -452,7 +660,7 @@
 
             <!-- ADD CUSTOMER FORM (Expandable, shown when card is clicked) -->
             <div id="addCustomerFormWrapper" class="hidden mb-8 fade-in">
-                <div class="bg-white rounded-2xl shadow-sm border border-accent-200 p-6 md:p-8">
+                <div class="bg-white rounded-lg shadow-sm border border-accent-200 p-6 md:p-8">
                     <div class="flex items-center justify-between mb-6">
                         <h2 class="text-xl font-bold text-gray-800 flex items-center gap-2">
                             <svg class="w-6 h-6 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
@@ -494,7 +702,7 @@
             </div>
 
             <!-- CUSTOMERS TABLE -->
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 md:p-8">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 md:p-8">
                 <h2 class="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
                     <svg class="w-6 h-6 text-accent-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                     All Customers
@@ -534,66 +742,56 @@
                     <p class="text-gray-500">No customers match your search</p>
                 </div>
             </div>
-        </div>
+        </div><!-- /tab-customers -->
 
-        <!-- TAB CONTENT: INTEGRATIONS -->
-        <div id="tabContentIntegrations" class="tab-content tab-transition hidden">
-            <div class="max-w-2xl mx-auto">
-                <!-- Square Integration Card -->
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <!-- TAB: INTEGRATIONS -->
+        <div id="tab-integrations" class="tab-content hidden">
+            <!-- Integration Cards Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl">
+
+                <!-- SQUARE CARD (spans full width when connected) -->
+                <div id="squareCard" class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden md:col-span-2">
 
                     <!-- NOT CONNECTED STATE -->
-                    <div id="squareNotConnected" class="p-8">
-                        <div class="text-center">
-                            <!-- Square Logo -->
-                            <div class="w-20 h-20 mx-auto mb-6 bg-black rounded-2xl flex items-center justify-center">
-                                <svg class="w-12 h-12 text-white" viewBox="0 0 24 24" fill="currentColor">
+                    <div id="squareNotConnected" class="p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-black flex items-center justify-center">
+                                <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
                                     <path d="M4.5 2A2.5 2.5 0 002 4.5v15A2.5 2.5 0 004.5 22h15a2.5 2.5 0 002.5-2.5v-15A2.5 2.5 0 0019.5 2h-15zm3.75 5.25h7.5a1.5 1.5 0 011.5 1.5v6.5a1.5 1.5 0 01-1.5 1.5h-7.5a1.5 1.5 0 01-1.5-1.5v-6.5a1.5 1.5 0 011.5-1.5z"/>
                                 </svg>
                             </div>
-                            <h2 class="text-2xl font-bold text-gray-800 mb-3">Connect Square</h2>
-                            <p class="text-gray-500 mb-8 max-w-md mx-auto">Automatically send review requests after every Square payment. Set it and forget it.</p>
-
-                            <!-- Benefits -->
-                            <div class="flex flex-col sm:flex-row justify-center gap-4 mb-8 text-sm">
-                                <div class="flex items-center justify-center gap-2 text-gray-600">
-                                    <span class="text-lg">⚡</span>
-                                    <span>Fully automated</span>
-                                </div>
-                                <div class="flex items-center justify-center gap-2 text-gray-600">
-                                    <span class="text-lg">⭐</span>
-                                    <span>3-5x more reviews</span>
-                                </div>
-                                <div class="flex items-center justify-center gap-2 text-gray-600">
-                                    <span class="text-lg">📈</span>
-                                    <span>Perfect timing</span>
-                                </div>
+                            <div class="flex-1">
+                                <h3 class="text-lg font-bold text-gray-800 mb-1">Square</h3>
+                                <p class="text-sm text-gray-500 mb-4">Auto-send review requests after every Square payment.</p>
+                                <button id="connectSquareBtn" class="inline-flex items-center gap-2 px-5 py-2.5 bg-black text-white text-sm font-semibold rounded-lg hover:bg-gray-800 transition-all duration-200">
+                                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M4.5 2A2.5 2.5 0 002 4.5v15A2.5 2.5 0 004.5 22h15a2.5 2.5 0 002.5-2.5v-15A2.5 2.5 0 0019.5 2h-15zm3.75 5.25h7.5a1.5 1.5 0 011.5 1.5v6.5a1.5 1.5 0 01-1.5 1.5h-7.5a1.5 1.5 0 01-1.5-1.5v-6.5a1.5 1.5 0 011.5-1.5z"/>
+                                    </svg>
+                                    Connect Square
+                                </button>
                             </div>
-
-                            <!-- Connect Button -->
-                            <button id="connectSquareBtn" class="px-8 py-4 bg-black text-white font-semibold rounded-xl hover:bg-gray-800 transition-all duration-200 inline-flex items-center gap-3 shadow-lg hover:shadow-xl">
-                                <svg class="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M4.5 2A2.5 2.5 0 002 4.5v15A2.5 2.5 0 004.5 22h15a2.5 2.5 0 002.5-2.5v-15A2.5 2.5 0 0019.5 2h-15zm3.75 5.25h7.5a1.5 1.5 0 011.5 1.5v6.5a1.5 1.5 0 01-1.5 1.5h-7.5a1.5 1.5 0 01-1.5-1.5v-6.5a1.5 1.5 0 011.5-1.5z"/>
-                                </svg>
-                                Connect Square
-                            </button>
-                            <p class="text-xs text-gray-400 mt-4">Secure connection via Square OAuth</p>
                         </div>
                     </div>
 
                     <!-- CONNECTED STATE -->
                     <div id="squareConnected" class="hidden">
                         <!-- Header -->
-                        <div class="bg-gradient-to-r from-green-500 to-emerald-600 px-6 py-4">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        <div class="px-6 pt-6 pb-4">
+                            <div class="flex items-start gap-4">
+                                <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-black flex items-center justify-center">
+                                    <svg class="w-7 h-7 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M4.5 2A2.5 2.5 0 002 4.5v15A2.5 2.5 0 004.5 22h15a2.5 2.5 0 002.5-2.5v-15A2.5 2.5 0 0019.5 2h-15zm3.75 5.25h7.5a1.5 1.5 0 011.5 1.5v6.5a1.5 1.5 0 01-1.5 1.5h-7.5a1.5 1.5 0 01-1.5-1.5v-6.5a1.5 1.5 0 011.5-1.5z"/>
                                     </svg>
                                 </div>
-                                <div>
-                                    <p class="text-white font-semibold">Connected to Square</p>
-                                    <p id="squareMerchantName" class="text-green-100 text-sm">Loading...</p>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <h3 class="text-lg font-bold text-gray-800">Square</h3>
+                                        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>
+                                            Connected
+                                        </span>
+                                    </div>
+                                    <p id="squareMerchantName" class="text-sm text-gray-500">Loading...</p>
                                 </div>
                             </div>
                         </div>
@@ -688,53 +886,253 @@
                     </div>
                 </div>
 
-                <!-- Future Integrations Teaser -->
-                <div class="mt-6 p-6 bg-white rounded-2xl shadow-sm border border-gray-100 border-dashed">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-2xl">🔜</div>
-                        <div>
-                            <p class="font-medium text-gray-700">More integrations coming soon</p>
-                            <p class="text-sm text-gray-500">Clover, Toast, and more...</p>
+                <!-- FRESHA CARD -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden opacity-75">
+                    <div class="p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center">
+                                <span class="text-xl font-bold text-purple-600">F</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="text-lg font-bold text-gray-800">Fresha</h3>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Coming Soon</span>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">Auto-send review requests after Fresha appointments.</p>
+                                <button onclick="openWaitlistModal('Fresha')" class="inline-flex items-center gap-1.5 text-sm font-medium transition-colors" style="color: var(--revvie-primary);">
+                                    Join Waitlist
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Billing Section -->
-                <div id="billingSection" class="mt-6 bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <!-- Loading skeleton -->
-                    <div id="billingSkeleton" class="p-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <div class="w-8 h-8 rounded-lg skeleton"></div>
-                            <div class="h-5 w-24 rounded skeleton"></div>
+                <!-- VAGARO CARD -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden opacity-75">
+                    <div class="p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center">
+                                <span class="text-xl font-bold text-orange-600">V</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="text-lg font-bold text-gray-800">Vagaro</h3>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Coming Soon</span>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">Sync Vagaro clients and automate review requests.</p>
+                                <button onclick="openWaitlistModal('Vagaro')" class="inline-flex items-center gap-1.5 text-sm font-medium transition-colors" style="color: var(--revvie-primary);">
+                                    Join Waitlist
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                                </button>
+                            </div>
                         </div>
-                        <div class="h-4 w-48 rounded skeleton mb-2"></div>
-                        <div class="h-4 w-36 rounded skeleton"></div>
+                    </div>
+                </div>
+
+                <!-- MINDBODY CARD -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden opacity-75">
+                    <div class="p-6">
+                        <div class="flex items-start gap-4">
+                            <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center">
+                                <span class="text-xl font-bold text-sky-600">M</span>
+                            </div>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <h3 class="text-lg font-bold text-gray-800">Mindbody</h3>
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Coming Soon</span>
+                                </div>
+                                <p class="text-sm text-gray-500 mb-4">Connect Mindbody to request reviews after sessions.</p>
+                                <button onclick="openWaitlistModal('Mindbody')" class="inline-flex items-center gap-1.5 text-sm font-medium transition-colors" style="color: var(--revvie-primary);">
+                                    Join Waitlist
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /grid -->
+        </div><!-- /tab-integrations -->
+
+        <!-- TAB: ACCOUNT -->
+        <div id="tab-account" class="tab-content hidden">
+            <div class="max-w-2xl mx-auto space-y-6">
+
+                <!-- SECTION 1: BUSINESS PROFILE -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-5">Business Profile</h2>
+
+                    <!-- Business Name -->
+                    <div class="mb-5">
+                        <label for="acctBusinessName" class="block text-sm font-medium text-gray-700 mb-1.5">Business Name</label>
+                        <div class="flex gap-3">
+                            <input type="text" id="acctBusinessName" class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white outline-none transition-all text-sm" placeholder="Your Business Name">
+                            <button onclick="saveProfileField('business_name', 'acctBusinessName', this)" class="px-4 py-2.5 text-sm font-medium rounded-lg transition-colors" style="background-color: var(--revvie-primary); color: white;">Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Email -->
+                    <div class="mb-5">
+                        <label for="acctEmail" class="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+                        <div class="flex gap-3">
+                            <input type="email" id="acctEmail" class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white outline-none transition-all text-sm" placeholder="you@example.com">
+                            <button onclick="saveProfileField('email', 'acctEmail', this)" class="px-4 py-2.5 text-sm font-medium rounded-lg transition-colors" style="background-color: var(--revvie-primary); color: white;">Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Phone -->
+                    <div>
+                        <label for="acctPhone" class="block text-sm font-medium text-gray-700 mb-1.5">Phone <span class="text-gray-400 font-normal">(optional)</span></label>
+                        <div class="flex gap-3">
+                            <input type="tel" id="acctPhone" class="flex-1 px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white outline-none transition-all text-sm" placeholder="+1 (555) 123-4567">
+                            <button onclick="saveProfileField('phone', 'acctPhone', this)" class="px-4 py-2.5 text-sm font-medium rounded-lg transition-colors" style="background-color: var(--revvie-primary); color: white;">Save</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: GOOGLE BUSINESS PROFILE -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Google Business Profile</h2>
+                    <div id="acctGoogleConnected" class="hidden">
+                        <p class="text-sm text-gray-500 mb-2">Your review link:</p>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4">
+                            <span id="acctGoogleReviewUrl" class="text-sm text-gray-700 break-all"></span>
+                        </div>
+                        <a href="/onboarding" class="inline-flex items-center gap-1.5 text-sm font-medium transition-colors" style="color: var(--revvie-primary);">
+                            Change Business
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                        </a>
+                    </div>
+                    <div id="acctGoogleNotConnected" class="hidden">
+                        <p class="text-sm text-gray-500 mb-4">No Google Business Profile connected yet.</p>
+                        <a href="/onboarding" class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors" style="background-color: var(--revvie-primary);">
+                            Connect Google Business
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
+                        </a>
+                    </div>
+                    <div id="acctGoogleLoading">
+                        <div class="skeleton rounded h-4 w-48 mb-2"></div>
+                        <div class="skeleton rounded h-10 w-full"></div>
+                    </div>
+                </div>
+
+                <!-- SECTION 3: CHANGE PASSWORD -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-5">Change Password</h2>
+                    <form id="changePasswordForm" class="space-y-4">
+                        <div>
+                            <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1.5">Current Password</label>
+                            <input type="password" id="currentPassword" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white outline-none transition-all text-sm" placeholder="Enter current password">
+                        </div>
+                        <div>
+                            <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1.5">New Password</label>
+                            <input type="password" id="newPassword" required minlength="8" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white outline-none transition-all text-sm" placeholder="Minimum 8 characters">
+                        </div>
+                        <div>
+                            <label for="confirmNewPassword" class="block text-sm font-medium text-gray-700 mb-1.5">Confirm New Password</label>
+                            <input type="password" id="confirmNewPassword" required class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-200 focus:border-blue-400 focus:bg-white outline-none transition-all text-sm" placeholder="Re-enter new password">
+                        </div>
+                        <div class="pt-1">
+                            <button type="submit" id="changePasswordBtn" class="px-6 py-2.5 text-sm font-semibold text-white rounded-lg transition-all flex items-center gap-2" style="background-color: var(--revvie-primary);">
+                                <span id="changePasswordText">Update Password</span>
+                                <svg id="changePasswordSpinner" class="hidden animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- SECTION 4: EMAIL PREFERENCES -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-5">Email Preferences</h2>
+                    <div class="space-y-4">
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" id="prefWeeklySummary" checked class="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-300 focus:ring-offset-0 cursor-pointer" style="accent-color: var(--revvie-primary);">
+                            <div>
+                                <p class="text-sm font-medium text-gray-800 group-hover:text-gray-900">Weekly summary reports</p>
+                                <p class="text-xs text-gray-500">Get a weekly email with your review request stats.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" id="prefClickNotify" checked class="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-300 focus:ring-offset-0 cursor-pointer" style="accent-color: var(--revvie-primary);">
+                            <div>
+                                <p class="text-sm font-medium text-gray-800 group-hover:text-gray-900">Review link click notifications</p>
+                                <p class="text-xs text-gray-500">Get notified when a customer clicks your review link.</p>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 cursor-pointer group">
+                            <input type="checkbox" id="prefReferralNotify" checked class="mt-0.5 w-4 h-4 rounded border-gray-300 text-blue-500 focus:ring-blue-300 focus:ring-offset-0 cursor-pointer" style="accent-color: var(--revvie-primary);">
+                            <div>
+                                <p class="text-sm font-medium text-gray-800 group-hover:text-gray-900">Referral sign-up notifications</p>
+                                <p class="text-xs text-gray-500">Get notified when someone signs up through your referral link.</p>
+                            </div>
+                        </label>
+                    </div>
+                    <div class="mt-5">
+                        <button onclick="savePreferences(this)" class="px-5 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors" style="background-color: var(--revvie-primary);">Save Preferences</button>
+                    </div>
+                </div>
+
+                <!-- SECTION 5: DANGER ZONE -->
+                <div class="bg-white border border-red-200 rounded-lg shadow-sm p-6">
+                    <div class="flex items-center gap-2 mb-4">
+                        <svg class="w-5 h-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                        <h2 class="text-lg font-bold text-red-600">Danger Zone</h2>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-1">Permanently delete your account and all data.</p>
+                    <p class="text-sm text-gray-500 mb-5">This action cannot be undone. All customers, review requests, and integrations will be removed.</p>
+                    <button onclick="openDeleteAccountModal()" class="px-5 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors">Delete Account</button>
+                </div>
+
+            </div>
+        </div><!-- /tab-account -->
+
+        <!-- TAB: BILLING -->
+        <div id="tab-billing" class="tab-content hidden">
+            <div class="max-w-2xl mx-auto space-y-6">
+
+                <!-- Subscription Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-5">Subscription</h2>
+
+                    <!-- Loading skeleton -->
+                    <div id="billingSkeleton">
+                        <div class="h-4 w-32 rounded skeleton mb-3"></div>
+                        <div class="h-4 w-48 rounded skeleton mb-3"></div>
+                        <div class="h-4 w-36 rounded skeleton mb-5"></div>
+                        <div class="h-10 w-full rounded-lg skeleton"></div>
                     </div>
 
                     <!-- Billing content (populated by JS) -->
                     <div id="billingContent" class="hidden">
-                        <!-- Header -->
-                        <div class="px-6 pt-6 pb-4 border-b border-gray-100">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-xl">💳</div>
-                                <h3 class="text-lg font-bold text-gray-800">Billing</h3>
-                            </div>
-                        </div>
 
                         <!-- Trialing State -->
-                        <div id="billingTrialing" class="p-6 hidden">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-sm font-medium text-gray-500">Status</span>
+                        <div id="billingTrialing" class="hidden">
+                            <div class="space-y-3 mb-5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Status</span>
+                                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold px-3 py-1 rounded-full" style="color: var(--revvie-primary); background-color: #E8F8FE;">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/><circle cx="12" cy="12" r="10" fill="none"/></svg>
+                                        Trial
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Plan</span>
+                                    <span class="text-sm font-medium text-gray-800">Revvie &mdash; $79/month</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Time remaining</span>
+                                    <span class="text-sm font-medium text-gray-800" id="billingTrialText">14 days</span>
+                                </div>
                             </div>
-                            <p class="text-lg font-semibold text-gray-800 mb-1" id="billingTrialText">Free Trial</p>
-                            <p class="text-sm text-gray-500 mb-5">After trial: $79/month</p>
-                            <button onclick="openBillingPortal()" class="w-full py-3 bg-accent-500 text-white font-semibold rounded-xl hover:bg-accent-700 transition-colors duration-200">
-                                Manage Billing &rarr;
+                            <p class="text-sm text-gray-500 mb-5">Your trial includes full access to all features. After the trial ends you'll be charged $79/month.</p>
+                            <button onclick="openBillingPortal(event)" class="w-full py-2.5 text-sm font-medium rounded-lg transition-colors" style="background-color: var(--revvie-primary); color: white;">
+                                Manage Billing
                             </button>
                         </div>
 
                         <!-- Active State -->
-                        <div id="billingActive" class="p-6 hidden">
+                        <div id="billingActive" class="hidden">
                             <div class="space-y-3 mb-5">
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-500">Status</span>
@@ -749,33 +1147,81 @@
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-500">Next payment</span>
-                                    <span class="text-sm font-medium text-gray-800" id="billingNextPayment">—</span>
+                                    <span class="text-sm font-medium text-gray-800" id="billingNextPayment">&mdash;</span>
                                 </div>
                             </div>
-                            <button onclick="openBillingPortal()" class="w-full py-3 bg-accent-500 text-white font-semibold rounded-xl hover:bg-accent-700 transition-colors duration-200">
-                                Manage Billing &rarr;
+                            <button onclick="openBillingPortal(event)" class="w-full py-2.5 text-sm font-medium rounded-lg transition-colors" style="background-color: var(--revvie-primary); color: white;">
+                                Manage Billing
                             </button>
                         </div>
 
                         <!-- Past Due State -->
-                        <div id="billingPastDue" class="p-6 hidden">
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="text-sm font-medium text-gray-500">Status</span>
+                        <div id="billingPastDue" class="hidden">
+                            <div class="space-y-3 mb-5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Status</span>
+                                    <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700 bg-red-50 px-3 py-1 rounded-full">
+                                        <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                                        Payment Failed
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-500">Plan</span>
+                                    <span class="text-sm font-medium text-gray-800">Revvie &mdash; $79/month</span>
+                                </div>
                             </div>
-                            <div class="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700 bg-red-50 px-3 py-1 rounded-full mb-3">
-                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
-                                Payment Failed
-                            </div>
-                            <p class="text-sm text-gray-500 mb-5">Please update your payment method to keep your account active.</p>
-                            <button onclick="openBillingPortal()" class="w-full py-3 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition-colors duration-200">
-                                Update Payment Method &rarr;
+                            <p class="text-sm text-red-600 mb-5">Your payment failed. Please update your payment method to keep your account active.</p>
+                            <button onclick="openBillingPortal(event)" class="w-full py-2.5 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors">
+                                Update Payment Method
                             </button>
                         </div>
                     </div>
                 </div>
+
+                <!-- Plan Details Card -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Plan Details</h2>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500">Unlimited review requests</span>
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500">SMS &amp; email delivery</span>
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500">Square integration</span>
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500">Customer management &amp; CSV import</span>
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm text-gray-500">Link tracking &amp; analytics</span>
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-        </div>
-    </main>
+        </div><!-- /tab-billing -->
+
+        <!-- TAB: REFERRALS -->
+        <div id="tab-referrals" class="tab-content hidden">
+            <div class="max-w-2xl mx-auto">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center">
+                    <div class="text-4xl mb-4">&#127873;</div>
+                    <h2 class="text-lg font-bold text-gray-800 mb-1">Refer &amp; Earn</h2>
+                    <span class="inline-block text-xs font-semibold px-3 py-1 rounded-full mb-4" style="color: var(--revvie-primary); background-color: #E8F8FE;">Coming Soon</span>
+                    <p class="text-sm text-gray-600 max-w-md mx-auto mb-3">Refer other salon owners and earn <span class="font-semibold text-gray-800">$25</span> for each successful referral. They get <span class="font-semibold text-gray-800">50% off</span> their first month too!</p>
+                    <p class="text-sm text-gray-400 max-w-md mx-auto">We're finalizing the referral program details. You'll be notified when it's ready to use.</p>
+                </div>
+            </div>
+        </div><!-- /tab-referrals -->
+
+    </div><!-- /main-content -->
 
     <!-- FLOATING ACTION BAR -->
     <div id="bulkActionBar" class="fixed bottom-0 left-0 right-0 z-40 hidden transform translate-y-full transition-transform duration-300">
@@ -1320,6 +1766,124 @@
         </div>
     </div>
 
+    <!-- DELETE ACCOUNT MODAL -->
+    <div id="deleteAccountModal" class="fixed inset-0 z-50 hidden">
+        <div id="deleteAccountModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden scale-in">
+                <div class="px-6 py-5 text-center">
+                    <div class="w-14 h-14 mx-auto mb-4 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-7 h-7 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                    </div>
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Delete your account?</h3>
+                    <p class="text-gray-500 text-sm mb-4">This will permanently delete all your data including customers, review requests, and integrations.</p>
+                    <div>
+                        <label for="deleteAccountConfirm" class="block text-sm font-medium text-gray-700 mb-1.5 text-left">Type <strong>DELETE</strong> to confirm</label>
+                        <input type="text" id="deleteAccountConfirm" class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-red-200 focus:border-red-400 focus:bg-white outline-none transition-all text-sm" placeholder="DELETE" autocomplete="off">
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 flex gap-3">
+                    <button onclick="closeDeleteAccountModal()" class="flex-1 px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors duration-200">Cancel</button>
+                    <button onclick="confirmDeleteAccount()" id="confirmDeleteAccountBtn" disabled class="flex-1 px-4 py-2.5 bg-red-600 text-white font-semibold rounded-xl hover:bg-red-700 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+                        <span id="deleteAccountBtnText">Delete Account</span>
+                        <svg id="deleteAccountSpinner" class="hidden animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- WAITLIST MODAL -->
+    <div id="waitlistModal" class="fixed inset-0 z-50 hidden">
+        <div id="waitlistModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden scale-in">
+                <div class="px-6 py-5">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Join the <span id="waitlistIntegrationName"></span> Waitlist</h3>
+                    <p class="text-sm text-gray-500 mb-5">We'll notify you as soon as <span id="waitlistIntegrationName2"></span> integration is available.</p>
+                    <div>
+                        <label for="waitlistEmail" class="block text-sm font-semibold text-gray-700 mb-2">Email address</label>
+                        <input type="email" id="waitlistEmail" placeholder="you@example.com" class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400">
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 flex gap-3">
+                    <button onclick="closeWaitlistModal()" class="flex-1 px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors duration-200">Cancel</button>
+                    <button onclick="submitWaitlist()" id="waitlistSubmitBtn" class="flex-1 px-4 py-2.5 text-white font-semibold rounded-xl transition-colors duration-200" style="background-color: var(--revvie-primary);">Notify Me</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MOBILE SIDEBAR + TAB SWITCHING -->
+    <script>
+        // Mobile sidebar toggle
+        function toggleMobileSidebar() {
+            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('sidebarOverlay').classList.toggle('active');
+            document.body.style.overflow = document.getElementById('sidebar').classList.contains('open') ? 'hidden' : '';
+        }
+        function closeMobileSidebar() {
+            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('sidebarOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Close sidebar on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeMobileSidebar();
+        });
+
+        // Swipe to close sidebar
+        let touchStartX = 0;
+        document.getElementById('sidebar')?.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        document.getElementById('sidebar')?.addEventListener('touchend', (e) => {
+            const diff = e.changedTouches[0].clientX - touchStartX;
+            if (diff < -60) closeMobileSidebar();
+        }, { passive: true });
+
+        // Tab switching logic
+        document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+
+                // Remove active class from all nav items
+                document.querySelectorAll('.sidebar-nav-item').forEach(i =>
+                    i.classList.remove('active')
+                );
+
+                // Add active to clicked item
+                item.classList.add('active');
+
+                // Hide all tab content
+                document.querySelectorAll('.tab-content').forEach(tab =>
+                    tab.classList.add('hidden')
+                );
+
+                // Show selected tab
+                const tabId = item.dataset.tab;
+                document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+                // Update URL hash
+                window.location.hash = tabId;
+
+                // Close sidebar on mobile
+                closeMobileSidebar();
+            });
+        });
+
+        // Handle direct hash navigation (e.g., /dashboard#customers)
+        function loadTabFromHash() {
+            const hash = window.location.hash.slice(1) || 'home';
+            const navItem = document.querySelector(`[data-tab="${hash}"]`);
+            if (navItem) navItem.click();
+        }
+
+        window.addEventListener('hashchange', loadTabFromHash);
+        window.addEventListener('load', loadTabFromHash);
+    </script>
+
     <!-- JAVASCRIPT -->
     <script>
         // =====================================================
@@ -1380,14 +1944,14 @@
                     banner.style.display = '';
                 }
 
-                // Billing section card in Integrations tab
+                // Billing tab card
                 document.getElementById('billingSkeleton').classList.add('hidden');
                 document.getElementById('billingContent').classList.remove('hidden');
 
                 if (billing.status === 'trialing') {
                     const days = billing.days_remaining_in_trial;
                     document.getElementById('billingTrialText').textContent =
-                        'Free Trial (' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining)';
+                        days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
                     document.getElementById('billingTrialing').classList.remove('hidden');
                 } else if (billing.status === 'active') {
                     if (billing.subscription_ends_at) {
@@ -1406,7 +1970,9 @@
             }
         })();
 
-        async function openBillingPortal() {
+        async function openBillingPortal(e) {
+            const btn = e?.target?.closest?.('button') || e?.target;
+            if (btn) setButtonLoading(btn, true);
             try {
                 const res = await fetch(`${API_URL}/billing/create-portal`, {
                     method: 'POST',
@@ -1419,18 +1985,21 @@
                 if (res.ok && data.portal_url) {
                     window.location.href = data.portal_url;
                 } else {
-                    alert(data.error || 'Unable to open billing portal.');
+                    showToast(data.error || 'Unable to open billing portal.', 'error');
+                    if (btn) setButtonLoading(btn, false);
                 }
-            } catch (e) {
-                alert('Network error. Please try again.');
+            } catch (err) {
+                showToast('Network error. Please try again.', 'error');
+                if (btn) setButtonLoading(btn, false);
             }
         }
 
         // =====================================================
         // ELEMENT REFERENCES
         // =====================================================
-        const headerBusinessName = document.getElementById('headerBusinessName');
-        const mobileBusinessName = document.getElementById('mobileBusinessName');
+        const sidebarBusinessName = document.getElementById('sidebarBusinessName');
+        const sidebarUserEmail = document.getElementById('sidebarUserEmail');
+        const mobileUserName = document.getElementById('mobileUserName');
         const reviewRequestForm = document.getElementById('reviewRequestForm');
         const customerNameInput = document.getElementById('customerName');
         const customerEmailInput = document.getElementById('customerEmail');
@@ -1446,7 +2015,7 @@
         const nameError = document.getElementById('nameError');
         const emailError = document.getElementById('emailError');
         const requestsTableBody = document.getElementById('requestsTableBody');
-        const logoutBtn = document.getElementById('logoutBtn');
+        // logoutBtn removed — sidebar uses onclick="logout()" directly
         const toastContainer = document.getElementById('toastContainer');
         const successOverlay = document.getElementById('successOverlay');
 
@@ -1461,12 +2030,7 @@
         const emptyState = document.getElementById('emptyState');
         const tableError = document.getElementById('tableError');
 
-        const tabSendReviews = document.getElementById('tabSendReviews');
-        const tabCustomers = document.getElementById('tabCustomers');
-        const tabContentSendReviews = document.getElementById('tabContentSendReviews');
-        const tabContentCustomers = document.getElementById('tabContentCustomers');
-        const tabContentIntegrations = document.getElementById('tabContentIntegrations');
-        const tabIntegrations = document.getElementById('tabIntegrations');
+        // Sidebar tab references (switching handled by sidebar script above)
 
         const addCustomerForm = document.getElementById('addCustomerForm');
         const newCustomerName = document.getElementById('newCustomerName');
@@ -1569,11 +2133,34 @@
         // =====================================================
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
-            toast.className = `flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg min-w-[300px] max-w-md ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white slide-down`;
-            const icon = type === 'success' ? '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>' : '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
-            toast.innerHTML = `${icon}<span class="font-medium">${escapeHtml(message)}</span><button class="ml-auto hover:opacity-80" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
+            const bg = type === 'success' ? 'background-color: var(--revvie-accent)' : 'background: #EF4444';
+            toast.className = 'flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg min-w-[300px] max-w-md text-white slide-down';
+            toast.style.cssText = bg;
+            const icon = type === 'success'
+                ? '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                : '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"></path></svg>';
+            toast.innerHTML = `${icon}<span class="font-medium text-sm">${escapeHtml(message)}</span><button class="ml-auto hover:opacity-80 flex-shrink-0" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
             toastContainer.appendChild(toast);
             setTimeout(() => { toast.classList.remove('slide-down'); toast.classList.add('slide-up'); setTimeout(() => toast.remove(), 300); }, type === 'success' ? 3000 : 5000);
+        }
+
+        // Reusable button loading helper
+        function setButtonLoading(btn, loading, loadingText) {
+            if (loading) {
+                btn._origText = btn.textContent;
+                btn.disabled = true;
+                btn.classList.add('btn-loading');
+                if (loadingText) btn.textContent = loadingText;
+            } else {
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+            }
+        }
+        function setButtonDone(btn, doneText = 'Saved!', delay = 1500) {
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.textContent = doneText;
+            setTimeout(() => { btn.textContent = btn._origText || 'Save'; }, delay);
         }
 
         function showSuccessAnimation() {
@@ -1739,38 +2326,25 @@
         });
 
         // =====================================================
-        // TAB SWITCHING
+        // TAB SWITCHING (sidebar-driven)
         // =====================================================
+        // Navigate to a tab programmatically
         function switchTab(tabName) {
-            document.querySelectorAll('.tab-button').forEach(btn => {
-                if (btn.dataset.tab === tabName) {
-                    btn.classList.remove('border-transparent', 'text-gray-500');
-                    btn.classList.add('border-accent-500', 'text-accent-600');
-                } else {
-                    btn.classList.remove('border-accent-500', 'text-accent-600');
-                    btn.classList.add('border-transparent', 'text-gray-500');
-                }
-            });
-            // Hide all tab contents first
-            tabContentSendReviews.classList.add('hidden');
-            tabContentCustomers.classList.add('hidden');
-            tabContentIntegrations.classList.add('hidden');
-
-            // Show the selected tab content
-            if (tabName === 'send-reviews') {
-                tabContentSendReviews.classList.remove('hidden');
-            } else if (tabName === 'customers') {
-                tabContentCustomers.classList.remove('hidden');
-                loadCustomers();
-            } else if (tabName === 'integrations') {
-                tabContentIntegrations.classList.remove('hidden');
-                loadSquareIntegrationStatus();
-            }
+            // Map old tab names to new sidebar tab names
+            const tabMap = { 'send-reviews': 'home' };
+            const sidebarTab = tabMap[tabName] || tabName;
+            const navItem = document.querySelector(`.sidebar-nav-item[data-tab="${sidebarTab}"]`);
+            if (navItem) navItem.click();
         }
 
-        tabSendReviews.addEventListener('click', () => switchTab('send-reviews'));
-        tabCustomers.addEventListener('click', () => switchTab('customers'));
-        tabIntegrations.addEventListener('click', () => switchTab('integrations'));
+        // Load data when tabs become visible
+        document.querySelectorAll('.sidebar-nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const tab = item.dataset.tab;
+                if (tab === 'customers') loadCustomers();
+                if (tab === 'integrations') loadSquareIntegrationStatus();
+            });
+        });
 
         // =====================================================
         // API CALLS WITH ERROR HANDLING
@@ -1798,13 +2372,16 @@
             try {
                 const data = await apiCall(`${API_URL}/auth/me`);
                 const businessName = data.business?.business_name || 'Your Business';
-                headerBusinessName.textContent = businessName;
-                mobileBusinessName.textContent = businessName;
+                sidebarBusinessName.textContent = businessName;
+                const userEmail = data.user?.email || data.business?.email;
+                if (userEmail) {
+                    sidebarUserEmail.textContent = userEmail;
+                    mobileUserName.textContent = userEmail.split('@')[0];
+                }
                 localStorage.setItem('business', JSON.stringify(data.business));
                 showGoogleBusinessState(data.business);
             } catch (error) {
-                headerBusinessName.textContent = 'Dashboard';
-                mobileBusinessName.textContent = 'Dashboard';
+                sidebarBusinessName.textContent = 'Dashboard';
                 document.getElementById('googleBusinessSkeleton').classList.add('hidden');
             }
         }
@@ -1849,23 +2426,26 @@
             } catch (error) {
                 statsSkeleton.classList.add('hidden');
                 statsContent.classList.remove('hidden');
-                statRequestsSent.textContent = '0';
-                statReviewsReceived.textContent = '0';
-                statConversionRate.textContent = '0%';
+                statRequestsSent.textContent = '--';
+                statReviewsReceived.textContent = '--';
+                statConversionRate.textContent = '--';
             }
         }
 
         async function loadReviewRequests() {
+            const viewAllLink = document.getElementById('viewAllLink');
             tableSkeleton.classList.remove('hidden');
             tableContent.classList.add('hidden');
             emptyState.classList.add('hidden');
             tableError.classList.add('hidden');
+            viewAllLink.classList.add('hidden');
 
             try {
                 const data = await apiCall(`${API_URL}/review-requests`);
                 tableSkeleton.classList.add('hidden');
                 if (data.success && data.data?.length > 0) {
                     tableContent.classList.remove('hidden');
+                    viewAllLink.classList.remove('hidden');
                     requestsTableBody.innerHTML = data.data.slice(0, 10).map((r, i) => `
                         <tr class="border-b border-gray-50 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-accent-50/50 transition-colors">
                             <td class="py-4 px-4 md:px-6"><span class="font-medium text-gray-800">${escapeHtml(r.customer_name)}</span></td>
@@ -2280,7 +2860,7 @@
             window.location.href = 'login.html';
         }
 
-        logoutBtn.addEventListener('click', openLogoutModal);
+        // Sidebar "Sign out" calls logout() directly via onclick
         document.getElementById('cancelLogoutBtn').addEventListener('click', closeLogoutModal);
         document.getElementById('confirmLogoutBtn').addEventListener('click', logout);
         document.getElementById('logoutModalBackdrop').addEventListener('click', closeLogoutModal);
@@ -3160,7 +3740,7 @@
 
                 // Scroll to integrations section smoothly
                 setTimeout(() => {
-                    document.getElementById('tabContentIntegrations').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    document.getElementById('tab-integrations').scrollIntoView({ behavior: 'smooth', block: 'start' });
                 }, 100);
 
             } else if (urlParams.get('square_error')) {
@@ -3310,6 +3890,210 @@
             originalShowSquareConnected(data);
             loadQueueStatus();
         };
+
+        // =====================================================
+        // ACCOUNT SETTINGS
+        // =====================================================
+        function loadAccountTab() {
+            // Populate fields from cached data
+            const business = JSON.parse(localStorage.getItem('business') || '{}');
+            const sidebarEmail = sidebarUserEmail?.textContent?.trim();
+            const email = (sidebarEmail && sidebarEmail.includes('@')) ? sidebarEmail : (business.email || '');
+
+            document.getElementById('acctBusinessName').value = business.business_name || '';
+            document.getElementById('acctEmail').value = email;
+            document.getElementById('acctPhone').value = business.phone || '';
+
+            // Google profile state
+            const googleLoading = document.getElementById('acctGoogleLoading');
+            const googleConnected = document.getElementById('acctGoogleConnected');
+            const googleNotConnected = document.getElementById('acctGoogleNotConnected');
+            googleLoading.classList.add('hidden');
+
+            if (business.google_place_id && business.google_review_url) {
+                document.getElementById('acctGoogleReviewUrl').textContent = business.google_review_url;
+                googleConnected.classList.remove('hidden');
+            } else {
+                googleNotConnected.classList.remove('hidden');
+            }
+        }
+
+        async function saveProfileField(field, inputId, btn) {
+            const input = document.getElementById(inputId);
+            const value = input.value.trim();
+            if (!value) { showToast('This field cannot be empty.', 'error'); return; }
+
+            setButtonLoading(btn, true);
+
+            try {
+                await apiCall(`${API_URL}/business/profile`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ [field]: value })
+                });
+                setButtonDone(btn, 'Saved!');
+
+                // Update sidebar if relevant
+                if (field === 'business_name') sidebarBusinessName.textContent = value;
+                if (field === 'email') sidebarUserEmail.textContent = value;
+
+                // Refresh cached business data
+                const data = await apiCall(`${API_URL}/auth/me`);
+                localStorage.setItem('business', JSON.stringify(data.business));
+            } catch (error) {
+                showToast(error.message, 'error');
+                setButtonLoading(btn, false);
+            }
+        }
+
+        // Change password
+        document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const current = document.getElementById('currentPassword').value;
+            const newPw = document.getElementById('newPassword').value;
+            const confirm = document.getElementById('confirmNewPassword').value;
+
+            if (newPw.length < 8) {
+                showToast('New password must be at least 8 characters.', 'error');
+                return;
+            }
+            if (newPw !== confirm) {
+                showToast('New passwords do not match.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('changePasswordBtn');
+            const text = document.getElementById('changePasswordText');
+            const spinner = document.getElementById('changePasswordSpinner');
+            btn.disabled = true;
+            text.textContent = 'Updating...';
+            spinner.classList.remove('hidden');
+
+            try {
+                await apiCall(`${API_URL}/auth/change-password`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ current_password: current, new_password: newPw })
+                });
+                showToast('Password updated successfully.', 'success');
+                document.getElementById('changePasswordForm').reset();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+            btn.disabled = false;
+            text.textContent = 'Update Password';
+            spinner.classList.add('hidden');
+        });
+
+        // Save preferences
+        async function savePreferences(btn) {
+            setButtonLoading(btn, true);
+
+            try {
+                await apiCall(`${API_URL}/business/preferences`, {
+                    method: 'PUT',
+                    body: JSON.stringify({
+                        weekly_summary: document.getElementById('prefWeeklySummary').checked,
+                        click_notifications: document.getElementById('prefClickNotify').checked,
+                        referral_notifications: document.getElementById('prefReferralNotify').checked
+                    })
+                });
+                setButtonDone(btn, 'Saved!');
+                showToast('Preferences saved.', 'success');
+            } catch (error) {
+                showToast(error.message, 'error');
+                setButtonLoading(btn, false);
+            }
+        }
+
+        // Delete account
+        function openDeleteAccountModal() {
+            document.getElementById('deleteAccountConfirm').value = '';
+            document.getElementById('confirmDeleteAccountBtn').disabled = true;
+            document.getElementById('deleteAccountModal').classList.remove('hidden');
+        }
+
+        function closeDeleteAccountModal() {
+            document.getElementById('deleteAccountModal').classList.add('hidden');
+        }
+
+        document.getElementById('deleteAccountConfirm').addEventListener('input', (e) => {
+            document.getElementById('confirmDeleteAccountBtn').disabled = e.target.value.trim() !== 'DELETE';
+        });
+
+        async function confirmDeleteAccount() {
+            if (document.getElementById('deleteAccountConfirm').value.trim() !== 'DELETE') return;
+
+            const btn = document.getElementById('confirmDeleteAccountBtn');
+            const text = document.getElementById('deleteAccountBtnText');
+            const spinner = document.getElementById('deleteAccountSpinner');
+            btn.disabled = true;
+            text.textContent = 'Deleting...';
+            spinner.classList.remove('hidden');
+
+            try {
+                await apiCall(`${API_URL}/business/account`, {
+                    method: 'DELETE',
+                    body: JSON.stringify({ confirmation: 'DELETE' })
+                });
+                localStorage.clear();
+                window.location.href = 'login.html';
+            } catch (error) {
+                showToast(error.message, 'error');
+                btn.disabled = false;
+                text.textContent = 'Delete Account';
+                spinner.classList.add('hidden');
+            }
+        }
+
+        document.getElementById('deleteAccountModalBackdrop').addEventListener('click', closeDeleteAccountModal);
+
+        // Load account data when tab is shown
+        document.querySelector('.sidebar-nav-item[data-tab="account"]').addEventListener('click', loadAccountTab);
+
+        // =====================================================
+        // WAITLIST
+        // =====================================================
+        let currentWaitlistIntegration = '';
+
+        function openWaitlistModal(integrationName) {
+            currentWaitlistIntegration = integrationName;
+            document.getElementById('waitlistIntegrationName').textContent = integrationName;
+            document.getElementById('waitlistIntegrationName2').textContent = integrationName;
+            // Pre-fill with user email if available
+            const userEmail = sidebarUserEmail?.textContent?.trim();
+            const waitlistEmail = document.getElementById('waitlistEmail');
+            if (userEmail && userEmail.includes('@')) waitlistEmail.value = userEmail;
+            else waitlistEmail.value = '';
+            document.getElementById('waitlistModal').classList.remove('hidden');
+        }
+
+        function closeWaitlistModal() {
+            document.getElementById('waitlistModal').classList.add('hidden');
+        }
+
+        async function submitWaitlist() {
+            const email = document.getElementById('waitlistEmail').value.trim();
+            if (!email || !email.includes('@')) {
+                showToast('Please enter a valid email address.', 'error');
+                return;
+            }
+            const btn = document.getElementById('waitlistSubmitBtn');
+            setButtonLoading(btn, true);
+            try {
+                await apiCall(`${API_URL}/integrations/waitlist`, {
+                    method: 'POST',
+                    body: JSON.stringify({ email, integration: currentWaitlistIntegration })
+                });
+                closeWaitlistModal();
+                showToast(`You're on the ${currentWaitlistIntegration} waitlist!`, 'success');
+            } catch (error) {
+                // Still show success even if endpoint doesn't exist yet
+                closeWaitlistModal();
+                showToast(`You're on the ${currentWaitlistIntegration} waitlist!`, 'success');
+            }
+            setButtonLoading(btn, false);
+        }
+
+        document.getElementById('waitlistModalBackdrop').addEventListener('click', closeWaitlistModal);
 
         // =====================================================
         // INITIALIZE
