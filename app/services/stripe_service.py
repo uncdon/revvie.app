@@ -486,6 +486,18 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
             }).eq('id', business_id).execute()
             logger.info(f"Business {business_id} status updated from past_due to active")
 
+        # Complete referral on first real payment
+        # subscription_create = $0 trial invoice (skip)
+        # subscription_cycle = first real charge after trial ends
+        billing_reason = getattr(invoice, 'billing_reason', None)
+        if billing_reason == 'subscription_cycle' and amount > 0:
+            try:
+                from app.services import referral_service
+                referral_service.complete_referral_by_business(business_id)
+                logger.info(f"Referral check completed for business {business_id} on first payment")
+            except Exception as e:
+                logger.error(f"Referral completion failed for {business_id}: {e}")
+
     except Exception as e:
         logger.error(f"Failed to handle payment succeeded for business {business_id}: {e}")
 

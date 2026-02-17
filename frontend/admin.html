@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - *revvie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Young+Serif&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        accent: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            400: '#5DBF87',
+                            500: '#6FCF97',
+                            600: '#6FCF97',
+                            700: '#5DBF87',
+                        },
+                        page: '#f8f8f8',
+                    },
+                    fontFamily: {
+                        'display': ['"Atkinson Hyperlegible"', 'sans-serif'],
+                        'serif': ['"Young Serif"', 'serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        :root {
+            --revvie-primary: #07B5F5;
+            --revvie-accent: #6FCF97;
+        }
+        .logo-text { font-family: 'Young Serif', serif; color: var(--revvie-primary); }
+        .logo-asterisk { color: var(--revvie-accent); }
+    </style>
+</head>
+<body class="bg-page min-h-screen font-display">
+
+    <!-- Top bar -->
+    <div class="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <h1 class="logo-text text-2xl font-bold"><span class="logo-asterisk">*</span>revvie</h1>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-600 uppercase tracking-wide">Admin</span>
+        </div>
+        <a href="/dashboard" class="text-sm font-semibold text-gray-500 hover:text-gray-700 transition-colors">&larr; Back to Dashboard</a>
+    </div>
+
+    <div class="max-w-5xl mx-auto px-6 py-8">
+
+        <!-- Auth gate (shown if not logged in) -->
+        <div id="authGate" class="hidden bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center max-w-md mx-auto">
+            <div class="text-4xl mb-3">🔒</div>
+            <p class="text-gray-600 mb-4">Admin access required. Please log in first.</p>
+            <a href="/login" class="inline-block text-sm font-semibold px-5 py-2.5 rounded-lg text-white" style="background-color: var(--revvie-primary);">Log In</a>
+        </div>
+
+        <!-- Forbidden (shown if not admin) -->
+        <div id="forbiddenGate" class="hidden bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center max-w-md mx-auto">
+            <div class="text-4xl mb-3">🚫</div>
+            <p class="text-gray-600 mb-4">You don't have admin access.</p>
+            <a href="/dashboard" class="inline-block text-sm font-semibold px-5 py-2.5 rounded-lg text-white" style="background-color: var(--revvie-primary);">Go to Dashboard</a>
+        </div>
+
+        <!-- Main admin content -->
+        <div id="adminContent" class="hidden space-y-8">
+
+            <!-- Page title -->
+            <div>
+                <h2 class="text-xl font-bold text-gray-800">Referral Management</h2>
+                <p class="text-sm text-gray-500 mt-1">View and manage all referrals across businesses.</p>
+            </div>
+
+            <!-- Summary cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Total</p>
+                    <p id="summaryTotal" class="text-2xl font-bold text-gray-800">—</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Pending</p>
+                    <p id="summaryPending" class="text-2xl font-bold" style="color: #92400E;">—</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Completed</p>
+                    <p id="summaryCompleted" class="text-2xl font-bold" style="color: #065F46;">—</p>
+                </div>
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Credits Issued</p>
+                    <p id="summaryCredits" class="text-2xl font-bold" style="color: var(--revvie-primary);">—</p>
+                </div>
+            </div>
+
+            <!-- Loading -->
+            <div id="tableLoading" class="bg-white border border-gray-200 rounded-lg shadow-sm p-8 animate-pulse">
+                <div class="h-5 bg-gray-200 rounded w-48 mb-6"></div>
+                <div class="space-y-3">
+                    <div class="h-4 bg-gray-100 rounded w-full"></div>
+                    <div class="h-4 bg-gray-100 rounded w-full"></div>
+                    <div class="h-4 bg-gray-100 rounded w-full"></div>
+                </div>
+            </div>
+
+            <!-- Empty state -->
+            <div id="tableEmpty" class="hidden bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center">
+                <div class="text-3xl mb-3">🎁</div>
+                <p class="text-sm font-semibold text-gray-700 mb-1">No referrals yet</p>
+                <p class="text-sm text-gray-400">Referrals will appear here when users share their links.</p>
+            </div>
+
+            <!-- Referrals table -->
+            <div id="tableWrap" class="hidden bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <h3 class="text-sm font-bold text-gray-800">All Referrals</h3>
+                    <button onclick="loadAdminReferrals()" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors">↻ Refresh</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                <th class="text-left px-6 py-3">Referrer</th>
+                                <th class="text-left px-4 py-3">Referred</th>
+                                <th class="text-left px-4 py-3">Code</th>
+                                <th class="text-left px-4 py-3">Status</th>
+                                <th class="text-left px-4 py-3">Date</th>
+                                <th class="text-right px-6 py-3">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminRefTableBody" class="divide-y divide-gray-100">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div><!-- /adminContent -->
+
+    </div>
+
+    <!-- Toast notification -->
+    <div id="adminToast" class="fixed bottom-6 right-6 z-50 hidden transform transition-all duration-300 translate-y-4 opacity-0">
+        <div class="bg-gray-800 text-white text-sm font-medium px-5 py-3 rounded-lg shadow-lg flex items-center gap-2">
+            <span id="adminToastText"></span>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:5001'
+            : window.location.origin;
+        const API_URL = `${API_BASE_URL}/api`;
+        const token = localStorage.getItem('token');
+
+        // Auth check
+        (async function init() {
+            if (!token) {
+                document.getElementById('authGate').classList.remove('hidden');
+                return;
+            }
+
+            try {
+                const resp = await fetch(`${API_URL}/referrals/all`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (resp.status === 401) {
+                    document.getElementById('authGate').classList.remove('hidden');
+                    return;
+                }
+                if (resp.status === 403) {
+                    document.getElementById('forbiddenGate').classList.remove('hidden');
+                    return;
+                }
+
+                document.getElementById('adminContent').classList.remove('hidden');
+                const data = await resp.json();
+                renderReferrals(data);
+
+            } catch (err) {
+                console.error('Admin init failed:', err);
+                document.getElementById('adminContent').classList.remove('hidden');
+                loadAdminReferrals();
+            }
+        })();
+
+        async function loadAdminReferrals() {
+            const loadingEl = document.getElementById('tableLoading');
+            const emptyEl = document.getElementById('tableEmpty');
+            const tableEl = document.getElementById('tableWrap');
+
+            loadingEl.classList.remove('hidden');
+            emptyEl.classList.add('hidden');
+            tableEl.classList.add('hidden');
+
+            try {
+                const resp = await fetch(`${API_URL}/referrals/all`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    showToast(err.error || 'Failed to load referrals', true);
+                    loadingEl.classList.add('hidden');
+                    return;
+                }
+                const data = await resp.json();
+                renderReferrals(data);
+            } catch (err) {
+                console.error('Failed to load referrals:', err);
+                loadingEl.classList.add('hidden');
+            }
+        }
+
+        function renderReferrals(data) {
+            const loadingEl = document.getElementById('tableLoading');
+            const emptyEl = document.getElementById('tableEmpty');
+            const tableEl = document.getElementById('tableWrap');
+            const tbody = document.getElementById('adminRefTableBody');
+
+            loadingEl.classList.add('hidden');
+
+            // Summary
+            const s = data.summary || {};
+            document.getElementById('summaryTotal').textContent = s.total || 0;
+            document.getElementById('summaryPending').textContent = s.pending || 0;
+            document.getElementById('summaryCompleted').textContent = s.completed || 0;
+            document.getElementById('summaryCredits').textContent = `$${(s.total_credits_issued || 0).toFixed(0)}`;
+
+            // Table
+            const referrals = data.referrals || [];
+            if (referrals.length === 0) {
+                emptyEl.classList.remove('hidden');
+                tableEl.classList.add('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            tableEl.classList.remove('hidden');
+
+            tbody.innerHTML = referrals.map(r => {
+                const date = r.created_at
+                    ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                    : '—';
+
+                let statusBadge;
+                if (r.status === 'completed') {
+                    statusBadge = '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background-color: #ECFDF5; color: #065F46;">Completed</span>';
+                } else if (r.status === 'pending') {
+                    statusBadge = '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background-color: #FFFBEB; color: #92400E;">Pending</span>';
+                } else {
+                    statusBadge = '<span class="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Cancelled</span>';
+                }
+
+                let actions = '<span class="text-gray-300">—</span>';
+                if (r.status === 'pending') {
+                    actions = `
+                        <button onclick="completeReferral('${r.id}')" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-white transition-colors hover:opacity-90" style="background-color: #065F46;">
+                            ✅ Complete
+                        </button>
+                        <button onclick="cancelReferral('${r.id}')" class="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors ml-1.5">
+                            ✕ Cancel
+                        </button>
+                    `;
+                }
+
+                return `<tr class="hover:bg-gray-50">
+                    <td class="px-6 py-3">
+                        <div class="font-medium text-gray-800">${esc(r.referrer_name || 'Unknown')}</div>
+                        <div class="text-xs text-gray-400">${esc(r.referrer_email || '')}</div>
+                    </td>
+                    <td class="px-4 py-3">
+                        <div class="font-medium text-gray-800">${esc(r.referred_name || 'Unknown')}</div>
+                        <div class="text-xs text-gray-400">${esc(r.referred_email || '')}</div>
+                    </td>
+                    <td class="px-4 py-3 text-gray-500 font-mono text-xs">${esc(r.referral_code || '—')}</td>
+                    <td class="px-4 py-3">${statusBadge}</td>
+                    <td class="px-4 py-3 text-gray-500">${date}</td>
+                    <td class="px-6 py-3 text-right whitespace-nowrap">${actions}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        async function completeReferral(referralId) {
+            if (!confirm('Complete this referral? $40 credit will be added to the referrer.')) return;
+
+            try {
+                const resp = await fetch(`${API_URL}/referrals/complete/${referralId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    showToast(err.error || 'Failed to complete referral', true);
+                    return;
+                }
+
+                showToast('Referral completed! $40 credit added to referrer.');
+                loadAdminReferrals();
+
+            } catch (err) {
+                console.error('Complete referral failed:', err);
+                showToast('Failed to complete referral', true);
+            }
+        }
+
+        async function cancelReferral(referralId) {
+            if (!confirm('Are you sure you want to cancel this referral? The referred business will lose their $40 credit.')) return;
+
+            try {
+                const resp = await fetch(`${API_URL}/referrals/cancel/${referralId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!resp.ok) {
+                    const err = await resp.json();
+                    showToast(err.error || 'Failed to cancel referral', true);
+                    return;
+                }
+
+                showToast('Referral cancelled.');
+                loadAdminReferrals();
+
+            } catch (err) {
+                console.error('Cancel referral failed:', err);
+                showToast('Failed to cancel referral', true);
+            }
+        }
+
+        function esc(str) {
+            const d = document.createElement('div');
+            d.textContent = str || '';
+            return d.innerHTML;
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('adminToast');
+            const text = document.getElementById('adminToastText');
+            text.textContent = message;
+            toast.querySelector('div').style.backgroundColor = isError ? '#DC2626' : '#1F2937';
+            toast.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                toast.classList.remove('translate-y-4', 'opacity-0');
+            });
+            setTimeout(() => {
+                toast.classList.add('translate-y-4', 'opacity-0');
+                setTimeout(() => toast.classList.add('hidden'), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -49,3 +49,9 @@ def dashboard():
 def subscribe():
     """Serve subscription paywall page."""
     return send_from_directory(FRONTEND_FOLDER, 'subscribe.html')
+
+
+@frontend_bp.route('/admin')
+def admin():
+    """Serve admin page."""
+    return send_from_directory(FRONTEND_FOLDER, 'admin.html')

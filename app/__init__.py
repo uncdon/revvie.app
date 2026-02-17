@@ -101,6 +101,10 @@ def create_app(config_name='default'):
     # General integrations (waitlist, etc.)
     app.register_blueprint(integrations_bp, url_prefix='/api')
 
+    # Referrals
+    from app.routes.referrals import referrals_bp
+    app.register_blueprint(referrals_bp, url_prefix='/api/referrals')
+
     # Start the queue processor scheduler (for processing delayed review requests)
     start_queue_scheduler(app)
 

@@ -56,6 +56,9 @@
             <p class="text-gray-500 mt-2">Review Automation Made Simple</p>
         </div>
 
+        <!-- Referral Banner (shown when ?ref= is in URL) -->
+        <div id="referral-banner" class="hidden"></div>
+
         <!-- Signup Form -->
         <form id="signupForm" class="space-y-5">
 
@@ -148,6 +151,27 @@
             : window.location.origin;  // Use same origin in production
         const API_URL = `${API_BASE_URL}/api`;
 
+        // Check for referral code in URL
+        (function checkReferral() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const refCode = urlParams.get('ref');
+            if (refCode) {
+                localStorage.setItem('revvie_referral_code', refCode);
+                const banner = document.getElementById('referral-banner');
+                if (banner) {
+                    banner.classList.remove('hidden');
+                    banner.innerHTML = `
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-center">
+                            <p class="text-blue-800 font-medium">
+                                🎉 You've been invited! Sign up and get
+                                <strong>$40 credit</strong> on your account.
+                            </p>
+                        </div>
+                    `;
+                }
+            }
+        })();
+
         const form = document.getElementById('signupForm');
         const errorDiv = document.getElementById('errorMessage');
         const errorText = document.getElementById('errorText');
@@ -232,7 +256,8 @@
                     body: JSON.stringify({
                         email: email,
                         password: password,
-                        business_name: businessName
+                        business_name: businessName,
+                        referral_code: localStorage.getItem('revvie_referral_code') || null
                     })
                 });
 
@@ -244,6 +269,7 @@
                     }
                     localStorage.setItem('user', JSON.stringify(data.user));
                     localStorage.setItem('business', JSON.stringify(data.business));
+                    localStorage.removeItem('revvie_referral_code');
                     btnText.textContent = 'Success!';
                     setTimeout(() => window.location.href = data.redirect || '/onboarding', 500);
                 } else {

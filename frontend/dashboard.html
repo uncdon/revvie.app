@@ -1180,15 +1180,147 @@
 
         <!-- TAB: REFERRALS -->
         <div id="tab-referrals" class="tab-content hidden">
-            <div class="max-w-2xl mx-auto">
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center">
-                    <div class="text-4xl mb-4">&#127873;</div>
-                    <h2 class="text-lg font-bold text-gray-800 mb-1">Refer &amp; Earn</h2>
-                    <span class="inline-block text-xs font-semibold px-3 py-1 rounded-full mb-4" style="color: var(--revvie-primary); background-color: #E8F8FE;">Coming Soon</span>
-                    <p class="text-sm text-gray-600 max-w-md mx-auto mb-3">Refer other salon owners and earn <span class="font-semibold text-gray-800">$25</span> for each successful referral. They get <span class="font-semibold text-gray-800">50% off</span> their first month too!</p>
-                    <p class="text-sm text-gray-400 max-w-md mx-auto">We're finalizing the referral program details. You'll be notified when it's ready to use.</p>
+
+            <!-- Loading skeleton -->
+            <div id="referrals-loading" class="max-w-2xl mx-auto space-y-6">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-8 animate-pulse">
+                    <div class="h-6 bg-gray-200 rounded w-40 mb-4"></div>
+                    <div class="h-4 bg-gray-200 rounded w-72 mb-6"></div>
+                    <div class="h-12 bg-gray-100 rounded-lg mb-4"></div>
+                    <div class="flex gap-3">
+                        <div class="h-10 bg-gray-200 rounded-lg w-28"></div>
+                        <div class="h-10 bg-gray-200 rounded-lg w-32"></div>
+                        <div class="h-10 bg-gray-200 rounded-lg w-28"></div>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 animate-pulse">
+                        <div class="h-4 bg-gray-200 rounded w-28 mb-3"></div>
+                        <div class="h-8 bg-gray-200 rounded w-20"></div>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 animate-pulse">
+                        <div class="h-4 bg-gray-200 rounded w-28 mb-3"></div>
+                        <div class="h-8 bg-gray-200 rounded w-20"></div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Error state -->
+            <div id="referrals-error" class="hidden max-w-2xl mx-auto">
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-8 text-center">
+                    <div class="text-4xl mb-3">😕</div>
+                    <p class="text-gray-600 mb-4">Failed to load referral data.</p>
+                    <button onclick="loadReferrals()" class="text-sm font-semibold px-4 py-2 rounded-lg text-white" style="background-color: #07B5F5;">Try Again</button>
+                </div>
+            </div>
+
+            <!-- Main referrals content (hidden until loaded) -->
+            <div id="referrals-content" class="hidden max-w-2xl mx-auto space-y-6">
+
+                <!-- SECTION 1: Header + Referral Link -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <div class="flex items-start gap-3 mb-1">
+                        <span class="text-2xl">🎁</span>
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-800">Refer &amp; Earn</h2>
+                        </div>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-5 ml-9">Share *revvie with other business owners. You both get <strong class="text-gray-800">$40</strong> when they subscribe.</p>
+
+                    <label class="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 ml-1">Your referral link</label>
+                    <div class="flex items-center bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4">
+                        <input id="referralLinkInput" type="text" readonly class="flex-1 bg-transparent text-sm text-gray-700 font-medium outline-none select-all truncate" value="">
+                    </div>
+
+                    <div class="flex flex-wrap gap-3">
+                        <button id="copyReferralBtn" onclick="copyReferralLink()" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-white text-sm font-semibold transition-all duration-200 hover:shadow-md active:scale-[0.98]" style="background-color: #07B5F5;">
+                            📋 Copy Link
+                        </button>
+                        <a id="shareSmsBtnLink" href="#" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all duration-200 active:scale-[0.98]">
+                            📱 Share via SMS
+                        </a>
+                        <a id="shareEmailBtnLink" href="#" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-all duration-200 active:scale-[0.98]">
+                            📧 Email
+                        </a>
+                    </div>
+                </div>
+
+                <!-- SECTION 2: Credit Balance Cards -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-lg">💵</span>
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Account Credit</span>
+                        </div>
+                        <p id="refAccountCredit" class="text-2xl font-bold text-gray-800">$0.00</p>
+                        <p class="text-xs text-gray-400 mt-1">Available balance</p>
+                    </div>
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-lg">⏳</span>
+                            <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Pending Credit</span>
+                        </div>
+                        <p id="refPendingCredit" class="text-2xl font-bold text-gray-800">$0.00</p>
+                        <p id="refPendingCount" class="text-xs text-gray-400 mt-1">0 pending referrals</p>
+                    </div>
+                </div>
+                <div id="refCreditNote" class="hidden flex items-start gap-2 px-4 py-3 rounded-lg" style="background-color: #F0F9FF; border: 1px solid #BAE6FD;">
+                    <span class="text-sm">💡</span>
+                    <p class="text-sm" style="color: #0369A1;">Your credit will be automatically applied to your next invoice.</p>
+                </div>
+
+                <!-- SECTION 3: How It Works -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <h3 class="text-sm font-bold text-gray-800 mb-4">How It Works</h3>
+                    <div class="space-y-4">
+                        <div class="flex items-start gap-3">
+                            <span class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background-color: #07B5F5;">1</span>
+                            <p class="text-sm text-gray-600 pt-1">Share your link with other business owners</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background-color: #07B5F5;">2</span>
+                            <p class="text-sm text-gray-600 pt-1">They sign up and get <strong class="text-gray-800">$40 credit</strong> on their account</p>
+                        </div>
+                        <div class="flex items-start gap-3">
+                            <span class="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white" style="background-color: #07B5F5;">3</span>
+                            <p class="text-sm text-gray-600 pt-1">When they subscribe, you get <strong class="text-gray-800">$40 credit</strong> automatically added to your account</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECTION 4: Referral History -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <div class="px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                        <h3 class="text-sm font-bold text-gray-800">Your Referrals</h3>
+                        <span id="refTotalBadge" class="hidden text-xs font-semibold px-2 py-0.5 rounded-full text-white" style="background-color: #07B5F5;">0</span>
+                    </div>
+
+                    <!-- Empty state -->
+                    <div id="refEmptyState" class="p-8 text-center">
+                        <div class="text-3xl mb-3">🎁</div>
+                        <p class="text-sm font-semibold text-gray-700 mb-1">No referrals yet</p>
+                        <p class="text-sm text-gray-400">Share your link to start earning!</p>
+                    </div>
+
+                    <!-- Referrals table -->
+                    <div id="refTableWrap" class="hidden">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                                    <th class="text-left px-6 py-3">Business</th>
+                                    <th class="text-left px-4 py-3">Date</th>
+                                    <th class="text-left px-4 py-3">Status</th>
+                                    <th class="text-right px-6 py-3">Credit</th>
+                                </tr>
+                            </thead>
+                            <tbody id="refTableBody" class="divide-y divide-gray-100">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div><!-- /referrals-content -->
+
         </div><!-- /tab-referrals -->
 
     </div><!-- /main-content -->
@@ -2325,6 +2457,7 @@
                 const tab = item.dataset.tab;
                 if (tab === 'customers') loadCustomers();
                 if (tab === 'integrations') loadSquareIntegrationStatus();
+                if (tab === 'referrals') loadReferrals();
             });
         });
 
@@ -4074,6 +4207,126 @@
         validateReviewForm();
         validateCustomerForm();
         checkSquareOAuthCallback();
+
+        // =====================================================
+        // REFERRALS TAB
+        // =====================================================
+        function escHtml(str) {
+            const d = document.createElement('div');
+            d.textContent = str || '';
+            return d.innerHTML;
+        }
+
+        let referralsLoaded = false;
+        let referralLink = '';
+
+        async function loadReferrals(forceRefresh = false) {
+            if (referralsLoaded && !forceRefresh) return;
+
+            const loadingEl = document.getElementById('referrals-loading');
+            const errorEl = document.getElementById('referrals-error');
+            const contentEl = document.getElementById('referrals-content');
+
+            loadingEl.classList.remove('hidden');
+            errorEl.classList.add('hidden');
+            contentEl.classList.add('hidden');
+
+            try {
+                const stats = await apiCall(`${API_URL}/referrals/stats`);
+
+                referralLink = stats.referral_link || '';
+
+                // Populate referral link
+                document.getElementById('referralLinkInput').value = referralLink;
+
+                // Share buttons
+                const smsBody = encodeURIComponent(`Hey! I use *revvie to automatically get Google reviews from my customers after each visit. Sign up with my link and we both get $40: ${referralLink}`);
+                document.getElementById('shareSmsBtnLink').href = `sms:?body=${smsBody}`;
+
+                const emailSubject = encodeURIComponent('Get $40 off *revvie');
+                const emailBody = encodeURIComponent(`Hey!\n\nI've been using *revvie to collect Google reviews automatically. Use my link and we both get $40 credit:\n\n${referralLink}`);
+                document.getElementById('shareEmailBtnLink').href = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+
+                // Credit cards
+                const accountCredit = parseFloat(stats.account_credit || 0);
+                const pendingCredit = parseFloat(stats.pending_credit || 0);
+                const pendingCount = stats.pending_referrals || 0;
+
+                document.getElementById('refAccountCredit').textContent = `$${accountCredit.toFixed(2)}`;
+                document.getElementById('refPendingCredit').textContent = `$${pendingCredit.toFixed(2)}`;
+                document.getElementById('refPendingCount').textContent = `${pendingCount} pending referral${pendingCount !== 1 ? 's' : ''}`;
+
+                // Credit note
+                if (accountCredit > 0) {
+                    document.getElementById('refCreditNote').classList.remove('hidden');
+                }
+
+                // Referral history
+                const referrals = stats.referrals || [];
+                const totalCount = stats.total_referrals || 0;
+                const badge = document.getElementById('refTotalBadge');
+                const emptyState = document.getElementById('refEmptyState');
+                const tableWrap = document.getElementById('refTableWrap');
+                const tableBody = document.getElementById('refTableBody');
+
+                if (totalCount > 0) {
+                    badge.textContent = totalCount;
+                    badge.classList.remove('hidden');
+                    emptyState.classList.add('hidden');
+                    tableWrap.classList.remove('hidden');
+
+                    tableBody.innerHTML = referrals.map(r => {
+                        const date = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—';
+                        const credit = parseFloat(r.referrer_credit || 0);
+                        let statusBadge, creditText;
+
+                        if (r.status === 'completed') {
+                            statusBadge = '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background-color: #ECFDF5; color: #065F46;">✅ Earned</span>';
+                            creditText = `<span class="font-semibold" style="color: #065F46;">+$${credit.toFixed(0)}</span>`;
+                        } else if (r.status === 'pending') {
+                            statusBadge = '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full" style="background-color: #FFFBEB; color: #92400E;">⏳ Pending</span>';
+                            creditText = `<span class="text-gray-400">$${credit.toFixed(0)} soon</span>`;
+                        } else {
+                            statusBadge = '<span class="inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">Cancelled</span>';
+                            creditText = '<span class="text-gray-300 line-through">$' + credit.toFixed(0) + '</span>';
+                        }
+
+                        return `<tr class="hover:bg-gray-50">
+                            <td class="px-6 py-3 font-medium text-gray-800">${escHtml(r.referred_business_name || 'Unknown')}</td>
+                            <td class="px-4 py-3 text-gray-500">${date}</td>
+                            <td class="px-4 py-3">${statusBadge}</td>
+                            <td class="px-6 py-3 text-right">${creditText}</td>
+                        </tr>`;
+                    }).join('');
+                } else {
+                    emptyState.classList.remove('hidden');
+                    tableWrap.classList.add('hidden');
+                    badge.classList.add('hidden');
+                }
+
+                referralsLoaded = true;
+                loadingEl.classList.add('hidden');
+                contentEl.classList.remove('hidden');
+
+            } catch (err) {
+                console.error('Failed to load referrals:', err);
+                loadingEl.classList.add('hidden');
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        function copyReferralLink() {
+            if (!referralLink) return;
+            navigator.clipboard.writeText(referralLink).then(() => {
+                const btn = document.getElementById('copyReferralBtn');
+                btn.innerHTML = '✓ Copied!';
+                btn.style.backgroundColor = '#6FCF97';
+                setTimeout(() => {
+                    btn.innerHTML = '📋 Copy Link';
+                    btn.style.backgroundColor = '#07B5F5';
+                }, 2000);
+            });
+        }
     </script>
 </body>
 </html>

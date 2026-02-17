@@ -64,6 +64,20 @@ def signup():
         # Create the account
         result = signup_user(email, password, business_name)
 
+        # Record referral if signup came from a referral link
+        ref_code = data.get('referral_code')
+        if ref_code and result.get('business'):
+            try:
+                from app.services import referral_service
+                new_business_id = result['business']['id']
+                referral_service.record_referral_signup(
+                    referral_code=ref_code,
+                    referred_business_id=new_business_id
+                )
+                logger.info(f"Referral recorded: {ref_code} → {new_business_id}")
+            except Exception as e:
+                logger.error(f"Referral recording failed for code {ref_code}: {e}")
+
         return jsonify({
             "message": "Account created successfully",
             "redirect": "/onboarding",
@@ -265,6 +279,9 @@ def delete_account():
         ).execute() if supabase_admin.table("tracking_links").select("id").eq("business_id", user_id).execute().data else None
 
         supabase_admin.table("tracking_links").delete().eq("business_id", user_id).execute()
+        supabase_admin.table("credit_transactions").delete().eq("business_id", user_id).execute()
+        supabase_admin.table("referrals").delete().eq("referrer_business_id", user_id).execute()
+        supabase_admin.table("referrals").delete().eq("referred_business_id", user_id).execute()
         supabase_admin.table("queued_review_requests").delete().eq("business_id", user_id).execute()
         supabase_admin.table("review_requests").delete().eq("business_id", user_id).execute()
         supabase_admin.table("customers").delete().eq("business_id", user_id).execute()
