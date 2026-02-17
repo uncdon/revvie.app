@@ -299,7 +299,7 @@ def send_trial_welcome_email(email: str, business_name: str, trial_end_date: str
                         <tr>
                             <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
                                 <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    Revvie
+                                    *revvie
                                 </h1>
                             </td>
                         </tr>
@@ -308,7 +308,7 @@ def send_trial_welcome_email(email: str, business_name: str, trial_end_date: str
                         <tr>
                             <td style="padding: 40px;">
                                 <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    Welcome to Revvie!
+                                    Welcome to *revvie!
                                 </h2>
 
                                 <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
@@ -356,7 +356,7 @@ def send_trial_welcome_email(email: str, business_name: str, trial_end_date: str
                         <tr>
                             <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
                                 <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    Revvie &mdash; Get more Google reviews, automatically.
+                                    *revvie &mdash; Get more Google reviews, automatically.
                                 </p>
                             </td>
                         </tr>
@@ -387,7 +387,7 @@ def send_trial_ending_email(email: str, business_name: str, trial_end_date: str,
     Returns:
         dict: Same format as send_email()
     """
-    subject = f"Your Revvie trial ends in {days_remaining} days"
+    subject = f"Your *revvie trial ends in {days_remaining} days"
 
     html_body = f"""
     <!DOCTYPE html>
@@ -406,7 +406,7 @@ def send_trial_ending_email(email: str, business_name: str, trial_end_date: str,
                         <tr>
                             <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
                                 <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    Revvie
+                                    *revvie
                                 </h1>
                             </td>
                         </tr>
@@ -421,7 +421,7 @@ def send_trial_ending_email(email: str, business_name: str, trial_end_date: str,
                                 <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
                                     Your free trial for <strong>{business_name}</strong> ends on
                                     <strong>{trial_end_date}</strong> ({days_remaining} days from now).
-                                    After that, you'll be charged <strong>$79/month</strong> to continue using Revvie.
+                                    After that, you'll be charged <strong>$79/month</strong> to continue using *revvie.
                                 </p>
 
                                 <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
@@ -453,7 +453,7 @@ def send_trial_ending_email(email: str, business_name: str, trial_end_date: str,
                         <tr>
                             <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
                                 <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    Revvie &mdash; Get more Google reviews, automatically.
+                                    *revvie &mdash; Get more Google reviews, automatically.
                                 </p>
                             </td>
                         </tr>
@@ -480,7 +480,7 @@ def send_payment_failed_email(email: str, business_name: str) -> dict:
     Returns:
         dict: Same format as send_email()
     """
-    subject = "Action required: Payment failed for Revvie"
+    subject = "Action required: Payment failed for *revvie"
 
     html_body = f"""
     <!DOCTYPE html>
@@ -499,7 +499,7 @@ def send_payment_failed_email(email: str, business_name: str) -> dict:
                         <tr>
                             <td style="background-color: #DC2626; padding: 30px 40px; border-radius: 8px 8px 0 0;">
                                 <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    Revvie
+                                    *revvie
                                 </h1>
                             </td>
                         </tr>
@@ -512,7 +512,7 @@ def send_payment_failed_email(email: str, business_name: str) -> dict:
                                 </h2>
 
                                 <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    We couldn't process the payment for your <strong>{business_name}</strong> Revvie subscription.
+                                    We couldn't process the payment for your <strong>{business_name}</strong> *revvie subscription.
                                     Please update your payment method to keep your account active.
                                 </p>
 
@@ -542,7 +542,7 @@ def send_payment_failed_email(email: str, business_name: str) -> dict:
                         <tr>
                             <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
                                 <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    Revvie &mdash; Get more Google reviews, automatically.
+                                    *revvie &mdash; Get more Google reviews, automatically.
                                 </p>
                             </td>
                         </tr>
@@ -569,7 +569,7 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
     Returns:
         dict: Same format as send_email()
     """
-    subject = "Your Revvie subscription has been canceled"
+    subject = "Your *revvie subscription has been canceled"
 
     html_body = f"""
     <!DOCTYPE html>
@@ -588,7 +588,7 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
                         <tr>
                             <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
                                 <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    Revvie
+                                    *revvie
                                 </h1>
                             </td>
                         </tr>
@@ -601,7 +601,7 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
                                 </h2>
 
                                 <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your Revvie subscription for <strong>{business_name}</strong> has been canceled.
+                                    Your *revvie subscription for <strong>{business_name}</strong> has been canceled.
                                     You'll retain access until the end of your current billing period.
                                 </p>
 
@@ -630,7 +630,7 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
                         <tr>
                             <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
                                 <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    Revvie &mdash; Get more Google reviews, automatically.
+                                    *revvie &mdash; Get more Google reviews, automatically.
                                 </p>
                             </td>
                         </tr>

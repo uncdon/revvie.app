@@ -51,6 +51,10 @@
             font-size: 24px;
             font-weight: 400;
         }
+        .logo-text .logo-asterisk {
+            font-weight: 300;
+            opacity: 0.8;
+        }
 
         /* Primary button style */
         .btn-primary {
@@ -143,9 +147,11 @@
         /* Main content area */
         .main-content {
             margin-left: 240px;
+            width: calc(100% - 240px);
             padding: 24px;
             min-height: 100vh;
             background-color: #FFFFFF;
+            overflow-x: hidden;
         }
 
         /* Mobile responsive */
@@ -161,6 +167,7 @@
             }
             .main-content {
                 margin-left: 0;
+                width: 100%;
                 padding: 16px;
                 padding-top: 72px;
             }
@@ -292,16 +299,6 @@
         </p>
     </div>
 
-    <!-- TRIAL COUNTDOWN BANNER -->
-    <div id="trialBanner" style="display:none" class="fixed top-0 left-0 right-0 bg-accent-50 border-b border-green-200 p-3 text-center z-[58]">
-        <div class="flex items-center justify-center gap-3 flex-wrap">
-            <p class="text-gray-700 text-sm">
-                <span class="font-semibold" id="trialBannerText">Free Trial: 14 days remaining</span>
-                <span class="text-gray-500 ml-1" id="trialBannerSubtext"></span>
-            </p>
-            <button onclick="openBillingPortal(event)" class="text-accent-700 text-sm font-semibold underline hover:text-accent-400">Manage Billing</button>
-        </div>
-    </div>
 
     <!-- TOAST CONTAINER -->
     <div id="toastContainer" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
@@ -321,7 +318,7 @@
             <button id="mobileMenuBtn" onclick="toggleMobileSidebar()" class="p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 transition-colors">
                 <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
             </button>
-            <span class="logo-text" style="font-size: 20px;">Revvie</span>
+            <span class="logo-text" style="font-size: 20px;"><span class="logo-asterisk">*</span>revvie</span>
         </div>
         <div class="flex items-center gap-2">
             <span id="mobileUserName" class="text-sm text-gray-600 max-w-[120px] truncate"></span>
@@ -338,7 +335,7 @@
     <div id="sidebar" class="sidebar">
         <!-- Logo -->
         <div class="p-5 border-b border-gray-200">
-            <h1 class="logo-text">Revvie</h1>
+            <h1 class="logo-text"><span class="logo-asterisk">*</span>revvie</h1>
             <p id="sidebarBusinessName" class="text-xs text-gray-500 mt-1">
                 <span class="skeleton rounded h-4 w-24 inline-block"></span>
             </p>
@@ -390,57 +387,19 @@
     <!-- MAIN CONTENT AREA -->
     <div class="main-content">
 
-        <!-- TAB: HOME -->
-        <div id="tab-home" class="tab-content">
-
-        <!-- GOOGLE BUSINESS SECTION -->
-        <div id="googleBusinessSection" class="mb-8">
-            <!-- Skeleton while loading -->
-            <div id="googleBusinessSkeleton" class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                <div class="skeleton rounded h-5 w-48 mb-3"></div>
-                <div class="skeleton rounded h-4 w-72"></div>
-            </div>
-
-            <!-- Connected state -->
-            <div id="googleBusinessConnected" class="hidden bg-white rounded-lg shadow-sm border border-gray-200 p-6 fade-in">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="text-lg">&#128279;</span>
-                    <h3 class="font-bold text-gray-800">Google Review Link</h3>
-                </div>
-                <p class="text-gray-500 text-sm mb-3">Customers will be sent here after each visit:</p>
-                <div class="bg-accent-50 border border-accent-100 rounded-xl px-4 py-3 mb-4">
-                    <span id="googleReviewUrl" class="text-sm text-accent-700 break-all"></span>
-                </div>
-                <div class="flex flex-wrap gap-3">
-                    <a id="googleTestLink" href="#" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-4 py-2 bg-accent-500 text-white text-sm rounded-lg font-semibold hover:bg-accent-700 active:scale-95 transition-all duration-200">
-                        Test Link
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
-                    </a>
-                    <button onclick="copyReviewLink()" id="copyLinkBtn" class="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg font-semibold hover:bg-gray-200 active:scale-95 transition-all duration-200">
-                        <span id="copyLinkText">Copy Link</span>
-                        <span id="copyLinkIcon">&#128203;</span>
-                    </button>
-                    <a href="/onboarding" class="inline-flex items-center gap-1.5 px-4 py-2 text-gray-500 text-sm rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200">
-                        Change Business
-                    </a>
-                </div>
-            </div>
-
-            <!-- Not connected state -->
-            <div id="googleBusinessSetup" class="hidden bg-amber-50 border border-amber-200 rounded-lg shadow-sm p-6 fade-in">
-                <div class="flex items-start gap-3">
-                    <span class="text-2xl">&#9888;&#65039;</span>
-                    <div>
-                        <h3 class="font-bold text-gray-800 mb-1">Setup Required</h3>
-                        <p class="text-gray-600 text-sm mb-4">Connect your Google Business Profile to start sending review requests to customers.</p>
-                        <a href="/onboarding" class="inline-flex items-center gap-1.5 px-5 py-2.5 bg-accent-500 text-white text-sm rounded-xl font-semibold hover:bg-accent-700 active:scale-95 transition-all duration-200">
-                            Connect Google Business
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
-                        </a>
-                    </div>
-                </div>
+        <!-- TRIAL COUNTDOWN BANNER -->
+        <div id="trialBanner" style="display:none; margin: -24px -24px 24px -24px;" class="bg-accent-50 border-b border-green-200 p-3 text-center">
+            <div class="flex items-center justify-center gap-3 flex-wrap">
+                <p class="text-gray-700 text-sm">
+                    <span class="font-semibold" id="trialBannerText">Free Trial: 14 days remaining</span>
+                    <span class="text-gray-500 ml-1" id="trialBannerSubtext"></span>
+                </p>
+                <button onclick="openBillingPortal(event)" class="text-accent-700 text-sm font-semibold underline hover:text-accent-400">Manage Billing</button>
             </div>
         </div>
+
+        <!-- TAB: HOME -->
+        <div id="tab-home" class="tab-content">
 
         <!-- HOME TAB CONTENT -->
             <!-- STATS CARDS -->
@@ -600,7 +559,6 @@
                     </a>
                 </div>
             </div>
-        </div>
         </div><!-- /tab-home -->
 
         <!-- TAB: CUSTOMERS -->
@@ -993,16 +951,28 @@
 
                 <!-- SECTION 2: GOOGLE BUSINESS PROFILE -->
                 <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
-                    <h2 class="text-lg font-bold text-gray-800 mb-4">Google Business Profile</h2>
+                    <div class="flex items-center gap-2 mb-4">
+                        <span class="text-lg">&#128279;</span>
+                        <h2 class="text-lg font-bold text-gray-800">Google Business Profile</h2>
+                    </div>
                     <div id="acctGoogleConnected" class="hidden">
-                        <p class="text-sm text-gray-500 mb-2">Your review link:</p>
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 mb-4">
-                            <span id="acctGoogleReviewUrl" class="text-sm text-gray-700 break-all"></span>
+                        <p class="text-sm text-gray-500 mb-3">Customers will be sent here after each visit:</p>
+                        <div class="bg-accent-50 border border-accent-100 rounded-xl px-4 py-3 mb-4">
+                            <span id="acctGoogleReviewUrl" class="text-sm text-accent-700 break-all"></span>
                         </div>
-                        <a href="/onboarding" class="inline-flex items-center gap-1.5 text-sm font-medium transition-colors" style="color: var(--revvie-primary);">
-                            Change Business
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"/></svg>
-                        </a>
+                        <div class="flex flex-wrap gap-3">
+                            <a id="acctGoogleTestLink" href="#" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 px-4 py-2 bg-accent-500 text-white text-sm rounded-lg font-semibold hover:bg-accent-700 active:scale-95 transition-all duration-200">
+                                Test Link
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+                            </a>
+                            <button onclick="copyReviewLink()" id="copyLinkBtn" class="inline-flex items-center gap-1.5 px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded-lg font-semibold hover:bg-gray-200 active:scale-95 transition-all duration-200">
+                                <span id="copyLinkText">Copy Link</span>
+                                <span id="copyLinkIcon">&#128203;</span>
+                            </button>
+                            <a href="/onboarding" class="inline-flex items-center gap-1.5 px-4 py-2 text-gray-500 text-sm rounded-lg font-semibold hover:bg-gray-100 transition-all duration-200">
+                                Change Business
+                            </a>
+                        </div>
                     </div>
                     <div id="acctGoogleNotConnected" class="hidden">
                         <p class="text-sm text-gray-500 mb-4">No Google Business Profile connected yet.</p>
@@ -1118,7 +1088,7 @@
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-500">Plan</span>
-                                    <span class="text-sm font-medium text-gray-800">Revvie &mdash; $79/month</span>
+                                    <span class="text-sm font-medium text-gray-800">*revvie &mdash; $79/month</span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-500">Time remaining</span>
@@ -1143,7 +1113,7 @@
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-500">Plan</span>
-                                    <span class="text-sm font-medium text-gray-800">Revvie &mdash; $79/month</span>
+                                    <span class="text-sm font-medium text-gray-800">*revvie &mdash; $79/month</span>
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-500">Next payment</span>
@@ -1167,7 +1137,7 @@
                                 </div>
                                 <div class="flex items-center justify-between">
                                     <span class="text-sm text-gray-500">Plan</span>
-                                    <span class="text-sm font-medium text-gray-800">Revvie &mdash; $79/month</span>
+                                    <span class="text-sm font-medium text-gray-800">*revvie &mdash; $79/month</span>
                                 </div>
                             </div>
                             <p class="text-sm text-red-600 mb-5">Your payment failed. Please update your payment method to keep your account active.</p>
@@ -1898,6 +1868,18 @@
         if (!token) window.location.href = 'login.html';
 
         // =====================================================
+        // HELPERS
+        // =====================================================
+        function getDaysRemaining(trialEndsAt) {
+            if (!trialEndsAt) return 0;
+            const now = new Date();
+            const end = new Date(trialEndsAt);
+            const diffMs = end - now;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            return Math.max(0, diffDays);
+        }
+
+        // =====================================================
         // NETWORK STATUS
         // =====================================================
         const offlineBanner = document.getElementById('offlineBanner');
@@ -1930,7 +1912,7 @@
                     const banner = document.getElementById('trialBanner');
                     const bannerText = document.getElementById('trialBannerText');
                     const bannerSubtext = document.getElementById('trialBannerSubtext');
-                    const days = billing.days_remaining_in_trial;
+                    const days = getDaysRemaining(billing.trial_ends_at);
 
                     bannerText.textContent = 'Free Trial: ' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
 
@@ -1949,7 +1931,7 @@
                 document.getElementById('billingContent').classList.remove('hidden');
 
                 if (billing.status === 'trialing') {
-                    const days = billing.days_remaining_in_trial;
+                    const days = getDaysRemaining(billing.trial_ends_at);
                     document.getElementById('billingTrialText').textContent =
                         days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
                     document.getElementById('billingTrialing').classList.remove('hidden');
@@ -2095,7 +2077,7 @@
             const badges = {
                 'sent': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Sent</span>',
                 'opened': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-100 text-blue-700"><span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>Opened</span>',
-                'clicked': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-100 text-teal-700">&#128070; Clicked</span>',
+                'clicked': '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style="background-color: #6FCF97; color: white;">Opened</span>',
                 'reviewed': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700"><span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>Reviewed</span>',
                 'failed': '<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-700"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>Failed</span>'
             };
@@ -2382,27 +2364,26 @@
                 showGoogleBusinessState(data.business);
             } catch (error) {
                 sidebarBusinessName.textContent = 'Dashboard';
-                document.getElementById('googleBusinessSkeleton').classList.add('hidden');
             }
         }
 
         function showGoogleBusinessState(business) {
-            const skeleton = document.getElementById('googleBusinessSkeleton');
-            const connected = document.getElementById('googleBusinessConnected');
-            const setup = document.getElementById('googleBusinessSetup');
-            skeleton.classList.add('hidden');
+            const loading = document.getElementById('acctGoogleLoading');
+            const connected = document.getElementById('acctGoogleConnected');
+            const notConnected = document.getElementById('acctGoogleNotConnected');
+            loading.classList.add('hidden');
 
             if (business?.google_place_id && business?.google_review_url) {
-                document.getElementById('googleReviewUrl').textContent = business.google_review_url;
-                document.getElementById('googleTestLink').href = business.google_review_url;
+                document.getElementById('acctGoogleReviewUrl').textContent = business.google_review_url;
+                document.getElementById('acctGoogleTestLink').href = business.google_review_url;
                 connected.classList.remove('hidden');
             } else {
-                setup.classList.remove('hidden');
+                notConnected.classList.remove('hidden');
             }
         }
 
         function copyReviewLink() {
-            const url = document.getElementById('googleReviewUrl').textContent;
+            const url = document.getElementById('acctGoogleReviewUrl').textContent;
             navigator.clipboard.writeText(url).then(() => {
                 const textEl = document.getElementById('copyLinkText');
                 const iconEl = document.getElementById('copyLinkIcon');
@@ -3904,18 +3885,7 @@
             document.getElementById('acctEmail').value = email;
             document.getElementById('acctPhone').value = business.phone || '';
 
-            // Google profile state
-            const googleLoading = document.getElementById('acctGoogleLoading');
-            const googleConnected = document.getElementById('acctGoogleConnected');
-            const googleNotConnected = document.getElementById('acctGoogleNotConnected');
-            googleLoading.classList.add('hidden');
-
-            if (business.google_place_id && business.google_review_url) {
-                document.getElementById('acctGoogleReviewUrl').textContent = business.google_review_url;
-                googleConnected.classList.remove('hidden');
-            } else {
-                googleNotConnected.classList.remove('hidden');
-            }
+            // Google profile state is handled by showGoogleBusinessState()
         }
 
         async function saveProfileField(field, inputId, btn) {

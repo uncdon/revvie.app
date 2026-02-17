@@ -227,20 +227,44 @@
             submitBtn.disabled = false;
         }
 
-        // If user is already logged in, redirect appropriately
-        if (localStorage.getItem('token')) {
-            const biz = JSON.parse(localStorage.getItem('business') || '{}');
-            if (!biz.google_place_id) {
-                window.location.href = '/onboarding';
-            } else {
-                const subStatus = biz.subscription_status || 'none';
-                if (subStatus === 'none' || subStatus === 'canceled' || subStatus === 'unpaid') {
-                    window.location.href = '/subscribe';
-                } else {
-                    window.location.href = '/dashboard';
+        // If user has an existing token, verify it before redirecting
+        (async function checkExistingSession() {
+            const token = localStorage.getItem('token');
+            if (!token) return;
+
+            try {
+                const res = await fetch(`${API_URL}/auth/me`, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+
+                if (!res.ok) {
+                    // Token is invalid/expired — clear stale session data
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('business');
+                    return;
                 }
+
+                // Token is valid — redirect based on business state
+                const data = await res.json();
+                const biz = data.business || {};
+                if (!biz.google_place_id) {
+                    window.location.href = '/onboarding';
+                } else {
+                    const subStatus = biz.subscription_status || 'none';
+                    if (subStatus === 'none' || subStatus === 'canceled' || subStatus === 'unpaid') {
+                        window.location.href = '/subscribe';
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
+                }
+            } catch (e) {
+                // Network error — don't redirect, let user log in fresh
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('business');
             }
-        }
+        })();
     </script>
 </body>
 </html>

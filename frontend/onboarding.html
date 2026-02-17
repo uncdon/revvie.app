@@ -7,12 +7,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Young+Serif&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
+                        primary: {
+                            500: '#07B5F5',
+                            600: '#0599D1',
+                            700: '#0080B3',
+                        },
                         accent: {
                             50: '#f0fdf4',
                             100: '#dcfce7',
@@ -31,6 +36,14 @@
         }
     </script>
     <style>
+        .logo-text {
+            font-family: 'Young Serif', serif;
+            color: #07B5F5;
+        }
+        .logo-text .logo-asterisk {
+            font-weight: 300;
+            opacity: 0.8;
+        }
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(12px); }
             to { opacity: 1; transform: translateY(0); }
@@ -57,14 +70,14 @@
     <div class="min-h-screen flex flex-col items-center justify-start pt-8 sm:pt-16 px-4 pb-12">
 
         <!-- Logo -->
-        <h1 class="text-3xl font-bold text-accent-500 font-display mb-8">*revvie</h1>
+        <h1 class="logo-text text-3xl mb-8"><span class="logo-asterisk">*</span>revvie</h1>
 
         <!-- Progress Bar -->
         <div class="flex items-center gap-0 mb-8 select-none" id="progressBar">
             <!-- Step 1 -->
             <div class="flex flex-col items-center">
-                <div id="dot1" class="w-9 h-9 rounded-full bg-accent-500 text-white flex items-center justify-center text-sm font-bold shadow-md">1</div>
-                <span class="text-xs mt-1.5 font-semibold text-accent-700">Find</span>
+                <div id="dot1" class="w-9 h-9 rounded-full bg-primary-500 text-white flex items-center justify-center text-sm font-bold shadow-md">1</div>
+                <span class="text-xs mt-1.5 font-semibold text-primary-600">Find</span>
             </div>
             <div id="line1" class="w-12 sm:w-20 h-0.5 bg-gray-300 mx-1 transition-colors duration-500"></div>
             <!-- Step 2 -->
@@ -81,16 +94,14 @@
         </div>
 
         <!-- Card Container -->
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg relative overflow-hidden">
-            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-500 to-accent-700"></div>
+        <div class="bg-white rounded-2xl shadow-lg w-full max-w-[480px] relative overflow-hidden">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 to-primary-600"></div>
 
             <!-- ===================== STEP 1 ===================== -->
             <div id="step1" class="p-6 sm:p-8">
                 <div class="text-center mb-6">
-                    <span class="text-3xl mb-2 block">&#127881;</span>
-                    <h2 class="text-2xl font-bold text-gray-800">Welcome to Revvie!</h2>
-                    <p class="text-gray-500 mt-2">Let's find your business on Google.</p>
-                    <p class="text-gray-400 text-sm mt-1">This lets us send your customers directly to your Google review page.</p>
+                    <h2 class="text-2xl font-bold text-gray-800">Welcome! Let's find your business.</h2>
+                    <p class="text-gray-400 text-sm mt-2">This lets us send your customers directly to your Google review page.</p>
                 </div>
 
                 <!-- Search -->
@@ -102,12 +113,12 @@
                         type="text"
                         id="searchInput"
                         placeholder='e.g. "Bella Hair Salon Las Vegas"'
-                        class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400 text-sm"
+                        class="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400 text-sm"
                     >
                     <button
                         id="searchBtn"
                         onclick="doSearch()"
-                        class="px-5 py-3 bg-accent-500 text-white rounded-xl font-semibold hover:bg-accent-700 active:scale-95 transition-all duration-200 text-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
+                        class="px-5 py-3 bg-primary-500 text-white rounded-xl font-semibold hover:bg-primary-600 active:scale-95 transition-all duration-200 text-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2"
                     >
                         <span id="searchBtnText">Search</span>
                         <svg id="searchSpinner" class="hidden spinner h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
@@ -133,7 +144,7 @@
 
                 <!-- Help -->
                 <div class="mt-6 border-t border-gray-100 pt-4">
-                    <button onclick="toggleHelp()" class="text-sm text-gray-500 hover:text-accent-600 transition-colors flex items-center gap-1">
+                    <button onclick="toggleHelp()" class="text-sm text-gray-500 hover:text-primary-500 transition-colors flex items-center gap-1">
                         Can't find your business?
                         <svg id="helpChevron" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
@@ -151,7 +162,7 @@
             <div id="step2" class="p-6 sm:p-8 hidden">
                 <div class="text-center mb-6">
                     <span class="text-3xl mb-2 block">&#9989;</span>
-                    <h2 class="text-2xl font-bold text-gray-800">Found It!</h2>
+                    <h2 class="text-2xl font-bold text-gray-800">Is this your business?</h2>
                 </div>
 
                 <!-- Selected business card -->
@@ -168,9 +179,9 @@
 
                 <p class="text-gray-500 text-sm mb-3">Your customers will be sent here to leave a review:</p>
 
-                <div class="bg-accent-50 border border-accent-100 rounded-xl px-4 py-3 mb-4 flex items-center gap-2">
-                    <span class="text-accent-600">&#128279;</span>
-                    <span id="reviewUrlPreview" class="text-sm text-accent-700 truncate"></span>
+                <div class="bg-primary-500/5 border border-primary-500/20 rounded-xl px-4 py-3 mb-4 flex items-center gap-2">
+                    <span class="text-primary-500">&#128279;</span>
+                    <span id="reviewUrlPreview" class="text-sm text-primary-600 truncate"></span>
                 </div>
 
                 <a
@@ -178,7 +189,7 @@
                     href="#"
                     target="_blank"
                     rel="noopener"
-                    class="inline-flex items-center gap-1 text-sm text-accent-600 hover:text-accent-700 font-semibold mb-6"
+                    class="inline-flex items-center gap-1 text-sm text-primary-500 hover:text-primary-600 font-semibold mb-6"
                 >
                     Test Your Review Link
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
@@ -188,10 +199,10 @@
                 <button
                     id="confirmBtn"
                     onclick="confirmSelection()"
-                    class="w-full bg-accent-500 text-white py-3.5 rounded-xl font-semibold hover:bg-accent-700 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                    class="w-full bg-primary-500 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-600 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                    <span id="confirmBtnText">This looks right! Continue</span>
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+                    <span id="confirmBtnText">Yes, that's me!</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                     <svg id="confirmSpinner" class="hidden spinner h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -206,7 +217,7 @@
                     onclick="goBackToSearch()"
                     class="w-full mt-3 text-sm text-gray-500 hover:text-gray-700 py-2 transition-colors"
                 >
-                    &larr; That's not my business, search again
+                    &larr; Search again
                 </button>
             </div>
 
@@ -215,7 +226,7 @@
                 <div class="text-center mb-6">
                     <span class="text-4xl mb-2 block">&#127881;</span>
                     <h2 class="text-2xl font-bold text-gray-800">You're all set!</h2>
-                    <p class="text-gray-500 mt-2">Revvie will automatically send your customers review requests after every visit.</p>
+                    <p class="text-gray-500 mt-2">Your Google review link is connected. Customers will be sent here automatically after each visit.</p>
                 </div>
 
                 <div class="bg-gray-50 border border-gray-200 rounded-xl p-5 mb-6">
@@ -242,7 +253,7 @@
 
                 <a
                     href="/dashboard"
-                    class="block w-full bg-accent-500 text-white py-3.5 rounded-xl font-semibold hover:bg-accent-700 active:scale-[0.98] transition-all duration-200 text-center"
+                    class="block w-full bg-primary-500 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-600 active:scale-[0.98] transition-all duration-200 text-center"
                 >
                     Go to Dashboard &rarr;
                 </a>
@@ -317,27 +328,22 @@
             const label2 = document.getElementById('label2');
             const label3 = document.getElementById('label3');
 
-            // Reset
-            [dot1, dot2, dot3].forEach(d => {
-                d.className = d.className.replace(/bg-accent-500|bg-gray-300|text-white|text-gray-500|shadow-md/g, '').trim();
-            });
-
             const active = 'w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-500';
-            const on = `${active} bg-accent-500 text-white shadow-md`;
+            const on = `${active} bg-primary-500 text-white shadow-md`;
             const off = `${active} bg-gray-300 text-gray-500`;
 
             dot1.className = step >= 1 ? on : off;
             dot2.className = step >= 2 ? on : off;
             dot3.className = step >= 3 ? on : off;
 
-            line1.classList.toggle('bg-accent-500', step >= 2);
+            line1.classList.toggle('bg-primary-500', step >= 2);
             line1.classList.toggle('bg-gray-300', step < 2);
-            line2.classList.toggle('bg-accent-500', step >= 3);
+            line2.classList.toggle('bg-primary-500', step >= 3);
             line2.classList.toggle('bg-gray-300', step < 3);
 
-            label2.classList.toggle('text-accent-700', step >= 2);
+            label2.classList.toggle('text-primary-600', step >= 2);
             label2.classList.toggle('text-gray-400', step < 2);
-            label3.classList.toggle('text-accent-700', step >= 3);
+            label3.classList.toggle('text-primary-600', step >= 3);
             label3.classList.toggle('text-gray-400', step < 3);
         }
 
@@ -395,7 +401,7 @@
                 const reviews = r.total_ratings ? `(${r.total_ratings} reviews)` : '';
 
                 const card = document.createElement('div');
-                card.className = 'flex items-start gap-3 p-4 border border-gray-200 rounded-xl hover:border-accent-400 hover:bg-accent-50/30 transition-all duration-200 fade-in';
+                card.className = 'flex items-start gap-3 p-4 border border-gray-200 rounded-xl hover:border-primary-500/40 hover:bg-primary-500/5 transition-all duration-200 fade-in';
                 card.style.animationDelay = `${i * 0.07}s`;
                 card.innerHTML = `
                     <span class="text-lg mt-0.5">&#128205;</span>
@@ -406,7 +412,7 @@
                     </div>
                     <button
                         onclick='selectBusiness(${JSON.stringify(r).replace(/'/g, "\\'")})'
-                        class="flex-shrink-0 px-4 py-2 bg-accent-500 text-white text-sm rounded-lg font-semibold hover:bg-accent-700 active:scale-95 transition-all duration-200"
+                        class="flex-shrink-0 px-4 py-2 bg-primary-500 text-white text-sm rounded-lg font-semibold hover:bg-primary-600 active:scale-95 transition-all duration-200"
                     >Select</button>
                 `;
                 list.appendChild(card);
@@ -471,7 +477,7 @@
                 errEl.classList.remove('hidden');
             } finally {
                 btn.disabled = false;
-                btnText.textContent = 'This looks right! Continue';
+                btnText.textContent = 'Yes, that\'s me!';
                 spinner.classList.add('hidden');
             }
         }
