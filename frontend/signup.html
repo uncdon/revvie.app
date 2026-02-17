@@ -8,11 +8,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Young+Serif&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
+                        primary: {
+                            500: '#07B5F5',
+                            600: '#07B5F5',
+                            700: '#0599D1',
+                        },
                         accent: {
                             500: '#6FCF97',
                             600: '#6FCF97',
@@ -28,6 +34,42 @@
         }
     </script>
     <style>
+        /* Revvie brand variables */
+        :root {
+            --revvie-primary: #07B5F5;
+            --revvie-accent: #6FCF97;
+            --revvie-primary-hover: #0599D1;
+            --revvie-accent-hover: #5BB882;
+            --bg-page: #f8f8f8;
+            --bg-card: #FFFFFF;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --border-color: #E5E7EB;
+        }
+        .logo-text {
+            font-family: 'Young Serif', serif;
+            color: var(--revvie-primary);
+        }
+        .btn-primary {
+            background-color: var(--revvie-primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: var(--revvie-primary-hover);
+        }
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
             25% { transform: translateX(-5px); }
@@ -48,11 +90,11 @@
     <!-- Main container -->
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative overflow-hidden">
         <!-- Decorative gradient -->
-        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-accent-500 to-accent-600"></div>
+        <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary-500 to-accent-500"></div>
 
         <!-- Logo/Brand -->
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-accent-500 font-display">*revvie</h1>
+            <h1 class="text-3xl font-bold text-primary-500" style="font-family: 'Young Serif', serif;">*revvie</h1>
             <p class="text-gray-500 mt-2">Review Automation Made Simple</p>
         </div>
 
@@ -73,7 +115,7 @@
                     name="businessName"
                     required
                     placeholder="Joe's Coffee Shop"
-                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
                 >
             </div>
 
@@ -88,7 +130,7 @@
                     name="email"
                     required
                     placeholder="you@business.com"
-                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
                 >
                 <p id="emailError" class="hidden text-red-500 text-sm mt-1.5 flex items-center gap-1">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
@@ -108,7 +150,7 @@
                     required
                     minlength="6"
                     placeholder="At least 6 characters"
-                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-accent-500 focus:border-accent-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
+                    class="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:bg-white outline-none transition-all duration-200 placeholder-gray-400"
                 >
                 <p id="passwordHint" class="text-xs text-gray-400 mt-1.5">Minimum 6 characters</p>
             </div>
@@ -125,7 +167,7 @@
             <button
                 type="submit"
                 id="submitBtn"
-                class="w-full bg-accent-600 text-white py-3.5 rounded-xl font-semibold hover:bg-accent-700 hover:shadow-lg hover:shadow-accent-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
+                class="w-full bg-primary-600 text-white py-3.5 rounded-xl font-semibold hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-500/25 active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:shadow-none"
             >
                 <span id="btnText">Create Account</span>
                 <svg id="btnSpinner" class="hidden animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -138,7 +180,7 @@
         <!-- Link to Login -->
         <p class="text-center mt-6 text-gray-600">
             Already have an account?
-            <a href="login.html" class="text-accent-600 font-semibold hover:underline">
+            <a href="login.html" class="text-primary-600 font-semibold hover:underline">
                 Log in
             </a>
         </p>
@@ -161,10 +203,10 @@
                 if (banner) {
                     banner.classList.remove('hidden');
                     banner.innerHTML = `
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 text-center">
-                            <p class="text-blue-800 font-medium">
-                                🎉 You've been invited! Sign up and get
-                                <strong>$40 credit</strong> on your account.
+                        <div class="rounded-xl p-4 mb-6 text-center" style="background-color: #EBF8FF; border: 1px solid #07B5F5;">
+                            <p class="text-gray-700 font-medium">
+                                You've been invited! Sign up and get
+                                <strong style="color: #07B5F5;">$40 credit</strong> on your account.
                             </p>
                         </div>
                     `;

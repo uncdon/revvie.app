@@ -8,11 +8,17 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Young+Serif&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     colors: {
+                        primary: {
+                            500: '#07B5F5',
+                            600: '#07B5F5',
+                            700: '#0599D1',
+                        },
                         accent: {
                             500: '#6FCF97',
                             600: '#6FCF97',
@@ -27,17 +33,61 @@
             }
         }
     </script>
+    <style>
+        /* Revvie brand variables */
+        :root {
+            --revvie-primary: #07B5F5;
+            --revvie-accent: #6FCF97;
+            --revvie-primary-hover: #0599D1;
+            --revvie-accent-hover: #5BB882;
+            --bg-page: #f8f8f8;
+            --bg-card: #FFFFFF;
+            --text-primary: #1F2937;
+            --text-secondary: #6B7280;
+            --border-color: #E5E7EB;
+        }
+        .logo-text {
+            font-family: 'Young Serif', serif;
+            color: var(--revvie-primary);
+        }
+        .btn-primary {
+            background-color: var(--revvie-primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .btn-primary:hover {
+            background-color: var(--revvie-primary-hover);
+        }
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
 </head>
 <body class="bg-page min-h-screen flex items-center justify-center p-4">
 
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
 
-        <!-- Success icon -->
-        <div class="text-6xl mb-6">🎉</div>
+        <!-- Logo -->
+        <h1 class="text-3xl font-bold text-primary-500 mb-6" style="font-family: 'Young Serif', serif;">*revvie</h1>
 
-        <h1 class="font-display text-2xl font-bold text-gray-900 mb-3">
+        <!-- Success icon -->
+        <div class="w-16 h-16 rounded-full bg-accent-500 text-white flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+            </svg>
+        </div>
+
+        <h2 class="font-display text-2xl font-bold text-gray-900 mb-3">
             Welcome to *revvie!
-        </h1>
+        </h2>
 
         <p class="text-gray-600 text-lg mb-2">
             Your 14-day free trial has started.
@@ -49,7 +99,7 @@
 
         <!-- Dashboard button -->
         <a href="/dashboard"
-           class="inline-block w-full bg-accent-500 hover:bg-accent-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200 text-lg">
+           class="inline-block w-full bg-primary-500 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200 text-lg">
             Go to Dashboard &rarr;
         </a>
     </div>
