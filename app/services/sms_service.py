@@ -58,6 +58,8 @@ import re
 import logging
 from dotenv import load_dotenv
 
+from app.services.supabase_service import supabase_admin
+
 # Load environment variables
 load_dotenv()
 
@@ -75,6 +77,9 @@ TELNYX_PHONE_NUMBER = os.environ.get('TELNYX_PHONE_NUMBER')
 
 # Optional: Messaging Profile ID (for advanced routing)
 TELNYX_MESSAGING_PROFILE_ID = os.environ.get('TELNYX_MESSAGING_PROFILE_ID')
+
+# Required TCPA opt-out footer — must appear in every review request SMS
+OPT_OUT_FOOTER = "\nReply STOP to opt out"
 
 # Initialize Telnyx client (v4.x uses client-based API)
 telnyx_configured = False
@@ -160,6 +165,34 @@ def truncate_message(message: str, max_length: int = 160) -> str:
 
     # Truncate and add ellipsis
     return message[:max_length - 3] + "..."
+
+
+def is_phone_opted_out(phone: str) -> bool:
+    """
+    Check if a phone number has opted out of SMS messages.
+
+    Args:
+        phone: Phone number in any format (will be normalised to E.164)
+
+    Returns:
+        True if the number is on the suppression list, False otherwise.
+        Defaults to False (allow send) on any lookup error.
+    """
+    is_valid, formatted = validate_phone_number(phone)
+    if not is_valid:
+        return False
+
+    try:
+        result = supabase_admin.table("sms_opt_outs") \
+            .select("id") \
+            .eq("phone_number", formatted) \
+            .is_("opted_in_at", "null") \
+            .limit(1) \
+            .execute()
+        return bool(result.data)
+    except Exception as e:
+        logger.error(f"Error checking opt-out status for {formatted}: {e}")
+        return False
 
 
 # ============================================================================
@@ -345,43 +378,55 @@ def send_review_request_sms(
     name = (customer_name or "there").split()[0]  # First name only
     business = business_name or "us"
 
-    # Build the message - keep it SHORT!
-    # Target: under 160 characters to stay in 1 SMS segment
-    #
-    # We have multiple message templates, try shortest first
-    # that still fits the URL
+    # Check suppression list before building/sending
+    if is_phone_opted_out(customer_phone):
+        logger.info(f"SMS blocked for {customer_phone}: number is on opt-out suppression list")
+        return {
+            'success': False,
+            'message_id': None,
+            'status': 'opted_out',
+            'error': 'Phone number has opted out of SMS messages'
+        }
 
-    # Calculate available space for the URL
-    # Template without URL: "Hi {name}! Thanks for visiting {business}. We'd love your feedback: "
-    # That's roughly 60-80 chars depending on names
+    # Build the message.
+    # The STOP footer is legally required (TCPA) and must appear in every SMS.
+    # This means messages will typically span 2 SMS segments — that is expected.
+    # Template selection still picks the most descriptive variant that fits
+    # within 320 chars (2 segments).
+    MAX_LENGTH = 320
 
     # Short template (preferred - more personal)
-    short_template = f"Hi {name}! Thanks for visiting {business}. We'd love your feedback: {review_url}"
+    short_template = (
+        f"Hi {name}! Thanks for visiting {business}. We'd love your feedback: {review_url}"
+        f"{OPT_OUT_FOOTER}"
+    )
 
-    # Medium template (if short is too long somehow)
-    medium_template = f"Thanks for visiting {business}! Leave us a review: {review_url}"
+    # Medium template (if short is too long)
+    medium_template = (
+        f"Thanks for visiting {business}! Leave us a review: {review_url}"
+        f"{OPT_OUT_FOOTER}"
+    )
 
     # Minimal template (last resort)
-    minimal_template = f"Review {business}: {review_url}"
+    minimal_template = f"Review {business}: {review_url}{OPT_OUT_FOOTER}"
 
-    # Pick the best template that fits in 160 chars
-    if len(short_template) <= 160:
+    # Pick the best template that fits within MAX_LENGTH
+    if len(short_template) <= MAX_LENGTH:
         message = short_template
-    elif len(medium_template) <= 160:
+    elif len(medium_template) <= MAX_LENGTH:
         message = medium_template
         logger.info(f"Using medium template for {customer_phone} (short was {len(short_template)} chars)")
-    elif len(minimal_template) <= 160:
+    elif len(minimal_template) <= MAX_LENGTH:
         message = minimal_template
         logger.warning(f"Using minimal template for {customer_phone} - review URL is very long")
     else:
-        # URL is too long even for minimal template
-        # This shouldn't happen with proper Google review URLs
+        # URL is too long even for minimal template + footer
         logger.error(f"Review URL too long ({len(review_url)} chars): {review_url[:50]}...")
         return {
             'success': False,
             'message_id': None,
             'status': 'error',
-            'error': f'Review URL is too long ({len(review_url)} chars). Max ~100 chars.'
+            'error': f'Review URL is too long ({len(review_url)} chars). Max ~270 chars.'
         }
 
     logger.info(f"Sending review request SMS to {customer_phone} for {business} ({len(message)} chars)")

@@ -52,7 +52,7 @@ from datetime import datetime, timezone
 from flask import Blueprint, request, jsonify
 from dotenv import load_dotenv
 
-from app.services.supabase_service import supabase
+from app.services.supabase_service import supabase, supabase_admin
 
 # Load environment variables
 load_dotenv()
@@ -75,6 +75,10 @@ STATUS_MAP = {
     'message.failed': 'failed',
     'message.finalized': None,  # Keep existing status, just log it
 }
+
+# SMS opt-out keywords (TCPA / CTIA standard)
+STOP_KEYWORDS = {'stop', 'unsubscribe', 'cancel', 'end', 'quit'}
+START_KEYWORDS = {'start', 'yes', 'unstop'}
 
 
 def verify_telnyx_signature(payload: bytes, signature: str, timestamp: str) -> bool:
@@ -200,6 +204,123 @@ def handle_telnyx_webhook():
         return jsonify({"status": "ok", "error": str(e)}), 200
 
 
+def handle_inbound_sms(payload: dict) -> dict:
+    """
+    Handle an inbound SMS reply from a customer.
+
+    Checks for STOP/START opt-out keywords and updates the sms_opt_outs
+    suppression table. Sends a confirmation reply via Telnyx.
+
+    Requires a `sms_opt_outs` table in Supabase:
+        CREATE TABLE sms_opt_outs (
+            id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+            phone_number text NOT NULL,
+            opted_out_at timestamptz,
+            opted_in_at  timestamptz
+        );
+        CREATE INDEX ON sms_opt_outs (phone_number);
+
+    Args:
+        payload: Telnyx message payload dict from the webhook.
+
+    Returns:
+        Dict describing what action was taken.
+    """
+    from_info = payload.get('from', {})
+    to_list = payload.get('to', [{}])
+    sender_phone = from_info.get('phone_number', '')
+    our_phone = to_list[0].get('phone_number', '') if to_list else ''
+    text = (payload.get('text') or '').strip().lower()
+
+    if not sender_phone or not text:
+        logger.warning("Inbound SMS missing sender phone or text — ignoring")
+        return {"processed": False, "reason": "Missing sender or text"}
+
+    logger.info(f"Inbound SMS from {sender_phone[:6]}***: '{text}'")
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    if text in STOP_KEYWORDS:
+        # Add to suppression list
+        try:
+            # Upsert: insert or clear the opted_in_at timestamp
+            supabase_admin.table("sms_opt_outs").upsert(
+                {
+                    "phone_number": sender_phone,
+                    "opted_out_at": now,
+                    "opted_in_at": None,
+                },
+                on_conflict="phone_number"
+            ).execute()
+            logger.info(f"Opt-out recorded for {sender_phone[:6]}***")
+        except Exception as e:
+            logger.error(f"Failed to record opt-out for {sender_phone}: {e}")
+
+        # Look up the most recent business name so the reply is personalised
+        business_name = _lookup_recent_business_name(sender_phone)
+        if business_name:
+            reply = (
+                f"You've been unsubscribed from {business_name} review requests. "
+                "Reply START to resubscribe."
+            )
+        else:
+            reply = "You've been unsubscribed from review request messages. Reply START to resubscribe."
+
+        _send_reply(our_phone, sender_phone, reply)
+        return {"processed": True, "action": "opted_out", "phone": sender_phone}
+
+    if text in START_KEYWORDS:
+        # Remove from suppression list by setting opted_in_at
+        try:
+            supabase_admin.table("sms_opt_outs").upsert(
+                {
+                    "phone_number": sender_phone,
+                    "opted_in_at": now,
+                },
+                on_conflict="phone_number"
+            ).execute()
+            logger.info(f"Opt-in recorded for {sender_phone[:6]}***")
+        except Exception as e:
+            logger.error(f"Failed to record opt-in for {sender_phone}: {e}")
+
+        _send_reply(our_phone, sender_phone, "You've been resubscribed to review request messages.")
+        return {"processed": True, "action": "opted_in", "phone": sender_phone}
+
+    # Unrecognised reply — log and ignore
+    logger.info(f"Inbound SMS from {sender_phone[:6]}*** not a keyword: '{text[:20]}'")
+    return {"processed": True, "action": "ignored", "reason": "Not an opt-out keyword"}
+
+
+def _lookup_recent_business_name(phone: str) -> str | None:
+    """Return the business name from the most recent review request sent to this phone."""
+    try:
+        result = supabase_admin.table("review_requests") \
+            .select("businesses(name)") \
+            .eq("customer_phone", phone) \
+            .order("sent_at", desc=True) \
+            .limit(1) \
+            .execute()
+        if result.data:
+            biz = result.data[0].get("businesses") or {}
+            return biz.get("name")
+    except Exception as e:
+        logger.error(f"Error looking up business name for {phone}: {e}")
+    return None
+
+
+def _send_reply(from_phone: str, to_phone: str, text: str) -> None:
+    """Send an SMS reply using the Telnyx client."""
+    try:
+        from app.services.sms_service import telnyx_client, telnyx_configured
+        if not telnyx_configured:
+            logger.warning("Cannot send opt-out reply — Telnyx not configured")
+            return
+        telnyx_client.messages.send(from_=from_phone, to=to_phone, text=text)
+        logger.info(f"Opt-out reply sent to {to_phone[:6]}***")
+    except Exception as e:
+        logger.error(f"Failed to send opt-out reply to {to_phone}: {e}")
+
+
 def process_telnyx_event(
     event_type: str,
     event_id: str,
@@ -220,6 +341,10 @@ def process_telnyx_event(
     Returns:
         Dict with processing result
     """
+    # Inbound replies (customer texting back) — handle before outbound status logic
+    if event_type == 'message.received':
+        return handle_inbound_sms(payload)
+
     if not message_id:
         logger.warning(f"Telnyx webhook missing message_id: event_type={event_type}")
         return {"processed": False, "reason": "No message_id"}
@@ -406,7 +531,8 @@ def test_telnyx_webhook():
 #    - Select your Messaging Profile (or create one)
 #    - Under "Inbound Settings" or "Webhooks", add:
 #      URL: https://your-domain.com/webhooks/telnyx
-#    - Enable outbound webhook events:
+#    - Enable webhook events:
+#      * message.received  (inbound replies — required for STOP handling)
 #      * message.sent
 #      * message.delivered
 #      * message.failed
