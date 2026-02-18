@@ -35,9 +35,21 @@
         :root {
             --revvie-primary: #07B5F5;
             --revvie-accent: #6FCF97;
+            --bg-page: #f8f8f8;
         }
         .logo-text { font-family: 'Young Serif', serif; color: var(--revvie-primary); }
         .logo-asterisk { color: var(--revvie-accent); }
+        .stat-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .stat-card:hover {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.08);
+            transition: box-shadow 0.2s;
+        }
     </style>
 </head>
 <body class="bg-page min-h-screen font-display">
@@ -70,29 +82,159 @@
         <!-- Main admin content -->
         <div id="adminContent" class="hidden space-y-8">
 
-            <!-- Page title -->
+            <!-- Analytics loading skeleton -->
+            <div id="analyticsLoading" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="stat-card animate-pulse"><div class="h-4 bg-gray-200 rounded w-20 mb-3"></div><div class="h-8 bg-gray-200 rounded w-16"></div></div>
+                    <div class="stat-card animate-pulse"><div class="h-4 bg-gray-200 rounded w-20 mb-3"></div><div class="h-8 bg-gray-200 rounded w-16"></div></div>
+                    <div class="stat-card animate-pulse"><div class="h-4 bg-gray-200 rounded w-20 mb-3"></div><div class="h-8 bg-gray-200 rounded w-16"></div></div>
+                    <div class="stat-card animate-pulse"><div class="h-4 bg-gray-200 rounded w-20 mb-3"></div><div class="h-8 bg-gray-200 rounded w-16"></div></div>
+                </div>
+            </div>
+
+            <!-- Analytics content (hidden until loaded) -->
+            <div id="analyticsContent" class="hidden space-y-8">
+
+                <!-- Overview Stats -->
+                <div>
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">Overview</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="stat-card">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Total Users</p>
+                            <p id="stat-total-users" class="text-3xl font-bold text-gray-800">--</p>
+                            <p class="text-xs text-gray-400 mt-1">All time</p>
+                        </div>
+                        <div class="stat-card">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Free Trial</p>
+                            <p id="stat-trial-users" class="text-3xl font-bold" style="color: #F59E0B;">--</p>
+                            <p class="text-xs text-gray-400 mt-1">Active trials</p>
+                        </div>
+                        <div class="stat-card">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Paid Users</p>
+                            <p id="stat-paid-users" class="text-3xl font-bold" style="color: var(--revvie-accent);">--</p>
+                            <p class="text-xs text-gray-400 mt-1">Active subscriptions</p>
+                        </div>
+                        <div class="stat-card">
+                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">MRR</p>
+                            <p id="stat-mrr" class="text-3xl font-bold" style="color: var(--revvie-primary);">--</p>
+                            <p class="text-xs text-gray-400 mt-1">Monthly Recurring Revenue</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Growth & Revenue -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div class="stat-card">
+                        <h3 class="text-sm font-bold text-gray-800 mb-4">Growth Metrics</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">New signups this month</span>
+                                <strong id="growth-signups-month" class="text-sm text-gray-800">--</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Trial &rarr; Paid conversion</span>
+                                <strong id="growth-conversion" class="text-sm text-gray-800">--</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Churn rate</span>
+                                <strong id="growth-churn" class="text-sm text-gray-800">--</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Average LTV</span>
+                                <strong id="growth-ltv" class="text-sm text-gray-800">--</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <h3 class="text-sm font-bold text-gray-800 mb-4">Revenue</h3>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">MRR</span>
+                                <strong id="revenue-mrr" class="text-sm text-gray-800">--</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">ARR</span>
+                                <strong id="revenue-arr" class="text-sm text-gray-800">--</strong>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-sm text-gray-500">Revenue this month</span>
+                                <strong id="revenue-month" class="text-sm text-gray-800">--</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alerts -->
+                <div id="alerts-section" class="hidden">
+                    <div id="alerts-container" class="space-y-2"></div>
+                </div>
+
+                <!-- Recent Signups -->
+                <div class="stat-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-800">Recent Signups</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                                    <th class="text-left pb-2">Business</th>
+                                    <th class="text-left pb-2">Email</th>
+                                    <th class="text-left pb-2">Status</th>
+                                    <th class="text-left pb-2">Joined</th>
+                                    <th class="text-left pb-2">Trial Ends</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-signups-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Recent Payments -->
+                <div class="stat-card">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-sm font-bold text-gray-800">Recent Payments</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-xs font-semibold text-gray-500 uppercase tracking-wide border-b border-gray-100">
+                                    <th class="text-left pb-2">Business</th>
+                                    <th class="text-left pb-2">Amount</th>
+                                    <th class="text-left pb-2">Description</th>
+                                    <th class="text-left pb-2">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-payments-table"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div><!-- /analyticsContent -->
+
+            <!-- Referral Management -->
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Referral Management</h2>
-                <p class="text-sm text-gray-500 mt-1">View and manage all referrals across businesses.</p>
+                <h2 class="text-lg font-bold text-gray-800 mb-4">Referral Management</h2>
+                <p class="text-sm text-gray-500 mb-4">View and manage all referrals across businesses.</p>
             </div>
 
             <!-- Summary cards -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                <div class="stat-card text-center">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Total</p>
-                    <p id="summaryTotal" class="text-2xl font-bold text-gray-800">—</p>
+                    <p id="summaryTotal" class="text-2xl font-bold text-gray-800">--</p>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                <div class="stat-card text-center">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Pending</p>
-                    <p id="summaryPending" class="text-2xl font-bold" style="color: #92400E;">—</p>
+                    <p id="summaryPending" class="text-2xl font-bold" style="color: #92400E;">--</p>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                <div class="stat-card text-center">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Completed</p>
-                    <p id="summaryCompleted" class="text-2xl font-bold" style="color: #065F46;">—</p>
+                    <p id="summaryCompleted" class="text-2xl font-bold" style="color: #065F46;">--</p>
                 </div>
-                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-5 text-center">
+                <div class="stat-card text-center">
                     <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Credits Issued</p>
-                    <p id="summaryCredits" class="text-2xl font-bold" style="color: var(--revvie-primary);">—</p>
+                    <p id="summaryCredits" class="text-2xl font-bold" style="color: var(--revvie-primary);">--</p>
                 </div>
             </div>
 
@@ -155,7 +297,7 @@
         const API_URL = `${API_BASE_URL}/api`;
         const token = localStorage.getItem('token');
 
-        // Auth check
+        // Auth check & load data
         (async function init() {
             if (!token) {
                 document.getElementById('authGate').classList.remove('hidden');
@@ -163,7 +305,8 @@
             }
 
             try {
-                const resp = await fetch(`${API_URL}/referrals/all`, {
+                // Use analytics endpoint to check admin access
+                const resp = await fetch(`${API_URL}/admin/analytics`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -177,15 +320,114 @@
                 }
 
                 document.getElementById('adminContent').classList.remove('hidden');
-                const data = await resp.json();
-                renderReferrals(data);
+
+                // Render analytics
+                const analytics = await resp.json();
+                renderAnalytics(analytics);
+
+                // Load referrals in parallel
+                loadAdminReferrals();
 
             } catch (err) {
                 console.error('Admin init failed:', err);
                 document.getElementById('adminContent').classList.remove('hidden');
+                document.getElementById('analyticsLoading').classList.add('hidden');
                 loadAdminReferrals();
             }
         })();
+
+        function renderAnalytics(data) {
+            document.getElementById('analyticsLoading').classList.add('hidden');
+            document.getElementById('analyticsContent').classList.remove('hidden');
+
+            // Overview
+            document.getElementById('stat-total-users').textContent = data.overview.total_users;
+            document.getElementById('stat-trial-users').textContent = data.overview.trial_users;
+            document.getElementById('stat-paid-users').textContent = data.overview.paid_users;
+            document.getElementById('stat-mrr').textContent = '$' + data.overview.mrr.toLocaleString();
+
+            // Growth
+            document.getElementById('growth-signups-month').textContent = data.growth.new_signups_this_month;
+            document.getElementById('growth-conversion').textContent = data.growth.trial_conversion_rate.toFixed(1) + '%';
+            document.getElementById('growth-churn').textContent = data.growth.churn_rate.toFixed(1) + '%';
+            document.getElementById('growth-ltv').textContent = data.growth.average_ltv ? ('$' + data.growth.average_ltv.toLocaleString()) : 'N/A';
+
+            // Revenue
+            document.getElementById('revenue-mrr').textContent = '$' + data.revenue.mrr.toLocaleString();
+            document.getElementById('revenue-arr').textContent = '$' + data.revenue.arr.toLocaleString();
+            document.getElementById('revenue-month').textContent = '$' + data.revenue.revenue_this_month.toLocaleString();
+
+            // Alerts
+            const alertsHtml = [];
+            if (data.alerts.trials_ending_soon > 0) {
+                alertsHtml.push(`
+                    <div class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        <strong>${data.alerts.trials_ending_soon}</strong> trial(s) ending in 3 days
+                    </div>
+                `);
+            }
+            if (data.alerts.failed_payments > 0) {
+                alertsHtml.push(`
+                    <div class="text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <strong>${data.alerts.failed_payments}</strong> failed/past-due payment(s)
+                    </div>
+                `);
+            }
+            if (alertsHtml.length > 0) {
+                document.getElementById('alerts-section').classList.remove('hidden');
+                document.getElementById('alerts-container').innerHTML = alertsHtml.join('');
+            }
+
+            // Recent signups
+            const signupsBody = document.getElementById('recent-signups-table');
+            if (data.recent_signups && data.recent_signups.length > 0) {
+                signupsBody.innerHTML = data.recent_signups.map(s => {
+                    const statusColors = {
+                        active: 'background-color: #ECFDF5; color: #065F46;',
+                        trialing: 'background-color: #EBF8FF; color: #1E40AF;',
+                        canceled: 'background-color: #FEF2F2; color: #991B1B;',
+                        past_due: 'background-color: #FFFBEB; color: #92400E;',
+                    };
+                    const style = statusColors[s.status] || 'background-color: #F3F4F6; color: #6B7280;';
+                    return `<tr class="border-b border-gray-50 hover:bg-gray-50">
+                        <td class="py-2.5 font-medium text-gray-800">${esc(s.business_name || 'N/A')}</td>
+                        <td class="py-2.5 text-gray-500">${esc(s.email)}</td>
+                        <td class="py-2.5">
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="${style}">${s.status}</span>
+                        </td>
+                        <td class="py-2.5 text-gray-500">${s.created_at ? new Date(s.created_at).toLocaleDateString() : '--'}</td>
+                        <td class="py-2.5 text-gray-500">${s.trial_ends_at ? new Date(s.trial_ends_at).toLocaleDateString() : '--'}</td>
+                    </tr>`;
+                }).join('');
+            } else {
+                signupsBody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-sm text-gray-400">No signups yet</td></tr>';
+            }
+
+            // Recent payments
+            const paymentsBody = document.getElementById('recent-payments-table');
+            if (data.recent_payments && data.recent_payments.length > 0) {
+                paymentsBody.innerHTML = data.recent_payments.map(p => `
+                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                        <td class="py-2.5 font-medium text-gray-800">${esc(p.business_name || 'N/A')}</td>
+                        <td class="py-2.5 font-semibold" style="color: var(--revvie-accent);">$${(p.amount || 0).toFixed(2)}</td>
+                        <td class="py-2.5 text-gray-500">${esc(p.description || '')}</td>
+                        <td class="py-2.5 text-gray-500">${p.created_at ? new Date(p.created_at).toLocaleDateString() : '--'}</td>
+                    </tr>
+                `).join('');
+            } else {
+                paymentsBody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-sm text-gray-400">No payments yet</td></tr>';
+            }
+        }
+
+        // Refresh analytics every 60 seconds
+        setInterval(async () => {
+            try {
+                const resp = await fetch(`${API_URL}/admin/analytics`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (resp.ok) renderAnalytics(await resp.json());
+            } catch (e) { /* silent */ }
+        }, 60000);
 
         async function loadAdminReferrals() {
             const loadingEl = document.getElementById('tableLoading');

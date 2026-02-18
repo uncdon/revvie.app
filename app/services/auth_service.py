@@ -174,3 +174,29 @@ def require_auth(f):
         return f(*args, **kwargs)
 
     return decorated_function
+
+
+def is_admin(business_or_email) -> bool:
+    """
+    Check if a business/email is an admin.
+
+    Args:
+        business_or_email: Either a business dict with 'email' key,
+                          or an email string
+
+    Returns:
+        bool: True if admin, False otherwise
+    """
+    import os
+
+    admin_email = os.getenv('ADMIN_EMAIL', 'daniel@revvie.app')
+
+    if business_or_email is None:
+        return False
+
+    if isinstance(business_or_email, dict):
+        email = business_or_email.get('email', '')
+    else:
+        email = str(business_or_email)
+
+    return email.lower() == admin_email.lower()
