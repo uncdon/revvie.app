@@ -18,6 +18,7 @@ from werkzeug.utils import secure_filename
 from app.services.auth_service import require_auth
 from app.services.supabase_service import supabase
 from app.services.csv_parser import parse_and_validate, preview_csv
+from app.services import duplicate_checker
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -216,6 +217,43 @@ def import_csv():
         logger.info(f"Parsed {len(customers_to_process)} valid customers from CSV")
 
         # =================================================================
+        # STEP 3.5: Filter out recently contacted customers
+        # =================================================================
+        business_id = request.business.get('id')
+        total_in_csv = len(customers_to_process)
+
+        check_result = duplicate_checker.check_bulk_duplicates(
+            business_id=business_id,
+            customers_list=customers_to_process
+        )
+
+        recently_contacted_count = check_result['duplicate_count']
+
+        if recently_contacted_count > 0:
+            # Build set of safe emails/phones to filter
+            safe_identifiers = set()
+            for safe in check_result['safe_to_send']:
+                if safe.get('email'):
+                    safe_identifiers.add(safe['email'].lower())
+                if safe.get('phone'):
+                    safe_identifiers.add(safe['phone'])
+
+            filtered = []
+            for c in customers_to_process:
+                email = c.get('email', '') or ''
+                phone = c.get('phone', '') or ''
+                if not email and not phone:
+                    filtered.append(c)  # No contact info = can't be a duplicate
+                elif email.lower() in safe_identifiers or phone in safe_identifiers:
+                    filtered.append(c)
+
+            logger.info(
+                f"CSV duplicate filter: {len(filtered)} safe to send, "
+                f"{recently_contacted_count} recently contacted (skipped)"
+            )
+            customers_to_process = filtered
+
+        # =================================================================
         # STEP 4: Get duplicate handling mode
         # =================================================================
 
@@ -228,8 +266,6 @@ def import_csv():
         # =================================================================
         # STEP 5: Check for existing customers
         # =================================================================
-
-        business_id = request.business.get('id')
 
         # Fetch existing customers for this business
         existing_result = supabase.table("customers") \
@@ -273,7 +309,7 @@ def import_csv():
 
             # Check for duplicate within this batch
             is_batch_duplicate = False
-            if email and email in batch_emails:
+            if email and email.lower() in batch_emails:
                 is_batch_duplicate = True
             if phone and phone in batch_phones:
                 is_batch_duplicate = True
@@ -288,7 +324,7 @@ def import_csv():
 
             # Track in batch
             if email:
-                batch_emails.add(email)
+                batch_emails.add(email.lower())
             if phone:
                 batch_phones.add(phone)
 
@@ -383,21 +419,33 @@ def import_csv():
         # STEP 7: Return results
         # =================================================================
 
-        logger.info(f"CSV import complete: {imported_count} imported, {updated_count} updated, {skipped_count} skipped")
+        logger.info(
+            f"CSV import complete: {imported_count} imported, {updated_count} updated, "
+            f"{skipped_count} skipped, {recently_contacted_count} recently contacted"
+        )
+
+        cooldown_days = duplicate_checker.get_cooldown_setting(business_id)
 
         return jsonify({
             "success": True,
-            "message": f"Successfully processed CSV file",
+            "message": (
+                f"Imported {imported_count} new customers"
+                + (f", skipped {recently_contacted_count} recently contacted"
+                   f" (within {cooldown_days} days)" if recently_contacted_count > 0 else "")
+            ),
             "imported": imported_count,
             "updated": updated_count,
             "skipped": skipped_count,
+            "recently_contacted": recently_contacted_count,
+            "total_in_csv": total_in_csv,
             "errors": import_errors,
             "customers": imported_customers,
             "summary": {
                 "total_rows": parse_result['summary']['total_rows'],
                 "valid_rows": parse_result['summary']['valid_rows'],
                 "invalid_rows": parse_result['summary']['invalid_rows'],
-                "skipped_rows": parse_result['summary']['skipped_rows'] + skipped_count
+                "skipped_rows": parse_result['summary']['skipped_rows'] + skipped_count,
+                "recently_contacted": recently_contacted_count,
             },
             "column_mapping": parse_result.get('column_mapping', {})
         }), 200

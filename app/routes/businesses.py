@@ -7,6 +7,8 @@ Endpoints:
 - GET  /api/business             - Get business details
 - PUT  /api/business             - Update business details
 - PUT  /api/business/profile     - Update individual profile fields
+- GET  /api/business/settings    - Get business settings (cooldown, etc.)
+- PUT  /api/business/settings    - Update business settings
 - PUT  /api/business/preferences - Update email notification preferences
 """
 
@@ -107,16 +109,26 @@ def update_profile():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        allowed_fields = ['business_name', 'email', 'phone']
+        allowed_fields = ['business_name', 'email', 'phone', 'review_request_cooldown_days']
         update_data = {k: v.strip() if isinstance(v, str) else v
                        for k, v in data.items() if k in allowed_fields}
+
+        # Validate cooldown value
+        if 'review_request_cooldown_days' in update_data:
+            try:
+                cooldown = int(update_data['review_request_cooldown_days'])
+                if cooldown < 0 or cooldown > 90:
+                    return jsonify({"error": "Cooldown days must be between 0 and 90"}), 400
+                update_data['review_request_cooldown_days'] = cooldown
+            except (ValueError, TypeError):
+                return jsonify({"error": "Cooldown days must be a number"}), 400
 
         if not update_data:
             return jsonify({"error": "No valid fields to update"}), 400
 
         # Validate non-empty values
         for key, val in update_data.items():
-            if not val and key != 'phone':  # phone can be cleared
+            if not val and key not in ('phone', 'review_request_cooldown_days'):  # phone can be cleared, cooldown can be 0
                 return jsonify({"error": f"{key} cannot be empty"}), 400
 
         business_id = request.user['id']
@@ -144,6 +156,95 @@ def update_profile():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@businesses_bp.route('/business/settings', methods=['GET'])
+@require_auth
+def get_settings():
+    """
+    Get current business settings.
+
+    Returns review_request_cooldown_days and basic business info.
+    """
+    try:
+        business_id = request.user['id']
+
+        result = supabase.table("businesses") \
+            .select("review_request_cooldown_days, business_name, email") \
+            .eq("id", business_id) \
+            .limit(1) \
+            .execute()
+
+        if not result.data:
+            return jsonify({"error": "Business not found"}), 404
+
+        biz = result.data[0]
+
+        return jsonify({
+            "review_request_cooldown_days": biz.get("review_request_cooldown_days") if biz.get("review_request_cooldown_days") is not None else 30,
+            "business_name": biz.get("business_name", ""),
+            "email": biz.get("email", ""),
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error fetching business settings: {e}")
+        return jsonify({"error": "Failed to load settings"}), 500
+
+
+@businesses_bp.route('/business/settings', methods=['PUT'])
+@require_auth
+def update_settings():
+    """
+    Update business settings.
+
+    Request body:
+    {
+        "review_request_cooldown_days": 30
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        update_data = {}
+
+        if "review_request_cooldown_days" in data:
+            try:
+                cooldown = int(data["review_request_cooldown_days"])
+            except (ValueError, TypeError):
+                return jsonify({"error": "Cooldown days must be a number"}), 400
+
+            if cooldown < 0 or cooldown > 90:
+                return jsonify({"error": "Cooldown days must be between 0 and 90"}), 400
+
+            update_data["review_request_cooldown_days"] = cooldown
+
+        if not update_data:
+            return jsonify({"error": "No valid settings to update"}), 400
+
+        business_id = request.user['id']
+
+        response = supabase.table("businesses") \
+            .update(update_data) \
+            .eq("id", business_id) \
+            .execute()
+
+        if not response.data:
+            return jsonify({"error": "Business not found"}), 404
+
+        cooldown_val = response.data[0].get("review_request_cooldown_days", 30)
+
+        return jsonify({
+            "success": True,
+            "cooldown_days": cooldown_val,
+            "message": "Settings updated successfully"
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error updating business settings: {e}")
+        return jsonify({"error": "Failed to save settings"}), 500
 
 
 @businesses_bp.route('/business/preferences', methods=['PUT'])

@@ -997,7 +997,59 @@
                     </div>
                 </div>
 
-                <!-- SECTION 3: CHANGE PASSWORD -->
+                <!-- SECTION 3: DUPLICATE PREVENTION -->
+                <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="text-lg">&#128737;</span>
+                        <h2 class="text-lg font-bold text-gray-800">Duplicate Prevention</h2>
+                    </div>
+                    <p class="text-sm text-gray-500 mb-4">Prevent sending multiple review requests to the same customer too close together.</p>
+
+                    <label class="block text-sm font-medium text-gray-700 mb-3">Don't contact the same customer more than once within:</label>
+
+                    <div id="cooldownOptions" class="space-y-2 mb-4">
+                        <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors cooldown-option">
+                            <input type="radio" name="cooldown" value="7" class="mr-3" style="accent-color: var(--revvie-primary);" onchange="handleCooldownChange()">
+                            <span class="font-medium text-sm">7 days</span>
+                            <span class="text-xs text-gray-500 ml-2">Weekly clients (nail salons)</span>
+                        </label>
+                        <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors cooldown-option">
+                            <input type="radio" name="cooldown" value="14" class="mr-3" style="accent-color: var(--revvie-primary);" onchange="handleCooldownChange()">
+                            <span class="font-medium text-sm">14 days</span>
+                            <span class="text-xs text-gray-500 ml-2">Bi-weekly clients</span>
+                        </label>
+                        <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors cooldown-option" id="cooldownDefault">
+                            <input type="radio" name="cooldown" value="30" class="mr-3" style="accent-color: var(--revvie-primary);" onchange="handleCooldownChange()" checked>
+                            <span class="font-medium text-sm">30 days</span>
+                            <span class="text-xs ml-2" style="color: var(--revvie-primary);">Monthly clients (recommended)</span>
+                        </label>
+                        <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors cooldown-option">
+                            <input type="radio" name="cooldown" value="60" class="mr-3" style="accent-color: var(--revvie-primary);" onchange="handleCooldownChange()">
+                            <span class="font-medium text-sm">60 days</span>
+                            <span class="text-xs text-gray-500 ml-2">Quarterly clients</span>
+                        </label>
+                        <label class="flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors cooldown-option">
+                            <input type="radio" name="cooldown" value="90" class="mr-3" style="accent-color: var(--revvie-primary);" onchange="handleCooldownChange()">
+                            <span class="font-medium text-sm">90 days</span>
+                            <span class="text-xs text-gray-500 ml-2">Seasonal clients (dental, medical)</span>
+                        </label>
+                        <label class="flex items-center p-3 border border-amber-200 bg-amber-50 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors cooldown-option">
+                            <input type="radio" name="cooldown" value="0" class="mr-3" style="accent-color: #F59E0B;" onchange="handleCooldownChange()">
+                            <span class="font-medium text-sm text-amber-900">No limit (disabled)</span>
+                            <span class="text-xs text-amber-700 ml-2">Allow duplicate sends</span>
+                        </label>
+                    </div>
+
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <p class="text-xs text-gray-600"><strong>Why this matters:</strong> Sending too many review requests to the same customer can annoy them and hurt your response rate. This also applies to CSV imports — recently contacted customers are automatically skipped.</p>
+                    </div>
+
+                    <button id="saveCooldownBtn" onclick="saveCooldownSetting()" class="mt-4 px-6 py-2.5 text-sm font-semibold text-white rounded-lg transition-colors hidden" style="background-color: var(--revvie-primary);">
+                        <span id="saveCooldownText">Save Settings</span>
+                    </button>
+                </div>
+
+                <!-- SECTION 4: CHANGE PASSWORD  -->
                 <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-5">Change Password</h2>
                     <form id="changePasswordForm" class="space-y-4">
@@ -1458,6 +1510,45 @@
         </div>
     </div>
 
+    <!-- BULK DUPLICATE SUMMARY MODAL -->
+    <div id="bulkDuplicateModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeBulkDuplicateModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto scale-in">
+                <div class="px-6 py-5">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4">Duplicate Check Results</h3>
+                    <div class="space-y-2 mb-5">
+                        <div class="flex justify-between text-base">
+                            <span class="text-gray-600">Selected customers:</span>
+                            <strong id="bulkDupTotal" class="text-gray-900"></strong>
+                        </div>
+                        <div class="flex justify-between text-green-700">
+                            <span>Safe to send:</span>
+                            <strong id="bulkDupSafe"></strong>
+                        </div>
+                        <div class="flex justify-between text-amber-700">
+                            <span>Recently contacted:</span>
+                            <strong id="bulkDupCount"></strong>
+                        </div>
+                    </div>
+                    <div id="bulkDupDetails" class="mb-5 hidden">
+                        <p class="text-sm text-gray-500 mb-2">These customers were contacted recently:</p>
+                        <ul id="bulkDupList" class="bg-gray-50 rounded-xl p-3 max-h-40 overflow-y-auto space-y-1 text-sm text-gray-700"></ul>
+                    </div>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 rounded-b-2xl flex flex-col gap-2.5">
+                    <button id="bulkDupSendSafeBtn" onclick="executeBulkSend(true)" class="w-full px-4 py-2.5 text-white font-semibold rounded-xl transition-colors duration-200" style="background-color: var(--revvie-primary);">
+                        Send to <span id="bulkDupSafeBtn"></span> Safe Customers
+                    </button>
+                    <button id="bulkDupSendAllBtn" onclick="executeBulkSend(false)" class="w-full px-4 py-2.5 bg-white border-2 border-amber-500 text-amber-700 font-medium rounded-xl hover:bg-amber-50 transition-colors duration-200">
+                        Send to All (including <span id="bulkDupCountBtn"></span> duplicates)
+                    </button>
+                    <button onclick="closeBulkDuplicateModal()" class="w-full px-4 py-2 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors duration-200">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- CSV IMPORT MODAL -->
     <div id="importModal" class="fixed inset-0 z-50 hidden">
         <div id="importModalBackdrop" class="absolute inset-0 bg-black/50 backdrop-blur-sm"></div>
@@ -1473,6 +1564,15 @@
                 <div class="px-6 py-5 overflow-y-auto max-h-[70vh]">
                     <!-- Description -->
                     <p class="text-gray-600 text-sm mb-4">Import customers from any booking system (Fresha, Square, Vagaro, Mindbody, Excel, etc.)</p>
+
+                    <!-- Safe Re-import Info -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4">
+                        <h4 class="font-semibold text-blue-900 mb-1.5 flex items-center gap-2 text-sm">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+                            Safe to re-import weekly
+                        </h4>
+                        <p class="text-xs text-blue-700">*revvie automatically adds new customers only and skips anyone contacted recently. It's safe to import the same CSV every week.</p>
+                    </div>
 
                     <!-- Drop Zone -->
                     <div id="csvDropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-accent-400 hover:bg-accent-50/30 transition-all duration-200">
@@ -1921,6 +2021,34 @@
                 <div class="px-6 py-4 bg-gray-50 flex gap-3">
                     <button onclick="closeWaitlistModal()" class="flex-1 px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors duration-200">Cancel</button>
                     <button onclick="submitWaitlist()" id="waitlistSubmitBtn" class="flex-1 px-4 py-2.5 text-white font-semibold rounded-xl transition-colors duration-200" style="background-color: var(--revvie-primary);">Notify Me</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- DUPLICATE WARNING MODAL -->
+    <div id="duplicateWarningModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeDuplicateModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden scale-in">
+                <div class="px-6 py-5">
+                    <h3 class="text-lg font-bold text-gray-800 mb-3">Already Sent Recently</h3>
+                    <p class="text-gray-700 mb-3">
+                        You sent a review request to
+                        <strong class="text-gray-900" id="duplicateCustomerName"></strong>
+                        <span id="duplicateDaysAgo" class="text-gray-900 font-semibold"></span> days ago.
+                    </p>
+                    <p class="text-sm text-gray-500 mb-3">
+                        Cooldown period: <strong id="duplicateCooldown"></strong> days
+                        (<strong id="duplicateDaysRemaining"></strong> days remaining)
+                    </p>
+                    <p class="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">
+                        Sending again may annoy this customer and hurt your review response rate.
+                    </p>
+                </div>
+                <div class="px-6 py-4 bg-gray-50 flex gap-3">
+                    <button onclick="closeDuplicateModal()" class="flex-1 px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors duration-200">Cancel</button>
+                    <button onclick="sendDespiteDuplicate()" class="flex-1 px-4 py-2.5 text-white font-semibold rounded-xl bg-amber-500 hover:bg-amber-600 transition-colors duration-200">Send Anyway</button>
                 </div>
             </div>
         </div>
@@ -2702,10 +2830,32 @@
             }
 
             try {
-                const response = await apiCall(`${API_URL}/review-requests/send`, {
+                const response = await fetch(`${API_URL}/review-requests/send`, {
                     method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify(payload)
                 });
+
+                const data = await response.json();
+
+                if (response.status === 409 && data.duplicate) {
+                    // Duplicate detected — show warning modal
+                    showDuplicateModal(data, payload);
+                    sendRequestBtn.disabled = false;
+                    btnText.textContent = 'Send Review Request';
+                    btnIcon.classList.remove('hidden');
+                    btnSpinner.classList.add('hidden');
+                    validateReviewForm();
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(data.message || data.error || 'Something went wrong');
+                }
+
                 showSuccessAnimation();
 
                 // Show appropriate success message
@@ -2716,12 +2866,12 @@
                     successMsg = 'Review request sent via SMS!';
                 } else if (method === 'both') {
                     // Check which methods succeeded
-                    const data = response?.data || {};
-                    if (data.email_sent && data.sms_sent) {
+                    const d = data?.data || {};
+                    if (d.email_sent && d.sms_sent) {
                         successMsg = 'Review request sent via email and SMS!';
-                    } else if (data.email_sent) {
+                    } else if (d.email_sent) {
                         successMsg = 'Review request sent via email! (SMS failed)';
-                    } else if (data.sms_sent) {
+                    } else if (d.sms_sent) {
                         successMsg = 'Review request sent via SMS! (Email failed)';
                     }
                 }
@@ -2775,6 +2925,69 @@
             const formCard = reviewRequestForm.closest('.bg-white');
             formCard.classList.add('ring-2', 'ring-accent-500', 'ring-offset-2');
             setTimeout(() => formCard.classList.remove('ring-2', 'ring-accent-500', 'ring-offset-2'), 2000);
+        }
+
+        // =====================================================
+        // DUPLICATE WARNING MODAL
+        // =====================================================
+        function showDuplicateModal(duplicateInfo, originalPayload) {
+            window._pendingSendData = originalPayload;
+
+            const name = originalPayload.customer_email
+                || originalPayload.customer_phone
+                || originalPayload.customer_name;
+            document.getElementById('duplicateCustomerName').textContent = name;
+
+            const daysAgo = duplicateInfo.cooldown_days - duplicateInfo.days_remaining;
+            document.getElementById('duplicateDaysAgo').textContent = daysAgo;
+            document.getElementById('duplicateCooldown').textContent = duplicateInfo.cooldown_days;
+            document.getElementById('duplicateDaysRemaining').textContent = duplicateInfo.days_remaining;
+
+            document.getElementById('duplicateWarningModal').classList.remove('hidden');
+        }
+
+        function closeDuplicateModal() {
+            document.getElementById('duplicateWarningModal').classList.add('hidden');
+            window._pendingSendData = null;
+        }
+
+        async function sendDespiteDuplicate() {
+            const payload = { ...window._pendingSendData, force_send: true };
+            const btn = document.querySelector('#duplicateWarningModal .bg-amber-500');
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            try {
+                const response = await fetch(`${API_URL}/review-requests/send`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    showToast('Review request sent (duplicate override)', 'success');
+                    closeDuplicateModal();
+                    customerNameInput.value = '';
+                    customerEmailInput.value = '';
+                    customerPhoneInput.value = '';
+                    validateReviewForm();
+                    loadDashboardStats();
+                    loadReviewRequests();
+                    showSuccessAnimation();
+                } else {
+                    showToast(data.message || data.error || 'Failed to send', 'error');
+                }
+            } catch (error) {
+                showToast('Failed to send review request', 'error');
+            }
+
+            btn.disabled = false;
+            btn.textContent = 'Send Anyway';
         }
 
         // =====================================================
@@ -3075,14 +3288,31 @@
             if (selected.length === 0) return;
 
             bulkSendProgress.classList.remove('hidden');
-            bulkSendProgressText.textContent = `Sending to ${selected.length} customer(s)...`;
+            bulkSendProgressText.textContent = `Checking ${selected.length} customer(s)...`;
             bulkSendFooter.classList.add('hidden');
 
             try {
+                const customerIds = selected.map(c => c.id);
+
+                // Step 1: Check for duplicates without sending
+                const checkData = await apiCall(`${API_URL}/review-requests/bulk`, {
+                    method: 'POST',
+                    body: JSON.stringify({ customer_ids: customerIds, skip_duplicates: true, check_only: true })
+                });
+
+                if (checkData.skipped_count > 0) {
+                    // Duplicates found — show summary modal, let user decide
+                    closeBulkSendModal();
+                    showBulkDuplicateSummary(checkData, customerIds);
+                    return;
+                }
+
+                // No duplicates — send immediately
                 const data = await apiCall(`${API_URL}/review-requests/bulk`, {
                     method: 'POST',
-                    body: JSON.stringify({ customer_ids: selected.map(c => c.id) })
+                    body: JSON.stringify({ customer_ids: customerIds, skip_duplicates: true })
                 });
+
                 let message = `Sent to ${data.success_count} customer(s)!`;
                 if (data.error_count > 0) message += ` ${data.error_count} failed.`;
                 showToast(message, data.error_count > 0 ? 'error' : 'success');
@@ -3095,6 +3325,83 @@
                 showToast(error.message, 'error');
                 bulkSendProgress.classList.add('hidden');
                 bulkSendFooter.classList.remove('hidden');
+            }
+        }
+
+        // =====================================================
+        // BULK DUPLICATE SUMMARY MODAL
+        // =====================================================
+        function showBulkDuplicateSummary(result, customerIds) {
+            window._bulkSendCustomerIds = customerIds;
+
+            const total = result.success_count + (result.skipped_count || 0);
+            const safe = result.success_count;
+            const dupes = result.skipped_count || 0;
+
+            document.getElementById('bulkDupTotal').textContent = total;
+            document.getElementById('bulkDupSafe').textContent = safe;
+            document.getElementById('bulkDupCount').textContent = dupes;
+            document.getElementById('bulkDupSafeBtn').textContent = safe;
+            document.getElementById('bulkDupCountBtn').textContent = dupes;
+
+            const detailsEl = document.getElementById('bulkDupDetails');
+            if (result.skipped_duplicates && result.skipped_duplicates.length > 0) {
+                const list = document.getElementById('bulkDupList');
+                list.innerHTML = result.skipped_duplicates.map(d =>
+                    `<li class="py-1 flex items-center gap-2"><span class="w-1.5 h-1.5 bg-amber-400 rounded-full flex-shrink-0"></span>${escapeHtml(d.name || 'Unknown')} — ${d.reason || 'recently contacted'}</li>`
+                ).join('');
+                detailsEl.classList.remove('hidden');
+            } else {
+                detailsEl.classList.add('hidden');
+            }
+
+            document.getElementById('bulkDuplicateModal').classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeBulkDuplicateModal() {
+            document.getElementById('bulkDuplicateModal').classList.add('hidden');
+            document.body.style.overflow = '';
+            window._bulkSendCustomerIds = null;
+        }
+
+        async function executeBulkSend(skipDuplicates) {
+            const ids = window._bulkSendCustomerIds;
+            if (!ids || ids.length === 0) return;
+
+            const label = skipDuplicates ? 'bulkDupSendSafeBtn' : 'bulkDupSendAllBtn';
+            const btn = document.getElementById(label);
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            try {
+                const data = await apiCall(`${API_URL}/review-requests/bulk`, {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        customer_ids: ids,
+                        skip_duplicates: skipDuplicates
+                    })
+                });
+
+                let message;
+                if (skipDuplicates && data.skipped_count > 0) {
+                    message = `Sent to ${data.success_count} customer(s), skipped ${data.skipped_count} recently contacted`;
+                } else {
+                    message = `Sent to ${data.success_count} customer(s)!`;
+                }
+                if (data.error_count > 0) message += ` ${data.error_count} failed.`;
+
+                showToast(message, data.error_count > 0 ? 'error' : 'success');
+                if (data.success_count > 0) showSuccessAnimation();
+                selectAllFn(false);
+                closeBulkDuplicateModal();
+                loadDashboardStats();
+                loadReviewRequests();
+            } catch (error) {
+                showToast(error.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
             }
         }
 
@@ -3348,6 +3655,8 @@
                 const imported = data.imported || 0;
                 const updated = data.updated || 0;
                 const skipped = data.skipped || 0;
+                const recentlyContacted = data.recently_contacted || 0;
+                const totalInCsv = data.total_in_csv || 0;
                 const importedCustomers = data.customers || [];
 
                 // Store imported customer IDs for review requests
@@ -3357,15 +3666,17 @@
                 let toastMessage = '';
                 if (imported > 0) toastMessage += `${imported} imported`;
                 if (updated > 0) toastMessage += (toastMessage ? ', ' : '') + `${updated} updated`;
-                if (skipped > 0) toastMessage += (toastMessage ? ', ' : '') + `${skipped} skipped`;
+                if (skipped > 0) toastMessage += (toastMessage ? ', ' : '') + `${skipped} existing`;
+                if (recentlyContacted > 0) toastMessage += (toastMessage ? ', ' : '') + `${recentlyContacted} recently contacted`;
 
                 // Show success summary in modal
                 importSuccessInfo.classList.remove('hidden');
                 importSuccessSummary.innerHTML = `
+                    ${totalInCsv > 0 ? `<p class="text-xs text-green-600 mb-2">${totalInCsv} customers found in CSV</p>` : ''}
                     <div class="flex flex-wrap gap-4 mt-2">
                         <div class="flex items-center gap-2">
                             <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-green-100 text-green-700 font-bold text-sm">${imported}</span>
-                            <span>Imported</span>
+                            <span>New</span>
                         </div>
                         ${updated > 0 ? `
                         <div class="flex items-center gap-2">
@@ -3376,10 +3687,19 @@
                         ${skipped > 0 ? `
                         <div class="flex items-center gap-2">
                             <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 font-bold text-sm">${skipped}</span>
-                            <span>Skipped (duplicates)</span>
+                            <span>Existing</span>
+                        </div>
+                        ` : ''}
+                        ${recentlyContacted > 0 ? `
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700 font-bold text-sm">${recentlyContacted}</span>
+                            <span>Recently contacted</span>
                         </div>
                         ` : ''}
                     </div>
+                    ${recentlyContacted > 0 ? `
+                    <p class="text-xs text-gray-500 mt-3">Recently contacted customers were automatically skipped to avoid duplicate review requests.</p>
+                    ` : ''}
                 `;
 
                 // Show any row-level errors
@@ -3390,7 +3710,7 @@
                     ).join('');
                 }
 
-                showToast(`Import complete: ${toastMessage}`, 'success');
+                showToast(data.message || `Import complete: ${toastMessage}`, 'success');
 
                 if (imported > 0 || updated > 0) {
                     showSuccessAnimation();
@@ -4018,6 +4338,8 @@
         // =====================================================
         // ACCOUNT SETTINGS
         // =====================================================
+        let _originalCooldown = 30;
+
         function loadAccountTab() {
             // Populate fields from cached data
             const business = JSON.parse(localStorage.getItem('business') || '{}');
@@ -4028,7 +4350,84 @@
             document.getElementById('acctEmail').value = email;
             document.getElementById('acctPhone').value = business.phone || '';
 
+            // Load cooldown setting
+            const cooldown = business.review_request_cooldown_days ?? 30;
+            _originalCooldown = cooldown;
+            const radio = document.querySelector(`input[name="cooldown"][value="${cooldown}"]`);
+            if (radio) {
+                radio.checked = true;
+                highlightCooldownOption(radio.closest('.cooldown-option'), cooldown);
+            }
+            document.getElementById('saveCooldownBtn').classList.add('hidden');
+
             // Google profile state is handled by showGoogleBusinessState()
+        }
+
+        function highlightCooldownOption(label, value) {
+            // Reset all options to default styling
+            document.querySelectorAll('.cooldown-option').forEach(el => {
+                if (el.querySelector('input').value === '0') {
+                    el.className = 'flex items-center p-3 border border-amber-200 bg-amber-50 rounded-lg cursor-pointer hover:bg-amber-100 transition-colors cooldown-option';
+                } else {
+                    el.className = 'flex items-center p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors cooldown-option';
+                }
+            });
+            // Highlight the selected one (unless it's the amber "disabled" option)
+            if (label && value !== 0 && value !== '0') {
+                label.className = 'flex items-center p-3 border-2 rounded-lg cursor-pointer transition-colors cooldown-option';
+                label.style.borderColor = 'var(--revvie-primary)';
+                label.style.backgroundColor = '#EBF8FF';
+            }
+        }
+
+        function handleCooldownChange() {
+            const selected = document.querySelector('input[name="cooldown"]:checked');
+            const value = parseInt(selected.value);
+            highlightCooldownOption(selected.closest('.cooldown-option'), value);
+
+            const btn = document.getElementById('saveCooldownBtn');
+            if (value !== _originalCooldown) {
+                btn.classList.remove('hidden');
+            } else {
+                btn.classList.add('hidden');
+            }
+        }
+
+        async function saveCooldownSetting() {
+            const selected = document.querySelector('input[name="cooldown"]:checked');
+            const cooldown = parseInt(selected.value);
+            const btn = document.getElementById('saveCooldownBtn');
+            const btnText = document.getElementById('saveCooldownText');
+
+            btn.disabled = true;
+            btnText.textContent = 'Saving...';
+
+            try {
+                await apiCall(`${API_URL}/business/profile`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ review_request_cooldown_days: cooldown })
+                });
+
+                _originalCooldown = cooldown;
+                btn.classList.add('hidden');
+
+                // Update cached business data
+                const business = JSON.parse(localStorage.getItem('business') || '{}');
+                business.review_request_cooldown_days = cooldown;
+                localStorage.setItem('business', JSON.stringify(business));
+
+                showToast(
+                    cooldown === 0
+                        ? 'Duplicate prevention disabled'
+                        : `Cooldown updated to ${cooldown} days`,
+                    'success'
+                );
+            } catch (error) {
+                showToast(error.message || 'Failed to save settings', 'error');
+            }
+
+            btn.disabled = false;
+            btnText.textContent = 'Save Settings';
         }
 
         async function saveProfileField(field, inputId, btn) {

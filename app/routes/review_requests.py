@@ -32,6 +32,7 @@ from app.services.google_places import get_review_url as places_review_url
 from app.services.sms_service import send_review_request_sms, validate_phone_number
 from app.services.supabase_service import supabase, supabase_admin
 from app.services import link_tracker
+from app.services import duplicate_checker
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -170,6 +171,35 @@ def send_review_request():
                 "action": "Go to Settings \u2192 Connect Google Business",
                 "redirect": "/onboarding"
             }), 400
+
+        # ============================================================
+        # STEP 2.5: Check for duplicate review requests
+        # ============================================================
+        duplicate_check = duplicate_checker.can_send_review_request(
+            business_id=business_id,
+            customer_email=customer_email,
+            customer_phone=customer_phone
+        )
+
+        if not duplicate_check['can_send']:
+            force_send = data.get('force_send', False)
+
+            if not force_send:
+                return jsonify({
+                    "blocked": True,
+                    "duplicate": True,
+                    "reason": duplicate_check['reason'],
+                    "last_sent_at": duplicate_check['last_sent_at'],
+                    "days_remaining": duplicate_check['days_remaining'],
+                    "cooldown_days": duplicate_check['cooldown_days'],
+                    "allow_override": True
+                }), 409
+
+            logger.warning(
+                f"Duplicate override by business {business_id}: "
+                f"sending to {customer_email or customer_phone} despite "
+                f"recent send {duplicate_check['days_remaining']} days remaining"
+            )
 
         # ============================================================
         # STEP 3: Generate the Google review URL
@@ -479,6 +509,94 @@ def send_bulk_review_requests():
 
         customers = {c['id']: c for c in customers_result.data}
 
+        # ============================================================
+        # Check for duplicates before sending
+        # ============================================================
+        skip_duplicates = data.get('skip_duplicates', True)
+        check_only = data.get('check_only', False)
+
+        customers_to_check = [
+            {
+                "email": c.get("email"),
+                "phone": c.get("phone"),
+                "name": c.get("name", ""),
+                "id": c["id"],
+            }
+            for c in customers_result.data
+        ]
+
+        check_result = duplicate_checker.check_bulk_duplicates(
+            business_id=business_id,
+            customers_list=customers_to_check
+        )
+
+        skipped_duplicates = []
+
+        if check_result['duplicate_count'] > 0 and skip_duplicates:
+            # Build set of safe emails/phones to filter customer_ids
+            safe_identifiers = set()
+            for safe in check_result['safe_to_send']:
+                if safe.get('email'):
+                    safe_identifiers.add(safe['email'].lower())
+                if safe.get('phone'):
+                    safe_identifiers.add(safe['phone'])
+
+            filtered_ids = []
+            for cid in customer_ids:
+                c = customers.get(cid)
+                if not c:
+                    filtered_ids.append(cid)  # Let the loop handle "not found"
+                    continue
+                c_email = c.get('email')
+                c_phone = c.get('phone')
+                if not c_email and not c_phone:
+                    filtered_ids.append(cid)  # No contact info = can't be a duplicate
+                elif (c_email or '').lower() in safe_identifiers or c_phone in safe_identifiers:
+                    filtered_ids.append(cid)
+                else:
+                    skipped_duplicates.append({
+                        "customer_id": cid,
+                        "name": c.get('name'),
+                        "reason": "Recently contacted"
+                    })
+
+            logger.info(
+                f"Bulk send: queuing {len(filtered_ids)}, "
+                f"skipping {len(skipped_duplicates)} duplicates"
+            )
+            customer_ids = filtered_ids
+
+            # check_only mode: return duplicate info without sending
+            if check_only:
+                return jsonify({
+                    "success": True,
+                    "check_only": True,
+                    "success_count": len(filtered_ids),
+                    "skipped_count": len(skipped_duplicates),
+                    "skipped_duplicates": skipped_duplicates,
+                    "error_count": 0,
+                    "errors": []
+                }), 200
+
+        elif check_result['duplicate_count'] > 0 and not skip_duplicates:
+            logger.warning(
+                f"Bulk send override by business {business_id}: "
+                f"sending to all {len(customer_ids)} including "
+                f"{check_result['duplicate_count']} duplicates"
+            )
+
+        # check_only with no duplicates: return immediately
+        if check_only:
+            return jsonify({
+                "success": True,
+                "check_only": True,
+                "success_count": len(customer_ids),
+                "skipped_count": 0,
+                "skipped_duplicates": [],
+                "error_count": 0,
+                "errors": []
+            }), 200
+
         success_count = 0
         error_count = 0
         errors = []
@@ -626,12 +744,22 @@ def send_bulk_review_requests():
             except Exception as e:
                 logger.warning(f"Failed to save some review requests to database: {e}")
 
-        return jsonify({
+        response = {
             "success": True,
             "success_count": success_count,
             "error_count": error_count,
-            "errors": errors
-        }), 200
+            "errors": errors,
+        }
+
+        if skipped_duplicates:
+            response["skipped_duplicates"] = skipped_duplicates
+            response["skipped_count"] = len(skipped_duplicates)
+            response["message"] = (
+                f"Sent {success_count} review requests, "
+                f"skipped {len(skipped_duplicates)} recently contacted customers"
+            )
+
+        return jsonify(response), 200
 
     except Exception as e:
         return jsonify({
@@ -711,9 +839,28 @@ def queue_bulk_review_requests():
         scheduled_time = datetime.now(timezone.utc) + timedelta(hours=delay_hours)
 
         queued_count = 0
+        skipped_duplicate_count = 0
         error_count = 0
         errors = []
         queue_records = []
+
+        # Check for duplicates before queuing
+        customers_for_check = [
+            {
+                'email': c.get('email'),
+                'phone': c.get('phone'),
+                'name': c.get('name', 'Customer'),
+                'id': c.get('id')
+            }
+            for c in customers
+        ]
+        dup_result = duplicate_checker.check_bulk_duplicates(business_id, customers_for_check)
+        safe_identifiers = set()
+        for s in dup_result.get('safe', []):
+            if s.get('email'):
+                safe_identifiers.add(s['email'].lower())
+            if s.get('phone'):
+                safe_identifiers.add(s['phone'])
 
         for customer in customers:
             # Must have email or phone
@@ -723,6 +870,17 @@ def queue_bulk_review_requests():
                     "message": "Customer has no email or phone"
                 })
                 error_count += 1
+                continue
+
+            # Check if this customer is safe to send
+            email = customer.get('email', '').lower() if customer.get('email') else None
+            phone = customer.get('phone')
+            is_safe = (not email and not phone) or \
+                      (email and email in safe_identifiers) or \
+                      (phone and phone in safe_identifiers)
+
+            if not is_safe:
+                skipped_duplicate_count += 1
                 continue
 
             # Determine method based on available contact info
@@ -761,6 +919,7 @@ def queue_bulk_review_requests():
         return jsonify({
             "success": True,
             "queued_count": queued_count,
+            "skipped_duplicate_count": skipped_duplicate_count,
             "error_count": error_count,
             "errors": errors,
             "scheduled_for": scheduled_time.isoformat()

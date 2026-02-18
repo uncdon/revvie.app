@@ -44,6 +44,7 @@ from app.services.google_places import get_review_url as generate_google_review_
 from app.services.sms_service import send_review_request_sms
 from app.services.square_logger import get_square_logger, log_queue_event
 from app.services import link_tracker
+from app.services import duplicate_checker
 
 # Load environment variables
 load_dotenv()
@@ -178,6 +179,26 @@ def process_queued_requests() -> dict:
                 google_review_url = business.get('google_review_url')
 
                 logger.debug(f"Processing request for business: {business_name}")
+
+                # Check if still safe to send (customer may have been contacted since queuing)
+                dup_check = duplicate_checker.can_send_review_request(
+                    business_id=business_id,
+                    customer_email=customer_email,
+                    customer_phone=customer_phone
+                )
+
+                if not dup_check['can_send']:
+                    reason = f"Duplicate detected at send time: {dup_check.get('reason', 'recently contacted')}"
+                    logger.info(
+                        f"Queue processor: Skipping request {request_id} for "
+                        f"{customer_email or customer_phone} - {reason}"
+                    )
+                    log_queue_event('request_skipped', request_id=request_id,
+                                  business_id=business_id, customer_email=customer_email,
+                                  details={'reason': 'duplicate_detected_at_send_time'})
+                    mark_request_cancelled(request_id, reason)
+                    results["skipped"] += 1
+                    continue
 
                 # Generate or use existing review URL
                 if google_review_url:
@@ -406,6 +427,33 @@ def mark_request_skipped(request_id: str, reason: str) -> None:
     """
     logger.info(f"Skipping request {request_id}: {reason}")
     mark_request_failed(request_id, reason)
+
+
+def mark_request_cancelled(request_id: str, reason: str) -> bool:
+    """
+    Update a queued request status to 'cancelled' when duplicate detected at send time.
+
+    Args:
+        request_id: The ID of the queued_review_requests record
+        reason: Why the request was cancelled
+
+    Returns:
+        bool: True if update succeeded, False otherwise
+    """
+    try:
+        result = supabase.table('queued_review_requests').update(
+            {'status': 'cancelled'}
+        ).eq('id', request_id).eq('status', 'queued').execute()
+
+        if not result.data:
+            logger.error(f"mark_request_cancelled: No rows updated for request {request_id}")
+            return False
+
+        logger.info(f"Cancelled request {request_id}: {reason}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to mark request {request_id} as cancelled: {e}")
+        return False
 
 
 def create_review_request_record(

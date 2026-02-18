@@ -38,6 +38,7 @@ from dotenv import load_dotenv
 
 from app.services.supabase_service import supabase, supabase_admin
 from app.services import square_service
+from app.services import duplicate_checker
 from app.services.square_logger import get_square_logger, log_webhook_event, log_oauth_event
 
 # Load environment variables
@@ -313,6 +314,25 @@ def process_payment_created(event: dict) -> dict:
         send_method = 'sms'
 
     logger.info(f"Send method determined: {send_method}")
+
+    # Step 4.5: Check for duplicate review requests (cooldown period)
+    dup_check = duplicate_checker.can_send_review_request(
+        business_id=business_id,
+        customer_email=customer_email,
+        customer_phone=customer_phone
+    )
+
+    if not dup_check['can_send']:
+        logger.info(
+            f"Square webhook: Skipping review request for "
+            f"{customer_email or customer_phone} - {dup_check.get('reason', 'duplicate')} "
+            f"(cooldown: {dup_check.get('cooldown_days', 30)} days)"
+        )
+        return {
+            "skipped": True,
+            "reason": f"Duplicate: {dup_check.get('reason', 'recently contacted')}",
+            "payment_id": payment_id,
+        }
 
     # Step 5: Calculate scheduled send time
     delay_hours = settings.get('delay_hours', 2)
