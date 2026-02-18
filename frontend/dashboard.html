@@ -408,6 +408,18 @@
             </div>
         </div>
 
+        <!-- USAGE LIMIT BANNER -->
+        <div id="usage-limit-banner" class="hidden" style="margin: -24px -24px 24px -24px;">
+            <div class="bg-red-50 border-b border-red-200 px-4 py-3 text-center">
+                <p class="text-sm text-red-800">
+                    <strong>&#9888;&#65039; Monthly limit reached:</strong>
+                    <span id="limit-banner-text"></span>
+                    Resets <span id="limit-reset-date"></span>.
+                    <a href="mailto:support@revvie.app" class="underline font-semibold ml-2">Contact support to increase</a>
+                </p>
+            </div>
+        </div>
+
         <!-- TAB: HOME -->
         <div id="tab-home" class="tab-content">
 
@@ -445,6 +457,36 @@
                         <p class="text-xs text-gray-500 mt-2">Clicked / Sent</p>
                     </div>
                 </div>
+            </div>
+
+            <!-- MONTHLY USAGE CARD -->
+            <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm mb-8">
+                <h3 class="text-sm font-semibold text-gray-800 mb-4">Monthly Usage</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- SMS Usage -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">SMS Messages</span>
+                            <span class="text-xs text-gray-500" id="sms-usage-text">-- / 750</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="sms-usage-bar" class="h-2 rounded-full transition-all duration-500" style="width: 0%; background-color: #07B5F5;"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1.5"><span id="sms-remaining">--</span> remaining</p>
+                    </div>
+                    <!-- Email Usage -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium text-gray-700">Emails</span>
+                            <span class="text-xs text-gray-500" id="email-usage-text">-- / 1,000</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div id="email-usage-bar" class="h-2 rounded-full transition-all duration-500" style="width: 0%; background-color: #07B5F5;"></div>
+                        </div>
+                        <p class="text-xs text-gray-400 mt-1.5"><span id="email-remaining">--</span> remaining</p>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-400 mt-4">Resets on <strong id="usage-reset-date">--</strong></p>
             </div>
 
             <!-- SEND REVIEW REQUEST CARD -->
@@ -2054,6 +2096,29 @@
         </div>
     </div>
 
+    <!-- LIMIT ERROR MODAL -->
+    <div id="limitErrorModal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black/50 backdrop-blur-sm" onclick="closeLimitErrorModal()"></div>
+        <div class="absolute inset-0 flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden scale-in">
+                <div class="px-6 py-5">
+                    <h3 class="text-lg font-bold text-red-900 mb-3">Monthly Limit Reached</h3>
+                    <p class="text-gray-700 mb-3" id="limit-error-message"></p>
+                    <p class="text-sm text-gray-500 mb-3">
+                        Your usage resets on <strong id="limit-error-reset"></strong>.
+                    </p>
+                    <p class="text-sm text-gray-600">
+                        Need a higher limit?
+                        <a href="mailto:support@revvie.app" class="text-blue-600 underline font-semibold">Contact support</a>
+                    </p>
+                </div>
+                <div class="px-6 py-4 bg-gray-50">
+                    <button onclick="closeLimitErrorModal()" class="w-full px-4 py-2.5 text-gray-600 font-medium rounded-xl hover:bg-gray-200 transition-colors duration-200">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- MOBILE SIDEBAR + TAB SWITCHING -->
     <script>
         // Mobile sidebar toggle
@@ -2385,11 +2450,13 @@
         // =====================================================
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
-            const bg = type === 'success' ? 'background-color: var(--revvie-accent)' : 'background: #EF4444';
+            const bg = type === 'success' ? 'background-color: var(--revvie-accent)' : type === 'warning' ? 'background: #F59E0B' : 'background: #EF4444';
             toast.className = 'flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg min-w-[300px] max-w-md text-white slide-down';
             toast.style.cssText = bg;
             const icon = type === 'success'
                 ? '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>'
+                : type === 'warning'
+                ? '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>'
                 : '<svg class="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M12 3a9 9 0 100 18 9 9 0 000-18z"></path></svg>';
             toast.innerHTML = `${icon}<span class="font-medium text-sm">${escapeHtml(message)}</span><button class="ml-auto hover:opacity-80 flex-shrink-0" onclick="this.parentElement.remove()"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg></button>`;
             toastContainer.appendChild(toast);
@@ -2684,6 +2751,96 @@
             }
         }
 
+        async function loadUsageStats() {
+            try {
+                const data = await apiCall(`${API_URL}/business/usage`);
+
+                // SMS
+                const smsPct = data.sms.percentage_used;
+                document.getElementById('sms-usage-text').textContent = `${data.sms.sent_this_month.toLocaleString()} / ${data.sms.monthly_cap.toLocaleString()}`;
+                document.getElementById('sms-usage-bar').style.width = `${Math.min(smsPct, 100)}%`;
+                document.getElementById('sms-remaining').textContent = data.sms.remaining.toLocaleString();
+
+                const smsBar = document.getElementById('sms-usage-bar');
+                if (smsPct >= 90) smsBar.style.backgroundColor = '#EF4444';
+                else if (smsPct >= 80) smsBar.style.backgroundColor = '#F59E0B';
+                else smsBar.style.backgroundColor = '#07B5F5';
+
+                // Email
+                const emailPct = data.email.percentage_used;
+                document.getElementById('email-usage-text').textContent = `${data.email.sent_this_month.toLocaleString()} / ${data.email.monthly_cap.toLocaleString()}`;
+                document.getElementById('email-usage-bar').style.width = `${Math.min(emailPct, 100)}%`;
+                document.getElementById('email-remaining').textContent = data.email.remaining.toLocaleString();
+
+                const emailBar = document.getElementById('email-usage-bar');
+                if (emailPct >= 90) emailBar.style.backgroundColor = '#EF4444';
+                else if (emailPct >= 80) emailBar.style.backgroundColor = '#F59E0B';
+                else emailBar.style.backgroundColor = '#07B5F5';
+
+                // Reset date
+                document.getElementById('usage-reset-date').textContent = new Date(data.sms.resets_on + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+                // Check and show limit banner
+                checkAndShowLimitBanner(data);
+
+                return data;
+            } catch (e) {
+                console.error('Failed to load usage stats:', e);
+            }
+        }
+
+        function checkAndShowLimitBanner(usageStats) {
+            const smsLimitReached = usageStats.sms.sent_this_month >= usageStats.sms.monthly_cap;
+            const emailLimitReached = usageStats.email.sent_this_month >= usageStats.email.monthly_cap;
+            const banner = document.getElementById('usage-limit-banner');
+
+            if (smsLimitReached || emailLimitReached) {
+                const text = document.getElementById('limit-banner-text');
+                const resetDate = document.getElementById('limit-reset-date');
+
+                if (smsLimitReached && emailLimitReached) {
+                    text.textContent = 'SMS and email limits reached.';
+                } else if (smsLimitReached) {
+                    text.textContent = 'SMS limit reached (emails still available).';
+                } else {
+                    text.textContent = 'Email limit reached (SMS still available).';
+                }
+
+                resetDate.textContent = new Date(usageStats.sms.resets_on + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+                banner.classList.remove('hidden');
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        function showLimitErrorModal(data) {
+            const msg = document.getElementById('limit-error-message');
+            const resetEl = document.getElementById('limit-error-reset');
+
+            if (data.sms_limit && data.email_limit) {
+                msg.textContent = 'You\'ve reached both your monthly SMS and email sending limits. Please wait for your usage to reset.';
+            } else if (data.error === 'monthly_sms_limit_reached') {
+                msg.textContent = 'You\'ve reached your monthly SMS sending limit. Try sending via email instead, or wait for your usage to reset.';
+            } else if (data.error === 'monthly_email_limit_reached') {
+                msg.textContent = 'You\'ve reached your monthly email sending limit. Try sending via SMS instead, or wait for your usage to reset.';
+            } else {
+                msg.textContent = 'You\'ve reached your monthly sending limit. Please wait for your usage to reset.';
+            }
+
+            if (data.resets_on) {
+                resetEl.textContent = new Date(data.resets_on + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+            } else {
+                resetEl.textContent = 'the 1st of next month';
+            }
+
+            document.getElementById('limitErrorModal').classList.remove('hidden');
+            loadUsageStats();
+        }
+
+        function closeLimitErrorModal() {
+            document.getElementById('limitErrorModal').classList.add('hidden');
+        }
+
         async function loadReviewRequests() {
             const viewAllLink = document.getElementById('viewAllLink');
             tableSkeleton.classList.remove('hidden');
@@ -2852,6 +3009,17 @@
                     return;
                 }
 
+                // Usage limit fully blocked
+                if (response.status === 429 && (data.error === 'monthly_sms_limit_reached' || data.error === 'monthly_email_limit_reached')) {
+                    showLimitErrorModal(data);
+                    sendRequestBtn.disabled = false;
+                    btnText.textContent = 'Send Review Request';
+                    btnIcon.classList.remove('hidden');
+                    btnSpinner.classList.add('hidden');
+                    validateReviewForm();
+                    return;
+                }
+
                 if (!response.ok) {
                     throw new Error(data.message || data.error || 'Something went wrong');
                 }
@@ -2860,10 +3028,16 @@
 
                 // Show appropriate success message
                 let successMsg = 'Review request sent';
-                if (method === 'email') {
+                if (data.sms_limit_reached || data.email_limit_reached) {
+                    // Sent via fallback method due to limit
+                    successMsg = data.message || 'Review request sent (one channel limit reached)';
+                    showToast(successMsg, 'warning');
+                } else if (method === 'email') {
                     successMsg = 'Review request sent via email!';
+                    showToast(successMsg, 'success');
                 } else if (method === 'sms') {
                     successMsg = 'Review request sent via SMS!';
+                    showToast(successMsg, 'success');
                 } else if (method === 'both') {
                     // Check which methods succeeded
                     const d = data?.data || {};
@@ -2874,8 +3048,10 @@
                     } else if (d.sms_sent) {
                         successMsg = 'Review request sent via SMS! (Email failed)';
                     }
+                    showToast(successMsg, 'success');
+                } else {
+                    showToast(successMsg, 'success');
                 }
-                showToast(successMsg, 'success');
 
                 // Clear form
                 customerNameInput.value = '';
@@ -2883,6 +3059,7 @@
                 customerPhoneInput.value = '';
                 validateReviewForm();
                 loadDashboardStats();
+                loadUsageStats();
                 loadReviewRequests();
             } catch (error) {
                 showToast(error.message, 'error');
@@ -2969,14 +3146,23 @@
 
                 const data = await response.json();
 
-                if (response.ok && data.success) {
-                    showToast('Review request sent (duplicate override)', 'success');
+                // Usage limit hit during force send
+                if (response.status === 429 && (data.error === 'monthly_sms_limit_reached' || data.error === 'monthly_email_limit_reached')) {
                     closeDuplicateModal();
+                    showLimitErrorModal(data);
+                } else if (response.ok && data.success) {
+                    closeDuplicateModal();
+                    if (data.sms_limit_reached || data.email_limit_reached) {
+                        showToast(data.message || 'Sent via fallback (one channel limit reached)', 'warning');
+                    } else {
+                        showToast('Review request sent (duplicate override)', 'success');
+                    }
                     customerNameInput.value = '';
                     customerEmailInput.value = '';
                     customerPhoneInput.value = '';
                     validateReviewForm();
                     loadDashboardStats();
+                    loadUsageStats();
                     loadReviewRequests();
                     showSuccessAnimation();
                 } else {
@@ -3320,6 +3506,7 @@
                 selectAllFn(false);
                 closeBulkSendModal();
                 loadDashboardStats();
+                loadUsageStats();
                 loadReviewRequests();
             } catch (error) {
                 showToast(error.message, 'error');
@@ -3397,6 +3584,7 @@
                 selectAllFn(false);
                 closeBulkDuplicateModal();
                 loadDashboardStats();
+                loadUsageStats();
                 loadReviewRequests();
             } catch (error) {
                 showToast(error.message, 'error');
@@ -3876,6 +4064,7 @@
                     showToast(`Sent ${data.success_count} review request(s)!`, 'success');
                     showSuccessAnimation();
                     loadDashboardStats();
+                    loadUsageStats();
                     loadReviewRequests();
                 } else {
                     // Queue for later using queue endpoint
@@ -4319,6 +4508,7 @@
                     await loadQueueStatus();
                     loadReviewRequests();
                     loadDashboardStats();
+                    loadUsageStats();
                 }
             } catch (error) {
                 showToast('Failed to process queue: ' + error.message, 'error');
@@ -4612,6 +4802,7 @@
         // =====================================================
         loadUserData();
         loadDashboardStats();
+        loadUsageStats();
         loadReviewRequests();
         validateReviewForm();
         validateCustomerForm();

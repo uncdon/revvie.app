@@ -298,3 +298,21 @@ def update_preferences():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@businesses_bp.route('/business/usage', methods=['GET'])
+@require_auth
+def get_usage():
+    """
+    Get current month's SMS/email usage stats.
+
+    Returns usage counts, caps, remaining, percentage, and reset date.
+    """
+    try:
+        from app.services import usage_tracker
+        business_id = request.user['id']
+        stats = usage_tracker.get_usage_stats(business_id)
+        return jsonify(stats), 200
+    except Exception as e:
+        logger.error(f"Error fetching usage stats: {e}")
+        return jsonify({"error": "Failed to load usage stats"}), 500

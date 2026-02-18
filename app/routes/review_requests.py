@@ -220,21 +220,55 @@ def send_review_request():
         # ============================================================
         # STEP 4: Send the review request(s)
         # ============================================================
+
+        # Pre-check usage limits and handle fallback for "both"
+        effective_method = method
+        sms_limit_reached = False
+        email_limit_reached = False
+
+        if method == 'both':
+            from app.services import usage_tracker
+            sms_check = usage_tracker.can_send_sms(business_id)
+            email_check = usage_tracker.can_send_email(business_id)
+
+            if not sms_check['can_send'] and not email_check['can_send']:
+                return jsonify({
+                    "success": False,
+                    "error": "monthly_sms_limit_reached",
+                    "message": f"Both SMS and email monthly limits reached. SMS: {sms_check['current_usage']}/{sms_check['monthly_cap']}, Email: {email_check['current_usage']}/{email_check['monthly_cap']}.",
+                    "resets_on": sms_check.get('resets_on'),
+                    "sms_limit": sms_check,
+                    "email_limit": email_check
+                }), 429
+
+            if not sms_check['can_send']:
+                logger.info(f"SMS limit reached for {business_id}, falling back to email only")
+                effective_method = 'email'
+                sms_limit_reached = True
+
+            if not email_check['can_send']:
+                logger.info(f"Email limit reached for {business_id}, falling back to SMS only")
+                effective_method = 'sms'
+                email_limit_reached = True
+
         email_sent = False
         email_error = None
+        email_result = None
         sms_sent = False
         sms_sid = None
         sms_status = None
         sms_error = None
+        sms_result = None
 
         # Send email if method is 'email' or 'both'
-        if method in ['email', 'both']:
+        if effective_method in ['email', 'both']:
             logger.info(f"Sending review request email to {customer_email}")
             email_result = send_review_request_email(
                 customer_name=customer_name,
                 customer_email=customer_email,
                 business_name=business_name,
-                review_url=send_url
+                review_url=send_url,
+                business_id=business_id
             )
             email_sent = email_result['success']
             if not email_sent:
@@ -242,13 +276,14 @@ def send_review_request():
                 logger.error(f"Email failed: {email_error}")
 
         # Send SMS if method is 'sms' or 'both'
-        if method in ['sms', 'both']:
+        if effective_method in ['sms', 'both']:
             logger.info(f"Sending review request SMS to {customer_phone}")
             sms_result = send_review_request_sms(
                 customer_name=customer_name,
                 customer_phone=customer_phone,
                 business_name=business_name,
-                review_url=send_url
+                review_url=send_url,
+                business_id=business_id
             )
             sms_sent = sms_result['success']
             if sms_sent:
@@ -263,18 +298,36 @@ def send_review_request():
         # STEP 5: Determine overall success
         # ============================================================
         # For 'both' method, we consider it a success if at least one worked
-        if method == 'email':
+        if effective_method == 'email':
             overall_success = email_sent
-        elif method == 'sms':
+        elif effective_method == 'sms':
             overall_success = sms_sent
         else:  # both
             overall_success = email_sent or sms_sent
 
         if not overall_success:
+            # Check if failure was due to a usage limit
+            if sms_result and sms_result.get('error') == 'monthly_sms_limit_reached':
+                sms_limit_info = sms_result.get('limit_info', {})
+                return jsonify({
+                    "success": False,
+                    "error": "monthly_sms_limit_reached",
+                    "message": sms_result.get('message', 'Monthly SMS limit reached'),
+                    "resets_on": sms_limit_info.get('resets_on')
+                }), 429
+            if email_result and email_result.get('error') == 'monthly_email_limit_reached':
+                email_limit_info = email_result.get('limit_info', {})
+                return jsonify({
+                    "success": False,
+                    "error": "monthly_email_limit_reached",
+                    "message": email_result.get('message', 'Monthly email limit reached'),
+                    "resets_on": email_limit_info.get('resets_on')
+                }), 429
+
             error_parts = []
-            if method in ['email', 'both'] and not email_sent:
+            if effective_method in ['email', 'both'] and not email_sent:
                 error_parts.append(f"Email: {email_error}")
-            if method in ['sms', 'both'] and not sms_sent:
+            if effective_method in ['sms', 'both'] and not sms_sent:
                 error_parts.append(f"SMS: {sms_error}")
             return jsonify({
                 "success": False,
@@ -290,12 +343,12 @@ def send_review_request():
             "customer_email": customer_email,
             "customer_phone": customer_phone,
             "status": "sent",
-            "method": method,
+            "method": effective_method,
             "sent_at": datetime.now(timezone.utc).isoformat(),
             # SMS tracking fields
             "sms_sid": sms_sid,
             "sms_status": sms_status,
-            "sms_error": sms_error if not sms_sent and method in ['sms', 'both'] else None
+            "sms_error": sms_error if not sms_sent and effective_method in ['sms', 'both'] else None
         }
 
         # Insert into the review_requests table
@@ -321,18 +374,18 @@ def send_review_request():
             "customer_name": customer_name,
             "business_name": business_name,
             "review_url": review_url,
-            "method": method
+            "method": effective_method
         }
 
         # Include email info if applicable
-        if method in ['email', 'both']:
+        if effective_method in ['email', 'both']:
             response_data["customer_email"] = customer_email
             response_data["email_sent"] = email_sent
             if not email_sent:
                 response_data["email_error"] = email_error
 
         # Include SMS info if applicable
-        if method in ['sms', 'both']:
+        if effective_method in ['sms', 'both']:
             response_data["customer_phone"] = customer_phone
             response_data["sms_sent"] = sms_sent
             if sms_sent:
@@ -340,15 +393,29 @@ def send_review_request():
             else:
                 response_data["sms_error"] = sms_error
 
+        # Include limit fallback info
+        if sms_limit_reached:
+            response_data["sms_limit_reached"] = True
+        if email_limit_reached:
+            response_data["email_limit_reached"] = True
+
         # Build appropriate message
-        if method == 'both':
+        if method == 'both' and effective_method != 'both':
+            # Fell back due to limit
+            if effective_method == 'email' and email_sent:
+                message = "Sent via email (SMS monthly limit reached)."
+            elif effective_method == 'sms' and sms_sent:
+                message = "Sent via SMS (email monthly limit reached)."
+            else:
+                message = "Review request sent."
+        elif effective_method == 'both':
             if email_sent and sms_sent:
                 message = "Review request sent via email and SMS!"
             elif email_sent:
                 message = "Review request sent via email. SMS failed."
             else:
                 message = "Review request sent via SMS. Email failed."
-        elif method == 'email':
+        elif effective_method == 'email':
             message = "Review request sent via email!"
         else:
             message = "Review request sent via SMS!"
@@ -659,7 +726,8 @@ def send_bulk_review_requests():
                         customer_name=customer_name,
                         customer_email=customer_email,
                         business_name=business_name,
-                        review_url=customer_send_url
+                        review_url=customer_send_url,
+                        business_id=business_id
                     )
                     email_sent = email_result['success']
 
@@ -669,7 +737,8 @@ def send_bulk_review_requests():
                         customer_name=customer_name,
                         customer_phone=customer_phone,
                         business_name=business_name,
-                        review_url=customer_send_url
+                        review_url=customer_send_url,
+                        business_id=business_id
                     )
                     sms_sent = sms_result['success']
                     if sms_sent:

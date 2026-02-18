@@ -184,6 +184,25 @@ def get_analytics():
                 for p in recent_payments_result.data
             ]
 
+        # --- Usage across all businesses ---
+
+        usage_result = supabase.table('businesses').select(
+            'sms_sent_this_month, email_sent_this_month, sms_monthly_cap, email_monthly_cap'
+        ).execute()
+
+        usage_rows = usage_result.data or []
+        total_sms = sum(b.get('sms_sent_this_month') or 0 for b in usage_rows)
+        total_emails = sum(b.get('email_sent_this_month') or 0 for b in usage_rows)
+
+        businesses_near_limit = 0
+        for b in usage_rows:
+            sms_sent = b.get('sms_sent_this_month') or 0
+            sms_cap = b.get('sms_monthly_cap') or 750
+            email_sent = b.get('email_sent_this_month') or 0
+            email_cap = b.get('email_monthly_cap') or 1000
+            if (sms_cap > 0 and sms_sent / sms_cap >= 0.8) or (email_cap > 0 and email_sent / email_cap >= 0.8):
+                businesses_near_limit += 1
+
         # --- Alerts ---
 
         trials_ending_soon = sum(
@@ -218,6 +237,12 @@ def get_analytics():
             'referrals': referral_stats,
             'recent_signups': recent_signups,
             'recent_payments': recent_payments,
+            'usage': {
+                'total_sms_this_month': total_sms,
+                'total_emails_this_month': total_emails,
+                'businesses_near_limit': businesses_near_limit,
+                'estimated_sms_cost': round(total_sms * 0.0095, 2)
+            },
             'alerts': {
                 'trials_ending_soon': trials_ending_soon,
                 'failed_payments': past_due_users

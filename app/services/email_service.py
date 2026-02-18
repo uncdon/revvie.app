@@ -139,7 +139,8 @@ def send_review_request_email(
     customer_name: str,
     customer_email: str,
     business_name: str,
-    review_url: str
+    review_url: str,
+    business_id: str = None
 ) -> dict:
     """
     Send a review request email to a customer.
@@ -164,6 +165,20 @@ def send_review_request_email(
             review_url="https://search.google.com/local/writereview?placeid=..."
         )
     """
+
+    # Check usage cap before sending
+    if business_id:
+        from app.services import usage_tracker
+        usage_check = usage_tracker.can_send_email(business_id)
+        if not usage_check['can_send']:
+            import logging
+            logging.getLogger(__name__).warning(f"Email blocked for business {business_id}: {usage_check['reason']}")
+            return {
+                'success': False,
+                'error': 'monthly_email_limit_reached',
+                'message': f"Monthly email limit reached ({usage_check['current_usage']}/{usage_check['monthly_cap']}). Resets {usage_check['resets_on']}.",
+                'limit_info': usage_check
+            }
 
     # Create the email subject with customer's name
     subject = f"We'd love your feedback, {customer_name}!"
@@ -254,11 +269,23 @@ def send_review_request_email(
     """
 
     # Use our existing send_email function to actually send it
-    return send_email(
+    result = send_email(
         to_email=customer_email,
         subject=subject,
         html_body=html_body
     )
+
+    # Increment usage counter on success
+    if result['success'] and business_id:
+        from app.services import usage_tracker
+        usage_tracker.increment_email_count(business_id)
+
+        warnings = usage_tracker.check_approaching_limit(business_id)
+        if warnings['email_warning']:
+            import logging
+            logging.getLogger(__name__).info(f"Business {business_id} approaching email limit: {warnings['email_percentage']:.1f}%")
+
+    return result
 
 
 # =============================================================================

@@ -270,7 +270,8 @@ def send_review_request_sms(
     customer_name: str,
     customer_phone: str,
     business_name: str,
-    review_url: str
+    review_url: str,
+    business_id: str = None
 ) -> dict:
     """
     Send a review request SMS to a customer.
@@ -325,6 +326,21 @@ def send_review_request_sms(
             'error': 'Review URL is required'
         }
 
+    # Check usage cap before sending
+    if business_id:
+        from app.services import usage_tracker
+        usage_check = usage_tracker.can_send_sms(business_id)
+        if not usage_check['can_send']:
+            logger.warning(f"SMS blocked for business {business_id}: {usage_check['reason']}")
+            return {
+                'success': False,
+                'message_id': None,
+                'status': 'error',
+                'error': 'monthly_sms_limit_reached',
+                'message': f"Monthly SMS limit reached ({usage_check['current_usage']}/{usage_check['monthly_cap']}). Resets {usage_check['resets_on']}.",
+                'limit_info': usage_check
+            }
+
     # Use defaults if name/business not provided
     name = (customer_name or "there").split()[0]  # First name only
     business = business_name or "us"
@@ -371,7 +387,18 @@ def send_review_request_sms(
     logger.info(f"Sending review request SMS to {customer_phone} for {business} ({len(message)} chars)")
 
     # Send the SMS
-    return send_sms(customer_phone, message)
+    result = send_sms(customer_phone, message)
+
+    # Increment usage counter on success
+    if result['success'] and business_id:
+        from app.services import usage_tracker
+        usage_tracker.increment_sms_count(business_id)
+
+        warnings = usage_tracker.check_approaching_limit(business_id)
+        if warnings['sms_warning']:
+            logger.info(f"Business {business_id} approaching SMS limit: {warnings['sms_percentage']:.1f}%")
+
+    return result
 
 
 # ============================================================================

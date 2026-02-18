@@ -240,7 +240,8 @@ def process_queued_requests() -> dict:
                         customer_name=customer_name,
                         customer_email=customer_email,
                         business_name=business_name,
-                        review_url=send_url
+                        review_url=send_url,
+                        business_id=business_id
                     )
                     email_sent = email_result['success']
                     if not email_sent:
@@ -254,7 +255,8 @@ def process_queued_requests() -> dict:
                         customer_name=customer_name,
                         customer_phone=customer_phone,
                         business_name=business_name,
-                        review_url=send_url
+                        review_url=send_url,
+                        business_id=business_id
                     )
                     sms_sent = sms_result['success']
                     if sms_sent:

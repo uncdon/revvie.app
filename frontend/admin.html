@@ -210,6 +210,28 @@
                     </div>
                 </div>
 
+                <!-- Usage Across All Businesses -->
+                <div class="stat-card">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Usage Across All Businesses</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div>
+                            <div class="text-sm text-gray-600">Total SMS sent this month</div>
+                            <div class="text-2xl font-bold" id="admin-total-sms">--</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-600">Total emails sent this month</div>
+                            <div class="text-2xl font-bold" id="admin-total-email">--</div>
+                        </div>
+                        <div>
+                            <div class="text-sm text-gray-600">Businesses at/near limit</div>
+                            <div class="text-2xl font-bold text-amber-600" id="admin-near-limit">--</div>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        Estimated SMS cost this month: ~$<span id="admin-sms-cost">--</span> (at $0.0095/msg)
+                    </div>
+                </div>
+
             </div><!-- /analyticsContent -->
 
             <!-- Referral Management -->
@@ -356,6 +378,14 @@
             document.getElementById('revenue-mrr').textContent = '$' + data.revenue.mrr.toLocaleString();
             document.getElementById('revenue-arr').textContent = '$' + data.revenue.arr.toLocaleString();
             document.getElementById('revenue-month').textContent = '$' + data.revenue.revenue_this_month.toLocaleString();
+
+            // Usage
+            if (data.usage) {
+                document.getElementById('admin-total-sms').textContent = (data.usage.total_sms_this_month || 0).toLocaleString();
+                document.getElementById('admin-total-email').textContent = (data.usage.total_emails_this_month || 0).toLocaleString();
+                document.getElementById('admin-near-limit').textContent = data.usage.businesses_near_limit || 0;
+                document.getElementById('admin-sms-cost').textContent = (data.usage.estimated_sms_cost || 0).toFixed(2);
+            }
 
             // Alerts
             const alertsHtml = [];
