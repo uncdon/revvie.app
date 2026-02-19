@@ -487,7 +487,7 @@ def delete_account():
 
         user_id = request.user['id']
 
-        # Cancel Stripe subscription if active
+        # Cancel Stripe subscription if active (can't CASCADE to external service)
         try:
             biz = supabase.table("businesses").select("stripe_customer_id").eq("id", user_id).execute()
             if biz.data and biz.data[0].get('stripe_customer_id'):
@@ -501,20 +501,7 @@ def delete_account():
         except Exception as e:
             logger.warning(f"Could not cancel Stripe subscription: {e}")
 
-        # Delete data in order (respecting foreign keys)
-        supabase_admin.table("tracking_clicks").delete().in_(
-            "tracking_link_id",
-            [r['id'] for r in supabase_admin.table("tracking_links").select("id").eq("business_id", user_id).execute().data or []]
-        ).execute() if supabase_admin.table("tracking_links").select("id").eq("business_id", user_id).execute().data else None
-
-        supabase_admin.table("tracking_links").delete().eq("business_id", user_id).execute()
-        supabase_admin.table("credit_transactions").delete().eq("business_id", user_id).execute()
-        supabase_admin.table("referrals").delete().eq("referrer_business_id", user_id).execute()
-        supabase_admin.table("referrals").delete().eq("referred_business_id", user_id).execute()
-        supabase_admin.table("queued_review_requests").delete().eq("business_id", user_id).execute()
-        supabase_admin.table("review_requests").delete().eq("business_id", user_id).execute()
-        supabase_admin.table("customers").delete().eq("business_id", user_id).execute()
-        supabase_admin.table("integrations").delete().eq("business_id", user_id).execute()
+        # Delete the business — CASCADE handles all related records automatically
         supabase_admin.table("businesses").delete().eq("id", user_id).execute()
 
         # Delete the auth user
