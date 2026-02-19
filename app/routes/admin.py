@@ -252,12 +252,29 @@ def get_analytics():
             'alerts': {
                 'trials_ending_soon': trials_ending_soon,
                 'failed_payments': past_due_users
-            }
+            },
+            'support': _get_support_counts(month_start),
         }), 200
 
     except Exception as e:
         logger.exception("Admin analytics error")
         return jsonify({"error": f"Failed to load analytics: {str(e)}"}), 500
+
+
+def _get_support_counts(month_start: str) -> dict:
+    """Return support_requests counts for the current month. Fails silently."""
+    try:
+        rows = supabase_admin.table('support_requests') \
+            .select('type') \
+            .gte('created_at', month_start) \
+            .execute().data or []
+        return {
+            'total': len(rows),
+            'feature_requests': sum(1 for r in rows if r.get('type') == 'feature_request'),
+            'bugs': sum(1 for r in rows if r.get('type') == 'bug'),
+        }
+    except Exception:
+        return {'total': 0, 'feature_requests': 0, 'bugs': 0}
 
 
 # =============================================================================
@@ -841,3 +858,46 @@ def admin_delete_account():
             "business_name": business_name,
             "stripe_subscription_canceled": stripe_canceled,
         }), 200
+
+
+@admin_bp.route('/waitlist', methods=['GET'])
+@require_auth
+def get_waitlist():
+    """Get integration waitlist signups (admin only)."""
+    if not is_admin(request.business):
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        # Count entries per integration
+        counts_result = supabase_admin.table('integration_waitlist') \
+            .select('integration') \
+            .execute()
+
+        counts = {'fresha': 0, 'vagaro': 0, 'mindbody': 0}
+        for row in (counts_result.data or []):
+            integration = row.get('integration', '')
+            if integration in counts:
+                counts[integration] += 1
+
+        # Recent 20 signups joined with business name
+        recent_result = supabase_admin.table('integration_waitlist') \
+            .select('email, integration, created_at, businesses(business_name)') \
+            .order('created_at', desc=True) \
+            .limit(20) \
+            .execute()
+
+        recent = []
+        for row in (recent_result.data or []):
+            biz = row.get('businesses') or {}
+            recent.append({
+                'email': row.get('email'),
+                'integration': row.get('integration'),
+                'created_at': row.get('created_at'),
+                'business_name': biz.get('business_name'),
+            })
+
+        return jsonify({'counts': counts, 'recent': recent}), 200
+
+    except Exception as e:
+        logger.error(f"Waitlist fetch error: {e}")
+        return jsonify({"error": "Failed to fetch waitlist data"}), 500

@@ -167,31 +167,36 @@ def truncate_message(message: str, max_length: int = 160) -> str:
     return message[:max_length - 3] + "..."
 
 
-def is_phone_opted_out(phone: str) -> bool:
+def is_phone_opted_out(phone: str, business_id: str = None) -> bool:
     """
-    Check if a phone number has opted out of SMS messages.
+    Check if a phone number has opted out of SMS messages for a given business.
 
     Args:
         phone: Phone number in any format (will be normalised to E.164)
+        business_id: The business UUID to check suppression against.
+                     If omitted, falls back to False (allow send).
 
     Returns:
-        True if the number is on the suppression list, False otherwise.
+        True if the number is in sms_suppressions for this business, False otherwise.
         Defaults to False (allow send) on any lookup error.
     """
+    if not business_id:
+        return False
+
     is_valid, formatted = validate_phone_number(phone)
     if not is_valid:
         return False
 
     try:
-        result = supabase_admin.table("sms_opt_outs") \
+        result = supabase_admin.table("sms_suppressions") \
             .select("id") \
-            .eq("phone_number", formatted) \
-            .is_("opted_in_at", "null") \
+            .eq("business_id", business_id) \
+            .eq("customer_phone", formatted) \
             .limit(1) \
             .execute()
         return bool(result.data)
     except Exception as e:
-        logger.error(f"Error checking opt-out status for {formatted}: {e}")
+        logger.error(f"Error checking SMS suppression for {formatted}: {e}")
         return False
 
 
@@ -379,7 +384,7 @@ def send_review_request_sms(
     business = business_name or "us"
 
     # Check suppression list before building/sending
-    if is_phone_opted_out(customer_phone):
+    if is_phone_opted_out(customer_phone, business_id):
         logger.info(f"SMS blocked for {customer_phone}: number is on opt-out suppression list")
         return {
             'success': False,

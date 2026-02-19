@@ -208,17 +208,16 @@ def handle_inbound_sms(payload: dict) -> dict:
     """
     Handle an inbound SMS reply from a customer.
 
-    Checks for STOP/START opt-out keywords and updates the sms_opt_outs
-    suppression table. Sends a confirmation reply via Telnyx.
+    STOP/UNSUBSCRIBE/CANCEL/END/QUIT:
+        - Looks up the most recent business that messaged this number
+        - Inserts into sms_suppressions (business_id + phone)
+        - Does NOT send a reply — Telnyx blocks outbound messages to
+          numbers that just opted out; the carrier sends its own
+          standard confirmation automatically
 
-    Requires a `sms_opt_outs` table in Supabase:
-        CREATE TABLE sms_opt_outs (
-            id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-            phone_number text NOT NULL,
-            opted_out_at timestamptz,
-            opted_in_at  timestamptz
-        );
-        CREATE INDEX ON sms_opt_outs (phone_number);
+    START/UNSTOP/YES:
+        - Removes all sms_suppressions rows for this phone number
+        - Sends an opt-in confirmation (allowed and expected)
 
     Args:
         payload: Telnyx message payload dict from the webhook.
@@ -238,52 +237,48 @@ def handle_inbound_sms(payload: dict) -> dict:
 
     logger.info(f"Inbound SMS from {sender_phone[:6]}***: '{text}'")
 
-    now = datetime.now(timezone.utc).isoformat()
-
     if text in STOP_KEYWORDS:
-        # Add to suppression list
+        # Look up the business this number most recently heard from
+        business_id = _lookup_recent_business_id(sender_phone)
+
+        if not business_id:
+            logger.warning(f"STOP from unknown number {sender_phone[:6]}*** — no matching review request")
+            return {"processed": True, "action": "opted_out", "status": "unknown_number"}
+
+        # Add to per-business suppression list
         try:
-            # Upsert: insert or clear the opted_in_at timestamp
-            supabase_admin.table("sms_opt_outs").upsert(
-                {
-                    "phone_number": sender_phone,
-                    "opted_out_at": now,
-                    "opted_in_at": None,
-                },
-                on_conflict="phone_number"
-            ).execute()
-            logger.info(f"Opt-out recorded for {sender_phone[:6]}***")
+            supabase_admin.table("sms_suppressions").insert({
+                "business_id": business_id,
+                "customer_phone": sender_phone,
+            }).execute()
+            logger.info(f"SMS opt-out: {sender_phone[:6]}*** suppressed for business {business_id}")
         except Exception as e:
-            logger.error(f"Failed to record opt-out for {sender_phone}: {e}")
+            if 'duplicate' in str(e).lower() or 'unique' in str(e).lower():
+                logger.info(f"Already opted out: {sender_phone[:6]}*** for business {business_id}")
+            else:
+                logger.error(f"Opt-out insert failed for {sender_phone}: {e}")
 
-        # Look up the most recent business name so the reply is personalised
-        business_name = _lookup_recent_business_name(sender_phone)
-        if business_name:
-            reply = (
-                f"You've been unsubscribed from {business_name} review requests. "
-                "Reply START to resubscribe."
-            )
-        else:
-            reply = "You've been unsubscribed from review request messages. Reply START to resubscribe."
-
-        _send_reply(our_phone, sender_phone, reply)
+        # DO NOT send a reply — Telnyx blocks outbound to opted-out numbers.
+        # The carrier automatically delivers a standard opt-out confirmation.
         return {"processed": True, "action": "opted_out", "phone": sender_phone}
 
     if text in START_KEYWORDS:
-        # Remove from suppression list by setting opted_in_at
+        # Remove all suppressions for this phone (re-subscribes across all businesses)
         try:
-            supabase_admin.table("sms_opt_outs").upsert(
-                {
-                    "phone_number": sender_phone,
-                    "opted_in_at": now,
-                },
-                on_conflict="phone_number"
-            ).execute()
-            logger.info(f"Opt-in recorded for {sender_phone[:6]}***")
+            supabase_admin.table("sms_suppressions") \
+                .delete() \
+                .eq("customer_phone", sender_phone) \
+                .execute()
+            logger.info(f"SMS opt-in: all suppressions cleared for {sender_phone[:6]}***")
         except Exception as e:
-            logger.error(f"Failed to record opt-in for {sender_phone}: {e}")
+            logger.error(f"Opt-in suppression removal failed for {sender_phone}: {e}")
 
-        _send_reply(our_phone, sender_phone, "You've been resubscribed to review request messages.")
+        # Sending a reply IS allowed after START — it's expected by the user
+        _send_reply(
+            our_phone,
+            sender_phone,
+            "You're resubscribed to review requests. Reply STOP anytime to opt out."
+        )
         return {"processed": True, "action": "opted_in", "phone": sender_phone}
 
     # Unrecognised reply — log and ignore
@@ -291,20 +286,19 @@ def handle_inbound_sms(payload: dict) -> dict:
     return {"processed": True, "action": "ignored", "reason": "Not an opt-out keyword"}
 
 
-def _lookup_recent_business_name(phone: str) -> str | None:
-    """Return the business name from the most recent review request sent to this phone."""
+def _lookup_recent_business_id(phone: str) -> str | None:
+    """Return the business_id from the most recent review request sent to this phone."""
     try:
         result = supabase_admin.table("review_requests") \
-            .select("businesses(name)") \
+            .select("business_id") \
             .eq("customer_phone", phone) \
             .order("sent_at", desc=True) \
             .limit(1) \
             .execute()
         if result.data:
-            biz = result.data[0].get("businesses") or {}
-            return biz.get("name")
+            return result.data[0].get("business_id")
     except Exception as e:
-        logger.error(f"Error looking up business name for {phone}: {e}")
+        logger.error(f"Error looking up business_id for {phone}: {e}")
     return None
 
 

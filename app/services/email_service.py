@@ -219,6 +219,29 @@ def send_review_request_email(
     Returns:
         dict: Same format as send_email() - success, message, status_code
     """
+    # Check suppression list before sending
+    try:
+        from app.services.supabase_service import supabase_admin as _supa
+        suppressed = _supa.table('email_suppressions').select('id') \
+            .eq('business_id', business_id) \
+            .eq('customer_email', customer_email.lower()) \
+            .execute()
+        if suppressed.data:
+            import logging
+            logging.getLogger(__name__).info(
+                f"Email suppressed: {customer_email} from business {business_id}"
+            )
+            return {
+                'success': False,
+                'error': 'email_suppressed',
+                'message': 'Customer has unsubscribed from emails',
+            }
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Suppression check failed for {customer_email}: {e} — sending anyway"
+        )
+
     # Check usage cap before sending
     from app.services import usage_tracker
     usage_check = usage_tracker.can_send_email(business_id)

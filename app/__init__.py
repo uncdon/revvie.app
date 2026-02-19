@@ -109,6 +109,14 @@ def create_app(config_name='default'):
     from app.routes.admin import admin_bp
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
 
+    # Email unsubscribe (public, no prefix)
+    from app.routes.unsubscribe import unsubscribe_bp
+    app.register_blueprint(unsubscribe_bp)
+
+    # Support tracking
+    from app.routes.support import support_bp
+    app.register_blueprint(support_bp, url_prefix='/api')
+
     # Start the queue processor scheduler (for processing delayed review requests)
     start_queue_scheduler(app)
 

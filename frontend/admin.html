@@ -376,6 +376,66 @@
                 </div>
             </div>
 
+            <!-- Support Requests -->
+            <div class="stat-card mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">💬 Support This Month</h3>
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <div class="text-2xl font-bold text-gray-900" id="support-total">--</div>
+                        <div class="text-sm text-gray-600">Total Requests</div>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-gray-900" id="support-features">--</div>
+                        <div class="text-sm text-gray-600">Feature Requests</div>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-gray-900" id="support-bugs">--</div>
+                        <div class="text-sm text-gray-600">Bug Reports</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Integration Waitlist -->
+            <div class="stat-card mb-8">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">📋 Integration Waitlist</h3>
+
+                <!-- Counts by integration -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                    <div class="bg-blue-50 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-blue-900" id="waitlist-fresha">--</div>
+                        <div class="text-sm text-blue-700 mt-1">Fresha</div>
+                    </div>
+                    <div class="bg-purple-50 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-purple-900" id="waitlist-vagaro">--</div>
+                        <div class="text-sm text-purple-700 mt-1">Vagaro</div>
+                    </div>
+                    <div class="bg-green-50 rounded-lg p-4 text-center">
+                        <div class="text-3xl font-bold text-green-900" id="waitlist-mindbody">--</div>
+                        <div class="text-sm text-green-700 mt-1">Mindbody</div>
+                    </div>
+                </div>
+
+                <!-- Recent signups -->
+                <div>
+                    <h4 class="font-semibold text-gray-900 mb-3">Recent Signups</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead>
+                                <tr class="text-left text-gray-600 border-b">
+                                    <th class="pb-2">Business</th>
+                                    <th class="pb-2">Email</th>
+                                    <th class="pb-2">Integration</th>
+                                    <th class="pb-2">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="waitlist-recent">
+                                <tr><td colspan="4" class="py-4 text-center text-gray-400 text-sm">Loading...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
         </div><!-- /adminContent -->
 
     </div>
@@ -422,14 +482,16 @@
                 const analytics = await resp.json();
                 renderAnalytics(analytics);
 
-                // Load referrals in parallel
+                // Load referrals and waitlist in parallel
                 loadAdminReferrals();
+                loadWaitlistData();
 
             } catch (err) {
                 console.error('Admin init failed:', err);
                 document.getElementById('adminContent').classList.remove('hidden');
                 document.getElementById('analyticsLoading').classList.add('hidden');
                 loadAdminReferrals();
+                loadWaitlistData();
             }
         })();
 
@@ -453,6 +515,13 @@
             document.getElementById('revenue-mrr').textContent = '$' + data.revenue.mrr.toLocaleString();
             document.getElementById('revenue-arr').textContent = '$' + data.revenue.arr.toLocaleString();
             document.getElementById('revenue-month').textContent = '$' + data.revenue.revenue_this_month.toLocaleString();
+
+            // Support
+            if (data.support) {
+                document.getElementById('support-total').textContent = data.support.total ?? 0;
+                document.getElementById('support-features').textContent = data.support.feature_requests ?? 0;
+                document.getElementById('support-bugs').textContent = data.support.bugs ?? 0;
+            }
 
             // Usage
             if (data.usage) {
@@ -828,6 +897,45 @@
                 currentBusinessId = null;
             } catch (e) {
                 showToast('Request failed', true);
+            }
+        }
+
+        async function loadWaitlistData() {
+            try {
+                const res = await fetch(`${API_URL}/admin/waitlist`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+
+                document.getElementById('waitlist-fresha').textContent = data.counts.fresha ?? 0;
+                document.getElementById('waitlist-vagaro').textContent = data.counts.vagaro ?? 0;
+                document.getElementById('waitlist-mindbody').textContent = data.counts.mindbody ?? 0;
+
+                const BADGE = {
+                    fresha: 'bg-blue-100 text-blue-800',
+                    vagaro: 'bg-purple-100 text-purple-800',
+                    mindbody: 'bg-green-100 text-green-800',
+                };
+
+                const rows = (data.recent || []).map(item => `
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2">${esc(item.business_name || 'N/A')}</td>
+                        <td class="py-2">${esc(item.email)}</td>
+                        <td class="py-2">
+                            <span class="px-2 py-0.5 rounded text-xs font-medium ${BADGE[item.integration] || ''}">
+                                ${esc(item.integration.charAt(0).toUpperCase() + item.integration.slice(1))}
+                            </span>
+                        </td>
+                        <td class="py-2 text-gray-500">${new Date(item.created_at).toLocaleDateString()}</td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('waitlist-recent').innerHTML =
+                    rows || '<tr><td colspan="4" class="py-4 text-center text-gray-500">No signups yet</td></tr>';
+
+            } catch (e) {
+                console.error('Waitlist load failed:', e);
             }
         }
 
