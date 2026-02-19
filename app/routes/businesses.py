@@ -4,12 +4,13 @@ Business API endpoints - PROTECTED ROUTES.
 All routes here require authentication (valid JWT token).
 
 Endpoints:
-- GET  /api/business             - Get business details
-- PUT  /api/business             - Update business details
-- PUT  /api/business/profile     - Update individual profile fields
-- GET  /api/business/settings    - Get business settings (cooldown, etc.)
-- PUT  /api/business/settings    - Update business settings
-- PUT  /api/business/preferences - Update email notification preferences
+- GET  /api/business                    - Get business details
+- PUT  /api/business                    - Update business details
+- PUT  /api/business/profile            - Update individual profile fields
+- GET  /api/business/settings          - Get business settings (cooldown, etc.)
+- PUT  /api/business/settings          - Update business settings
+- PUT  /api/business/preferences       - Update email notification preferences
+- POST /api/business/clear-google-place - Clear Place ID for re-selection
 """
 
 import logging
@@ -299,6 +300,29 @@ def update_preferences():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+@businesses_bp.route('/business/clear-google-place', methods=['POST'])
+@require_auth
+def clear_google_place():
+    """
+    Clear the stored Google Place ID and review URL so the user can
+    re-run onboarding and select a different business.
+    """
+    business_id = request.business.get('id')
+    try:
+        supabase.table('businesses').update({
+            'google_place_id': None,
+            'google_review_url': None,
+        }).eq('id', business_id).execute()
+        logger.info(f"Cleared Google Place for business {business_id}")
+        return jsonify({
+            'success': True,
+            'message': 'Google Business Profile cleared. You can now select a new one.',
+        }), 200
+    except Exception as e:
+        logger.error(f"Failed to clear Google Place for {business_id}: {e}")
+        return jsonify({'error': 'Failed to clear business profile'}), 500
 
 
 @businesses_bp.route('/business/usage', methods=['GET'])

@@ -2854,11 +2854,29 @@
             }
         }
 
-        function changeBusiness() {
+        async function changeBusiness() {
             if (!confirm('Change your Google Business Profile?\n\nThis will disconnect your current review link. You\'ll be taken to onboarding to select a new business.')) {
                 return;
             }
-            window.location.href = '/onboarding';
+
+            try {
+                const response = await fetch(`${API_URL}/business/clear-google-place`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.ok) {
+                    window.location.href = '/onboarding';
+                } else {
+                    alert('Failed to change business. Please try again.');
+                }
+            } catch (error) {
+                console.error('Error clearing business:', error);
+                alert('Network error. Please try again.');
+            }
         }
 
         function copyReviewLink() {

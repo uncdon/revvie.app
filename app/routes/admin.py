@@ -264,7 +264,7 @@ def get_analytics():
 def _get_support_counts(month_start: str) -> dict:
     """Return support_requests counts for the current month. Fails silently."""
     try:
-        rows = supabase_admin.table('support_requests') \
+        rows = supabase.table('support_requests') \
             .select('type') \
             .gte('created_at', month_start) \
             .execute().data or []
@@ -869,7 +869,7 @@ def get_waitlist():
 
     try:
         # Count entries per integration
-        counts_result = supabase_admin.table('integration_waitlist') \
+        counts_result = supabase.table('integration_waitlist') \
             .select('integration') \
             .execute()
 
@@ -880,7 +880,7 @@ def get_waitlist():
                 counts[integration] += 1
 
         # Recent 20 signups joined with business name
-        recent_result = supabase_admin.table('integration_waitlist') \
+        recent_result = supabase.table('integration_waitlist') \
             .select('email, integration, created_at, businesses(business_name)') \
             .order('created_at', desc=True) \
             .limit(20) \
