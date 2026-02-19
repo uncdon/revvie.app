@@ -468,12 +468,14 @@ def handle_subscription_deleted(subscription, business_id: str) -> None:
         business_id: The business UUID from subscription metadata
     """
     try:
+        # Business may have already been deleted — update is a no-op if so
         supabase.table('businesses').update({
             'subscription_status': 'canceled'
         }).eq('id', business_id).execute()
 
         logger.info(f"Subscription deleted for business {business_id}")
 
+        # _log_billing_event checks existence before inserting
         _log_billing_event(business_id, 'subscription_deleted', {
             'subscription_id': subscription.id
         })
@@ -481,7 +483,7 @@ def handle_subscription_deleted(subscription, business_id: str) -> None:
         _send_cancellation(business_id)
 
     except Exception as e:
-        logger.error(f"Failed to handle subscription deleted for business {business_id}: {e}")
+        logger.warning(f"Failed to handle subscription deleted for business {business_id}: {e}")
 
 
 # =============================================================================
@@ -613,8 +615,17 @@ def handle_payment_failed(invoice, business_id: str) -> None:
 # =============================================================================
 
 def _log_billing_event(business_id: str, event_type: str, details: dict) -> None:
-    """Log a billing event to the billing_events table."""
+    """Log a billing event to the billing_events table.
+
+    Fails gracefully if the business no longer exists — handles the race
+    condition where a Stripe webhook fires after account deletion.
+    """
     try:
+        exists = supabase.table('businesses').select('id').eq('id', business_id).execute()
+        if not exists.data:
+            logger.info(f"Skipping billing event '{event_type}' for deleted business {business_id}")
+            return
+
         supabase.table('billing_events').insert({
             'business_id': business_id,
             'event_type': event_type,
@@ -624,7 +635,7 @@ def _log_billing_event(business_id: str, event_type: str, details: dict) -> None
             'raw_event': details,
         }).execute()
     except Exception as e:
-        logger.error(f"Failed to log billing event '{event_type}' for business {business_id}: {e}")
+        logger.warning(f"Failed to log billing event '{event_type}' for business {business_id}: {e}")
 
 
 def _get_business_info(business_id: str) -> dict | None:
