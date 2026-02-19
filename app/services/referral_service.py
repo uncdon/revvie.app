@@ -596,6 +596,14 @@ def get_referral_stats(business_id: str) -> dict | None:
         if biz_result.data:
             account_credit = float(biz_result.data[0].get('account_credit') or 0)
 
+        # Check if this business was itself referred by someone
+        referred_check = supabase_admin.table('referrals') \
+            .select('status') \
+            .eq('referred_business_id', business_id) \
+            .limit(1) \
+            .execute()
+        was_referred = bool(referred_check.data)
+
         # Get all referrals where this business is the referrer
         # Join with businesses to get referred business name
         ref_result = supabase_admin.table('referrals') \
@@ -653,6 +661,7 @@ def get_referral_stats(business_id: str) -> dict | None:
             'completed_referrals': completed_count,
             'cancelled_referrals': cancelled_count,
             'pending_credit': pending_count * REFERRER_CREDIT,
+            'was_referred': was_referred,
             'referrals': referrals,
         }
 

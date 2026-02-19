@@ -521,9 +521,12 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
             logger.info(f"Business {business_id} status updated from past_due to active")
 
         # Handle first subscription payment (subscription_create)
-        # This is when Stripe applies the referral coupon discount
+        # This is when Stripe applies the referral coupon discount.
+        # IMPORTANT: Only process when amount > 0 — a $0 invoice with
+        # billing_reason='subscription_create' is fired at trial start and
+        # must NOT trigger credit deduction or referral completion.
         billing_reason = getattr(invoice, 'billing_reason', None)
-        if billing_reason == 'subscription_create':
+        if billing_reason == 'subscription_create' and amount > 0:
             # Issue 1: Deduct credit if business used referral discount
             # Stripe already applied it as a coupon - sync the DB to reflect that
             try:
