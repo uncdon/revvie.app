@@ -2,10 +2,11 @@
 Billing API endpoints - handles Stripe checkout, portal, and webhooks.
 
 API Endpoints (registered under /api):
-- POST /api/billing/create-checkout  - Create Stripe Checkout session (auth required)
-- POST /api/billing/create-portal    - Create Stripe Customer Portal session (auth required)
-- GET  /api/billing/status           - Get subscription status (auth required)
-- POST /api/billing/webhook          - Handle Stripe webhook events (public, signature verified)
+- POST /api/billing/create-checkout      - Create Stripe Checkout session (auth required)
+- POST /api/billing/create-portal        - Create Stripe Customer Portal session (auth required)
+- GET  /api/billing/status               - Get subscription status (auth required)
+- GET  /api/billing/trial-eligibility    - Check trial + referral discount eligibility (auth required)
+- POST /api/billing/webhook              - Handle Stripe webhook events (public, signature verified)
 
 Page Routes (registered at root):
 - GET /billing/success   - Shown after successful Stripe checkout
@@ -90,6 +91,68 @@ def create_checkout():
 
     except Exception as e:
         logger.error(f"Error creating checkout session: {e}")
+        return jsonify({"error": "An unexpected error occurred"}), 500
+
+
+# =============================================================================
+# ROUTE 1b: TRIAL ELIGIBILITY CHECK
+# =============================================================================
+
+@billing_bp.route('/billing/trial-eligibility', methods=['GET'])
+@require_auth
+def trial_eligibility():
+    """
+    Return whether the authenticated business qualifies for a free trial
+    and/or a referral discount.
+
+    Used by the subscribe page to update its messaging before the user
+    clicks through to Stripe — prevents surprise charges for returning users.
+
+    Returns:
+        {
+            "eligible_for_trial": true,
+            "eligible_for_referral_discount": false,
+            "message": "You qualify for a 14-day free trial"
+        }
+    """
+    try:
+        business = request.business
+        if not business:
+            return jsonify({"error": "Business profile not found"}), 404
+
+        business_id = business.get('id')
+
+        result = supabase.table('businesses').select(
+            'has_had_trial, referral_credit_used, discount_applied'
+        ).eq('id', business_id).execute()
+
+        if not result.data:
+            return jsonify({"error": "Business not found"}), 404
+
+        biz = result.data[0]
+        eligible_for_trial = not biz.get('has_had_trial', False)
+        eligible_for_referral = (
+            not biz.get('referral_credit_used', False)
+            and (biz.get('discount_applied') or 0) > 0
+        )
+
+        if eligible_for_trial and eligible_for_referral:
+            message = "You qualify for a 14-day free trial and a $40 referral discount"
+        elif eligible_for_trial:
+            message = "You qualify for a 14-day free trial"
+        elif eligible_for_referral:
+            message = "No free trial available (already used). A $40 referral discount will be applied."
+        else:
+            message = "Your trial was already used. Subscribe for $79/month, billed immediately."
+
+        return jsonify({
+            "eligible_for_trial": eligible_for_trial,
+            "eligible_for_referral_discount": eligible_for_referral,
+            "message": message,
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Error checking trial eligibility: {e}")
         return jsonify({"error": "An unexpected error occurred"}), 500
 
 

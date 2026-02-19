@@ -311,6 +311,7 @@
                     }
                     localStorage.setItem('user', JSON.stringify(data.user));
                     localStorage.setItem('business', JSON.stringify(data.business));
+                    localStorage.setItem('signup_email', email);
                     localStorage.removeItem('revvie_referral_code');
                     btnText.textContent = 'Success!';
                     setTimeout(() => window.location.href = data.redirect || '/onboarding', 500);

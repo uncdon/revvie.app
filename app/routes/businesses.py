@@ -170,7 +170,7 @@ def get_settings():
         business_id = request.user['id']
 
         result = supabase.table("businesses") \
-            .select("review_request_cooldown_days, business_name, email") \
+            .select("review_request_cooldown_days, business_name, email, email_verified") \
             .eq("id", business_id) \
             .limit(1) \
             .execute()
@@ -184,6 +184,7 @@ def get_settings():
             "review_request_cooldown_days": biz.get("review_request_cooldown_days") if biz.get("review_request_cooldown_days") is not None else 30,
             "business_name": biz.get("business_name", ""),
             "email": biz.get("email", ""),
+            "email_verified": biz.get("email_verified", False),
         }), 200
 
     except Exception as e:

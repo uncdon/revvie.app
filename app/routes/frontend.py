@@ -51,6 +51,24 @@ def subscribe():
     return send_from_directory(FRONTEND_FOLDER, 'subscribe.html')
 
 
+@frontend_bp.route('/verify-email-sent')
+def verify_email_sent():
+    """Serve the 'check your email' page shown after signup."""
+    return send_from_directory(FRONTEND_FOLDER, 'verify-email-sent.html')
+
+
+@frontend_bp.route('/verify-email')
+def verify_email():
+    """Serve the email verification handler page."""
+    return send_from_directory(FRONTEND_FOLDER, 'verify-email.html')
+
+
+@frontend_bp.route('/verify-email-error')
+def verify_email_error():
+    """Serve the verification error page."""
+    return send_from_directory(FRONTEND_FOLDER, 'verify-email-error.html')
+
+
 @frontend_bp.route('/admin')
 def admin():
     """Serve admin page."""

@@ -27,6 +27,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import require_auth
+from app.middleware.require_verified_email import require_verified_email
 from app.services.email_service import send_review_request_email
 from app.services.google_places import get_review_url as places_review_url
 from app.services.sms_service import send_review_request_sms, validate_phone_number
@@ -45,7 +46,8 @@ VALID_METHODS = ['email', 'sms', 'both']
 
 
 @review_requests_bp.route('/review-requests/send', methods=['POST'])
-@require_auth  # Only logged-in business owners can send review requests
+@require_auth
+@require_verified_email
 def send_review_request():
     """
     Send a review request to a customer via email, SMS, or both.
@@ -485,6 +487,7 @@ def get_review_requests():
 
 @review_requests_bp.route('/review-requests/bulk', methods=['POST'])
 @require_auth
+@require_verified_email
 def send_bulk_review_requests():
     """
     Send review request emails/SMS to multiple customers at once.

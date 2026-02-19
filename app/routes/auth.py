@@ -9,7 +9,10 @@ Endpoints:
 - DELETE /api/business/account       - Delete account and all data (requires token)
 """
 
+import os
+import secrets
 import logging
+from datetime import datetime, timedelta, timezone
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import signup_user, login_user, get_current_user, require_auth
 from app.services.supabase_service import supabase, supabase_admin
@@ -64,12 +67,13 @@ def signup():
         # Create the account
         result = signup_user(email, password, business_name)
 
+        new_business_id = result['business']['id']
+
         # Record referral if signup came from a referral link
         ref_code = data.get('referral_code')
-        if ref_code and result.get('business'):
+        if ref_code:
             try:
                 from app.services import referral_service
-                new_business_id = result['business']['id']
                 referral_service.record_referral_signup(
                     referral_code=ref_code,
                     referred_business_id=new_business_id
@@ -78,9 +82,42 @@ def signup():
             except Exception as e:
                 logger.error(f"Referral recording failed for code {ref_code}: {e}")
 
+        # Generate and store email verification token
+        verification_token = secrets.token_urlsafe(32)
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(hours=24)
+
+        try:
+            supabase_admin.table('businesses').update({
+                'email_verification_token': verification_token,
+                'email_verification_sent_at': now.isoformat(),
+                'email_verification_expires_at': expires_at.isoformat(),
+                'email_verified': False,
+            }).eq('id', new_business_id).execute()
+        except Exception as e:
+            # Non-fatal — account is created, verification can be resent later
+            logger.error(f"Failed to store verification token for {new_business_id}: {e}")
+
+        # Send verification email (non-fatal if it fails)
+        try:
+            from app.services import email_service
+            verification_url = (
+                f"{os.getenv('APP_BASE_URL', 'http://localhost:5000')}"
+                f"/verify-email?token={verification_token}"
+            )
+            email_service.send_verification_email(
+                email=email,
+                business_name=business_name,
+                verification_url=verification_url,
+            )
+            logger.info(f"Verification email sent to {email} for business {new_business_id}")
+        except Exception as e:
+            logger.error(f"Failed to send verification email to {email}: {e}")
+
         return jsonify({
-            "message": "Account created successfully",
-            "redirect": "/onboarding",
+            "message": "Account created. Please check your email to verify.",
+            "redirect": "/verify-email-sent",
+            "email_verified": False,
             **result
         }), 201
 
@@ -126,20 +163,38 @@ def login():
         if not password:
             return jsonify({"error": "Password is required"}), 400
 
-        # Authenticate
+        # Authenticate — verifies password via Supabase
         result = login_user(email, password)
 
-        # Check onboarding + subscription status to determine redirect
+        # Post-auth checks: account status + onboarding + subscription redirect
         redirect = "/dashboard"
         try:
             user_id = result['user']['id']
             biz = supabase.table('businesses').select('*').eq('id', user_id).execute()
             if biz.data:
                 b = biz.data[0]
+
+                # Check account status before allowing access
+                account_status = b.get('account_status', 'active')
+
+                if account_status == 'blocked':
+                    return jsonify({
+                        "error": "Account blocked",
+                        "message": "Your account has been blocked. Contact support for assistance.",
+                        "reason": b.get('blocked_reason'),
+                        "support_email": "support@revvie.app",
+                    }), 403
+
+                if account_status == 'deleted':
+                    return jsonify({
+                        "error": "Account deleted",
+                        "message": "This account has been deleted.",
+                    }), 410
+
+                # Determine redirect based on onboarding + subscription state
                 if not b.get('google_place_id'):
                     redirect = "/onboarding"
                 else:
-                    # Onboarding complete — check subscription status
                     sub_status = b.get('subscription_status') or 'none'
                     if sub_status in ('none', 'canceled', 'unpaid'):
                         redirect = "/subscribe"
@@ -147,7 +202,7 @@ def login():
             else:
                 redirect = "/onboarding"
         except Exception:
-            pass  # Default to dashboard if check fails
+            pass  # Default to /dashboard if status check fails
 
         return jsonify({
             "message": "Login successful",
@@ -237,6 +292,180 @@ def change_password():
     except Exception as e:
         logger.error(f"Change password error: {e}")
         return jsonify({"error": "Failed to update password. Please try again."}), 500
+
+
+@auth_bp.route('/auth/verify-email', methods=['GET'])
+def verify_email():
+    """
+    Verify a user's email address using the token from the verification email.
+
+    Query params:
+        token: The verification token from the email link
+
+    Response (success):
+    {
+        "success": true,
+        "message": "Email verified successfully!",
+        "redirect": "/onboarding",
+        "business": {"id": "...", "email": "...", "business_name": "..."}
+    }
+    """
+    token = request.args.get('token', '').strip()
+
+    if not token:
+        return jsonify({"error": "Verification token required"}), 400
+
+    try:
+        result = supabase_admin.table('businesses').select(
+            'id, email, business_name, email_verified, '
+            'email_verification_expires_at, google_place_id, subscription_status'
+        ).eq('email_verification_token', token).execute()
+
+        if not result.data:
+            return jsonify({
+                "error": "Invalid verification token",
+                "redirect": "/verify-email-error?reason=invalid"
+            }), 404
+
+        biz = result.data[0]
+        business_id = biz['id']
+
+        # Already verified — idempotent success
+        if biz.get('email_verified'):
+            return jsonify({
+                "success": True,
+                "already_verified": True,
+                "redirect": "/dashboard",
+                "message": "Email already verified"
+            }), 200
+
+        # Check expiry
+        expires_at_str = biz.get('email_verification_expires_at')
+        if expires_at_str:
+            expires_at = datetime.fromisoformat(expires_at_str.replace('Z', '+00:00'))
+            if datetime.now(expires_at.tzinfo) > expires_at:
+                return jsonify({
+                    "error": "Verification link expired",
+                    "redirect": "/verify-email-error?reason=expired",
+                    "can_resend": True
+                }), 410
+
+        # Mark as verified and clear the one-time token
+        supabase_admin.table('businesses').update({
+            'email_verified': True,
+            'email_verification_token': None,
+            'email_verification_sent_at': None,
+            'email_verification_expires_at': None,
+        }).eq('id', business_id).execute()
+
+        logger.info(f"Email verified for business {business_id}")
+
+        # Determine where to send the user based on onboarding state
+        redirect = "/onboarding"
+        if biz.get('google_place_id'):
+            sub_status = biz.get('subscription_status') or 'none'
+            if sub_status in ('trialing', 'active', 'past_due'):
+                redirect = "/dashboard"
+            else:
+                redirect = "/subscribe"
+
+        return jsonify({
+            "success": True,
+            "message": "Email verified successfully!",
+            "redirect": redirect,
+            "business": {
+                "id": biz['id'],
+                "email": biz.get('email'),
+                "business_name": biz.get('business_name'),
+            }
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Email verification error: {e}")
+        return jsonify({"error": "Verification failed. Please try again."}), 500
+
+
+@auth_bp.route('/auth/resend-verification', methods=['POST'])
+def resend_verification():
+    """
+    Resend the email verification link.
+
+    Request body:
+    {
+        "email": "user@example.com"
+    }
+
+    No authentication required — public endpoint.
+    Always returns success to avoid leaking whether an email exists.
+    """
+    try:
+        email = (request.json or {}).get('email', '').strip().lower()
+
+        if not email:
+            return jsonify({"error": "Email required"}), 400
+
+        # Look up business by email (use admin client to bypass RLS on public route)
+        result = supabase_admin.table('businesses').select(
+            'id, business_name, email_verified, email_verification_sent_at'
+        ).eq('email', email).execute()
+
+        if not result.data:
+            # Don't reveal whether the email exists
+            return jsonify({
+                "success": True,
+                "message": "If that email exists, we sent a verification link."
+            }), 200
+
+        business = result.data[0]
+
+        # Already verified — no point resending
+        if business.get('email_verified'):
+            return jsonify({
+                "error": "Email already verified",
+                "redirect": "/login"
+            }), 400
+
+        # Rate limit: max one resend per 5 minutes
+        last_sent = business.get('email_verification_sent_at')
+        if last_sent:
+            last_sent_dt = datetime.fromisoformat(last_sent.replace('Z', '+00:00'))
+            if datetime.now(last_sent_dt.tzinfo) - last_sent_dt < timedelta(minutes=5):
+                return jsonify({
+                    "error": "Please wait 5 minutes before requesting another email"
+                }), 429
+
+        # Generate a new token
+        new_token = secrets.token_urlsafe(32)
+        now = datetime.now(timezone.utc)
+        expires_at = now + timedelta(hours=24)
+
+        supabase_admin.table('businesses').update({
+            'email_verification_token': new_token,
+            'email_verification_sent_at': now.isoformat(),
+            'email_verification_expires_at': expires_at.isoformat(),
+        }).eq('id', business['id']).execute()
+
+        verification_url = (
+            f"{os.getenv('APP_BASE_URL', 'http://localhost:5000')}"
+            f"/verify-email?token={new_token}"
+        )
+
+        from app.services import email_service
+        email_service.send_verification_email(
+            email=email,
+            business_name=business.get('business_name', ''),
+            verification_url=verification_url,
+        )
+
+        logger.info(f"Verification email resent to {email}")
+        return jsonify({
+            "success": True,
+            "message": "Verification email sent. Check your inbox."
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Resend verification error: {e}")
+        return jsonify({"error": "Failed to resend. Please try again."}), 500
 
 
 @auth_bp.route('/business/account', methods=['DELETE'])

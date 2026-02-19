@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Check Your Email - *revvie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Young+Serif&display=swap" rel="stylesheet">
+  <style>
+    body { background-color: #f8f8f8; }
+    .logo-text { font-family: 'Young Serif', serif; color: #07B5F5; }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+
+      <h1 class="logo-text text-3xl mb-6">*revvie</h1>
+
+      <div class="text-6xl mb-6">📧</div>
+
+      <h2 class="text-2xl font-bold text-gray-900 mb-4">
+        Check your email
+      </h2>
+
+      <p class="text-gray-600 mb-6">
+        We sent a verification link to
+        <strong id="user-email">your email</strong>.
+      </p>
+
+      <p class="text-gray-600 mb-8">
+        Click the link in the email to verify your account
+        and start your free trial.
+      </p>
+
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <p class="text-sm text-blue-800">
+          💡 <strong>Didn't receive it?</strong>
+          Check your spam folder or
+          <button onclick="resendEmail()"
+                  id="resend-btn"
+                  class="text-blue-600 underline font-semibold">
+            resend the email
+          </button>
+        </p>
+      </div>
+
+      <p id="resend-status" class="hidden text-sm mb-4"></p>
+
+      <p class="text-xs text-gray-500">
+        The link expires in 24 hours.
+      </p>
+
+    </div>
+  </div>
+
+  <script>
+    // Get email from URL params, localStorage (set by signup page), or fallback
+    const urlParams = new URLSearchParams(window.location.search);
+    const email = urlParams.get('email') ||
+                  localStorage.getItem('signup_email') ||
+                  'your email';
+
+    document.getElementById('user-email').textContent = email;
+
+    async function resendEmail() {
+      const btn = document.getElementById('resend-btn');
+      const status = document.getElementById('resend-status');
+
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      status.classList.add('hidden');
+
+      try {
+        const response = await fetch('/api/auth/resend-verification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          btn.textContent = 'Email sent! ✓';
+          btn.classList.remove('text-blue-600');
+          btn.classList.add('text-green-600');
+        } else {
+          btn.textContent = 'resend the email';
+          btn.disabled = false;
+          status.textContent = data.error || 'Failed to send. Please try again.';
+          status.className = 'text-sm mb-4 text-red-600';
+          status.classList.remove('hidden');
+        }
+      } catch (error) {
+        btn.textContent = 'resend the email';
+        btn.disabled = false;
+        status.textContent = 'Network error. Please try again.';
+        status.className = 'text-sm mb-4 text-red-600';
+        status.classList.remove('hidden');
+      } finally {
+        // Re-enable after 5 seconds on success to allow retry
+        setTimeout(() => {
+          if (btn.disabled) {
+            btn.disabled = false;
+          }
+        }, 5000);
+      }
+    }
+  </script>
+</body>
+</html>

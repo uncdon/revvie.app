@@ -6,8 +6,12 @@ Admin is determined by matching the authenticated user's email
 against the ADMIN_EMAIL environment variable.
 
 Endpoints:
-- GET /api/admin/analytics                    - Get comprehensive business metrics
-- GET /api/admin/email-preview/<email_type>   - Dev only: render email HTML in browser
+- GET  /api/admin/analytics                    - Get comprehensive business metrics
+- GET  /api/admin/email-preview/<email_type>   - Dev only: render email HTML in browser
+- GET  /api/admin/search-account               - Search for an account by email or name
+- POST /api/admin/block-account                - Block an account (cancels Stripe sub)
+- POST /api/admin/unblock-account              - Unblock a previously blocked account
+- POST /api/admin/delete-account               - Soft or hard delete an account
 """
 
 import os
@@ -561,3 +565,279 @@ def preview_email(email_type):
     except Exception as e:
         logger.exception(f"Email preview failed for type '{email_type}'")
         return jsonify({"error": str(e)}), 500
+
+
+# =============================================================================
+# ACCOUNT MANAGEMENT
+# =============================================================================
+
+def _cancel_stripe_subscription(business_id: str) -> bool:
+    """
+    Cancel all active Stripe subscriptions for a business.
+    Returns True if a subscription was found and canceled, False otherwise.
+    """
+    import stripe
+    stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+
+    try:
+        biz = supabase.table('businesses').select('stripe_customer_id').eq('id', business_id).execute()
+        if not biz.data or not biz.data[0].get('stripe_customer_id'):
+            return False
+
+        customer_id = biz.data[0]['stripe_customer_id']
+        subs = stripe.Subscription.list(customer=customer_id, status='active', limit=10)
+        canceled = False
+        for sub in subs.auto_paging_iter():
+            stripe.Subscription.cancel(sub.id)
+            canceled = True
+            logger.info(f"Canceled Stripe subscription {sub.id} for business {business_id}")
+        return canceled
+    except Exception as e:
+        logger.warning(f"Stripe cancellation failed for business {business_id}: {e}")
+        return False
+
+
+@admin_bp.route('/search-account', methods=['GET'])
+@require_auth
+def search_account():
+    """
+    Search for a business account by email or business name.
+
+    Query params:
+        q: Search string (partial match on email or business_name)
+
+    Returns the first matching business with account status fields.
+    """
+    if not is_admin(request.business):
+        return jsonify({"error": "Admin access required"}), 403
+
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify({"error": "Query parameter 'q' is required"}), 400
+
+    try:
+        # Try exact email match first
+        result = supabase.table('businesses').select(
+            'id, business_name, email, account_status, subscription_status, '
+            'blocked_at, blocked_reason, blocked_by, deleted_at, created_at'
+        ).eq('email', q.lower()).limit(1).execute()
+
+        # Fall back to case-insensitive partial match on business name
+        if not result.data:
+            result = supabase.table('businesses').select(
+                'id, business_name, email, account_status, subscription_status, '
+                'blocked_at, blocked_reason, blocked_by, deleted_at, created_at'
+            ).ilike('business_name', f'%{q}%').limit(1).execute()
+
+        if not result.data:
+            return jsonify({"business": None}), 200
+
+        return jsonify({"business": result.data[0]}), 200
+
+    except Exception as e:
+        logger.error(f"Account search error: {e}")
+        return jsonify({"error": "Search failed"}), 500
+
+
+@admin_bp.route('/block-account', methods=['POST'])
+@require_auth
+def block_account():
+    """
+    Block a business account.
+
+    Immediately:
+    - Sets account_status = 'blocked' with timestamp, reason, and acting admin
+    - Cancels any active Stripe subscription
+
+    Body:
+        { "business_id": "uuid", "reason": "Abusing free trials" }
+    """
+    if not is_admin(request.business):
+        return jsonify({"error": "Admin access required"}), 403
+
+    data = request.get_json() or {}
+    business_id = data.get('business_id', '').strip()
+    reason = data.get('reason', '').strip()
+
+    if not business_id:
+        return jsonify({"error": "business_id is required"}), 400
+    if not reason:
+        return jsonify({"error": "reason is required"}), 400
+
+    # Verify target business exists
+    target = supabase.table('businesses').select('id, business_name, account_status').eq('id', business_id).execute()
+    if not target.data:
+        return jsonify({"error": "Business not found"}), 404
+
+    if target.data[0].get('account_status') == 'blocked':
+        return jsonify({"error": "Account is already blocked"}), 409
+
+    admin_email = request.business.get('email', 'unknown')
+    now = datetime.now(timezone.utc).isoformat()
+
+    supabase.table('businesses').update({
+        'account_status': 'blocked',
+        'blocked_at': now,
+        'blocked_reason': reason,
+        'blocked_by': admin_email,
+    }).eq('id', business_id).execute()
+
+    stripe_canceled = _cancel_stripe_subscription(business_id)
+
+    logger.info(
+        f"ADMIN BLOCK: {business_id} ({target.data[0].get('business_name')}) "
+        f"blocked by {admin_email}. Reason: {reason}. Stripe canceled: {stripe_canceled}"
+    )
+
+    return jsonify({
+        "success": True,
+        "business_id": business_id,
+        "business_name": target.data[0].get('business_name'),
+        "stripe_subscription_canceled": stripe_canceled,
+    }), 200
+
+
+@admin_bp.route('/unblock-account', methods=['POST'])
+@require_auth
+def unblock_account():
+    """
+    Unblock a previously blocked business account.
+
+    Clears account_status back to 'active' and removes block metadata.
+    Does NOT reinstate a canceled Stripe subscription — the user must resubscribe.
+
+    Body:
+        { "business_id": "uuid" }
+    """
+    if not is_admin(request.business):
+        return jsonify({"error": "Admin access required"}), 403
+
+    data = request.get_json() or {}
+    business_id = data.get('business_id', '').strip()
+
+    if not business_id:
+        return jsonify({"error": "business_id is required"}), 400
+
+    target = supabase.table('businesses').select('id, business_name, account_status').eq('id', business_id).execute()
+    if not target.data:
+        return jsonify({"error": "Business not found"}), 404
+
+    if target.data[0].get('account_status') != 'blocked':
+        return jsonify({"error": "Account is not blocked"}), 409
+
+    supabase.table('businesses').update({
+        'account_status': 'active',
+        'blocked_at': None,
+        'blocked_reason': None,
+        'blocked_by': None,
+    }).eq('id', business_id).execute()
+
+    admin_email = request.business.get('email', 'unknown')
+    logger.info(
+        f"ADMIN UNBLOCK: {business_id} ({target.data[0].get('business_name')}) "
+        f"unblocked by {admin_email}"
+    )
+
+    return jsonify({
+        "success": True,
+        "business_id": business_id,
+        "business_name": target.data[0].get('business_name'),
+        "note": "Account unblocked. Stripe subscription was not reinstated — user must resubscribe.",
+    }), 200
+
+
+@admin_bp.route('/delete-account', methods=['POST'])
+@require_auth
+def admin_delete_account():
+    """
+    Soft or hard delete a business account.
+
+    Soft delete (permanent=false, default):
+        Sets account_status = 'deleted' and records deleted_at.
+        All data is retained for 30 days for potential recovery.
+
+    Hard delete (permanent=true):
+        Cancels Stripe subscription then permanently deletes all data
+        in FK order: tracking_clicks → tracking_links → credit_transactions
+        → referrals → queued_review_requests → review_requests → customers
+        → integrations → businesses → auth user.
+        IRREVERSIBLE.
+
+    Body:
+        { "business_id": "uuid", "permanent": false }
+    """
+    if not is_admin(request.business):
+        return jsonify({"error": "Admin access required"}), 403
+
+    data = request.get_json() or {}
+    business_id = data.get('business_id', '').strip()
+    permanent = bool(data.get('permanent', False))
+
+    if not business_id:
+        return jsonify({"error": "business_id is required"}), 400
+
+    target = supabase.table('businesses').select('id, business_name').eq('id', business_id).execute()
+    if not target.data:
+        return jsonify({"error": "Business not found"}), 404
+
+    business_name = target.data[0].get('business_name', '')
+    admin_email = request.business.get('email', 'unknown')
+
+    if not permanent:
+        # ── Soft delete ──────────────────────────────────────────────────────
+        supabase.table('businesses').update({
+            'account_status': 'deleted',
+            'deleted_at': datetime.now(timezone.utc).isoformat(),
+        }).eq('id', business_id).execute()
+
+        logger.info(
+            f"ADMIN SOFT DELETE: {business_id} ({business_name}) "
+            f"soft-deleted by {admin_email}"
+        )
+
+        return jsonify({
+            "success": True,
+            "deleted": "soft",
+            "business_id": business_id,
+            "business_name": business_name,
+            "note": "Data retained for 30 days. Set permanent=true to hard delete immediately.",
+        }), 200
+
+    else:
+        # ── Hard delete ───────────────────────────────────────────────────────
+        stripe_canceled = _cancel_stripe_subscription(business_id)
+
+        # Delete in FK order
+        tracking_links = supabase.table('tracking_links').select('id').eq('business_id', business_id).execute()
+        if tracking_links.data:
+            link_ids = [r['id'] for r in tracking_links.data]
+            supabase.table('tracking_clicks').delete().in_('tracking_link_id', link_ids).execute()
+
+        supabase.table('tracking_links').delete().eq('business_id', business_id).execute()
+        supabase.table('credit_transactions').delete().eq('business_id', business_id).execute()
+        supabase.table('referrals').delete().eq('referrer_business_id', business_id).execute()
+        supabase.table('referrals').delete().eq('referred_business_id', business_id).execute()
+        supabase.table('queued_review_requests').delete().eq('business_id', business_id).execute()
+        supabase.table('review_requests').delete().eq('business_id', business_id).execute()
+        supabase.table('customers').delete().eq('business_id', business_id).execute()
+        supabase.table('integrations').delete().eq('business_id', business_id).execute()
+        supabase.table('businesses').delete().eq('id', business_id).execute()
+
+        try:
+            from app.services.supabase_service import supabase_admin as _admin
+            _admin.auth.admin.delete_user(business_id)
+        except Exception as e:
+            logger.warning(f"Auth user deletion failed for {business_id}: {e}")
+
+        logger.warning(
+            f"ADMIN HARD DELETE: {business_id} ({business_name}) "
+            f"permanently deleted by {admin_email}. Stripe canceled: {stripe_canceled}"
+        )
+
+        return jsonify({
+            "success": True,
+            "deleted": "permanent",
+            "business_id": business_id,
+            "business_name": business_name,
+            "stripe_subscription_canceled": stripe_canceled,
+        }), 200

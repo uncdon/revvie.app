@@ -16,6 +16,7 @@ from flask import Blueprint, jsonify, request, Response
 from werkzeug.utils import secure_filename
 
 from app.services.auth_service import require_auth
+from app.middleware.require_verified_email import require_verified_email
 from app.services.supabase_service import supabase
 from app.services.csv_parser import parse_and_validate, preview_csv
 from app.services import duplicate_checker
@@ -91,6 +92,7 @@ def cleanup_temp_file(filepath: str) -> None:
 
 @csv_import_bp.route('/import-csv', methods=['POST'])
 @require_auth
+@require_verified_email
 def import_csv():
     """
     Import customers from an uploaded CSV file.

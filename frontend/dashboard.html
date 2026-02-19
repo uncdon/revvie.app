@@ -2203,9 +2203,40 @@
         if (!navigator.onLine) offlineBanner.classList.remove('hidden');
 
         // =====================================================
+        // EMAIL VERIFICATION CHECK
+        // =====================================================
+        async function checkEmailVerification() {
+            try {
+                const response = await fetch(`${API_URL}/business/settings`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) return true; // Don't block on API error
+
+                const data = await response.json();
+
+                if (!data.email_verified) {
+                    window.location.href = '/verify-email-sent?email=' +
+                        encodeURIComponent(data.email || '');
+                    return false;
+                }
+
+                return true;
+            } catch (e) {
+                return true; // Don't block dashboard on network error
+            }
+        }
+
+        // Run verification check first, then billing
+        checkEmailVerification().then(verified => {
+            if (!verified) return; // Already redirecting
+            checkBillingStatus();
+        });
+
+        // =====================================================
         // BILLING STATUS CHECK
         // =====================================================
-        (async function checkBillingStatus() {
+        async function checkBillingStatus() {
             try {
                 const res = await fetch(`${API_URL}/billing/status`, {
                     headers: { 'Authorization': 'Bearer ' + token }
@@ -2265,7 +2296,7 @@
                 // Don't block dashboard if billing check fails
                 document.getElementById('billingSkeleton').classList.add('hidden');
             }
-        })();
+        }
 
         async function openBillingPortal(e) {
             const btn = e?.target?.closest?.('button') || e?.target;

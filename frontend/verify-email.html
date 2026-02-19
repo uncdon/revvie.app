@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verifying Email - *revvie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Young+Serif&display=swap" rel="stylesheet">
+  <style>
+    body { background-color: #f8f8f8; }
+    .logo-text { font-family: 'Young Serif', serif; color: #07B5F5; }
+  </style>
+</head>
+<body>
+  <div class="min-h-screen flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-lg p-8 max-w-md w-full text-center">
+
+      <h1 class="logo-text text-3xl mb-6">*revvie</h1>
+
+      <div id="loading-state">
+        <div class="text-6xl mb-6">⏳</div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+          Verifying your email...
+        </h2>
+        <p class="text-gray-600">Please wait a moment.</p>
+      </div>
+
+      <div id="success-state" class="hidden">
+        <div class="text-6xl mb-6">✅</div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+          Email verified!
+        </h2>
+        <p class="text-gray-600 mb-6">
+          Redirecting you now...
+        </p>
+      </div>
+
+      <div id="error-state" class="hidden">
+        <div class="text-6xl mb-6">❌</div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">
+          Verification failed
+        </h2>
+        <p class="text-gray-600 mb-6" id="error-message">
+          Something went wrong.
+        </p>
+        <a href="/verify-email-sent"
+           class="inline-block px-6 py-2 bg-blue-500 text-white
+                  rounded-lg hover:bg-blue-600 mb-3">
+          Resend verification email
+        </a>
+        <p class="text-sm text-gray-400">
+          or <a href="/signup" class="underline hover:text-gray-600">sign up again</a>
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    async function verifyEmail() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+
+      if (!token) {
+        showError('No verification token found');
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `/api/auth/verify-email?token=${encodeURIComponent(token)}`
+        );
+        const data = await response.json();
+
+        if (response.ok) {
+          // Store updated business info if returned
+          if (data.business) {
+            localStorage.setItem('business', JSON.stringify(data.business));
+          }
+
+          showSuccess();
+
+          // Redirect after 2 seconds
+          setTimeout(() => {
+            window.location.href = data.redirect || '/onboarding';
+          }, 2000);
+
+        } else {
+          showError(data.error || 'Verification failed');
+
+          // Auto-redirect to error page if one is specified (e.g. expired/invalid)
+          if (data.redirect) {
+            setTimeout(() => {
+              window.location.href = data.redirect;
+            }, 3000);
+          }
+        }
+      } catch (error) {
+        showError('Network error. Please try again.');
+      }
+    }
+
+    function showSuccess() {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('success-state').classList.remove('hidden');
+    }
+
+    function showError(message) {
+      document.getElementById('loading-state').classList.add('hidden');
+      document.getElementById('error-state').classList.remove('hidden');
+      document.getElementById('error-message').textContent = message;
+    }
+
+    verifyEmail();
+  </script>
+</body>
+</html>

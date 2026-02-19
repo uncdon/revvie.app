@@ -301,6 +301,81 @@
                 </div>
             </div>
 
+            <!-- Account Management -->
+            <div class="stat-card">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">🚫 Account Management</h3>
+
+                <!-- Search -->
+                <div class="flex gap-2 mb-4">
+                    <input type="text"
+                           id="account-search"
+                           placeholder="Search by email or business name..."
+                           class="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+                           style="--tw-ring-color: var(--revvie-primary);"
+                           onkeydown="if(event.key==='Enter') searchAccount()">
+                    <button onclick="searchAccount()"
+                            id="search-btn"
+                            class="px-4 py-2 text-white text-sm font-semibold rounded-lg transition-colors"
+                            style="background-color: var(--revvie-primary);">
+                        Search
+                    </button>
+                </div>
+
+                <!-- Not found -->
+                <div id="account-not-found" class="hidden text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3 mb-4">
+                    No account found matching that query.
+                </div>
+
+                <!-- Account details -->
+                <div id="account-details" class="hidden border border-gray-200 rounded-lg p-4">
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Business</div>
+                            <div class="font-medium text-gray-800" id="account-name">--</div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Email</div>
+                            <div class="font-medium text-gray-800" id="account-email">--</div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Status</div>
+                            <div id="account-status">--</div>
+                        </div>
+                        <div>
+                            <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Created</div>
+                            <div class="font-medium text-gray-800" id="account-created">--</div>
+                        </div>
+                    </div>
+
+                    <!-- Blocked reason (shown only when blocked) -->
+                    <div id="account-block-reason" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4"></div>
+
+                    <!-- Actions -->
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="blockAccount()"
+                                id="block-btn"
+                                class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
+                            Block Account
+                        </button>
+                        <button onclick="unblockAccount()"
+                                id="unblock-btn"
+                                class="hidden px-4 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-semibold rounded-lg transition-colors">
+                            Unblock Account
+                        </button>
+                        <button onclick="softDeleteAccount()"
+                                id="soft-delete-btn"
+                                class="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white text-sm font-semibold rounded-lg transition-colors">
+                            Soft Delete
+                        </button>
+                        <button onclick="hardDeleteAccount()"
+                                id="hard-delete-btn"
+                                class="px-4 py-2 bg-gray-900 hover:bg-black text-white text-sm font-semibold rounded-lg transition-colors">
+                            Hard Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+
         </div><!-- /adminContent -->
 
     </div>
@@ -600,6 +675,159 @@
             } catch (err) {
                 console.error('Cancel referral failed:', err);
                 showToast('Failed to cancel referral', true);
+            }
+        }
+
+        // =====================================================
+        // ACCOUNT MANAGEMENT
+        // =====================================================
+
+        let currentBusinessId = null;
+
+        const STATUS_STYLES = {
+            active:  'background-color: #ECFDF5; color: #065F46;',
+            blocked: 'background-color: #FEF2F2; color: #991B1B;',
+            deleted: 'background-color: #F3F4F6; color: #6B7280;',
+            trialing:'background-color: #EBF8FF; color: #1E40AF;',
+        };
+
+        async function searchAccount() {
+            const query = document.getElementById('account-search').value.trim();
+            if (!query) return;
+
+            const btn = document.getElementById('search-btn');
+            btn.textContent = 'Searching...';
+            btn.disabled = true;
+
+            document.getElementById('account-details').classList.add('hidden');
+            document.getElementById('account-not-found').classList.add('hidden');
+
+            try {
+                const res = await fetch(
+                    `${API_URL}/admin/search-account?q=${encodeURIComponent(query)}`,
+                    { headers: { 'Authorization': `Bearer ${token}` } }
+                );
+                const data = await res.json();
+
+                if (!res.ok || !data.business) {
+                    document.getElementById('account-not-found').classList.remove('hidden');
+                    return;
+                }
+
+                renderAccountDetails(data.business);
+            } catch (e) {
+                showToast('Search failed. Please try again.', true);
+            } finally {
+                btn.textContent = 'Search';
+                btn.disabled = false;
+            }
+        }
+
+        function renderAccountDetails(biz) {
+            currentBusinessId = biz.id;
+
+            document.getElementById('account-name').textContent = biz.business_name || '—';
+            document.getElementById('account-email').textContent = biz.email || '—';
+            document.getElementById('account-created').textContent =
+                biz.created_at ? new Date(biz.created_at).toLocaleDateString() : '—';
+
+            const status = biz.account_status || 'active';
+            const style = STATUS_STYLES[status] || 'background-color: #F3F4F6; color: #6B7280;';
+            document.getElementById('account-status').innerHTML =
+                `<span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="${style}">${status}</span>`;
+
+            // Show block reason if blocked
+            const reasonEl = document.getElementById('account-block-reason');
+            if (status === 'blocked' && biz.blocked_reason) {
+                reasonEl.textContent = `Blocked reason: ${biz.blocked_reason}${biz.blocked_by ? ' (by ' + biz.blocked_by + ')' : ''}`;
+                reasonEl.classList.remove('hidden');
+            } else {
+                reasonEl.classList.add('hidden');
+            }
+
+            // Toggle block/unblock buttons
+            document.getElementById('block-btn').classList.toggle('hidden', status === 'blocked' || status === 'deleted');
+            document.getElementById('unblock-btn').classList.toggle('hidden', status !== 'blocked');
+            document.getElementById('soft-delete-btn').classList.toggle('hidden', status === 'deleted');
+
+            document.getElementById('account-details').classList.remove('hidden');
+        }
+
+        async function blockAccount() {
+            const reason = prompt('Reason for blocking:');
+            if (!reason || !reason.trim()) return;
+            if (!confirm(`Block this account?\n\nReason: ${reason}\n\nThey will not be able to log in and their subscription will be canceled.`)) return;
+
+            try {
+                const res = await fetch(`${API_URL}/admin/block-account`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_id: currentBusinessId, reason: reason.trim() })
+                });
+                const data = await res.json();
+                if (!res.ok) { showToast(data.error || 'Block failed', true); return; }
+                showToast(`Account blocked${data.stripe_subscription_canceled ? ' · Stripe subscription canceled' : ''}`);
+                searchAccount();
+            } catch (e) {
+                showToast('Request failed', true);
+            }
+        }
+
+        async function unblockAccount() {
+            if (!confirm('Unblock this account? They will be able to log in again but must resubscribe.')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/admin/unblock-account`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_id: currentBusinessId })
+                });
+                const data = await res.json();
+                if (!res.ok) { showToast(data.error || 'Unblock failed', true); return; }
+                showToast('Account unblocked');
+                searchAccount();
+            } catch (e) {
+                showToast('Request failed', true);
+            }
+        }
+
+        async function softDeleteAccount() {
+            if (!confirm('Soft delete this account?\n\nAll data will be retained for 30 days before permanent removal.')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/admin/delete-account`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_id: currentBusinessId, permanent: false })
+                });
+                const data = await res.json();
+                if (!res.ok) { showToast(data.error || 'Delete failed', true); return; }
+                showToast('Account soft deleted (data retained 30 days)');
+                searchAccount();
+            } catch (e) {
+                showToast('Request failed', true);
+            }
+        }
+
+        async function hardDeleteAccount() {
+            const name = document.getElementById('account-name').textContent;
+            if (!confirm(`PERMANENT DELETE\n\n"${name}" and ALL their data will be immediately and irreversibly destroyed.\n\nAre you absolutely sure?`)) return;
+            if (!confirm('Final confirmation: this cannot be undone.')) return;
+
+            try {
+                const res = await fetch(`${API_URL}/admin/delete-account`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ business_id: currentBusinessId, permanent: true })
+                });
+                const data = await res.json();
+                if (!res.ok) { showToast(data.error || 'Delete failed', true); return; }
+                showToast('Account permanently deleted');
+                document.getElementById('account-details').classList.add('hidden');
+                document.getElementById('account-search').value = '';
+                currentBusinessId = null;
+            } catch (e) {
+                showToast('Request failed', true);
             }
         }
 

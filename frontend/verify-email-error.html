@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Failed - *revvie</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Young+Serif&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: { 500: '#07B5F5', 600: '#07B5F5', 700: '#0599D1' },
+                        page: '#f8f8f8',
+                    },
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-page min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 text-center">
+
+        <!-- Logo -->
+        <h1 class="text-3xl font-bold text-primary-500 mb-6" style="font-family: 'Young Serif', serif;">*revvie</h1>
+
+        <!-- Error icon -->
+        <div class="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6" style="background-color: #FEF2F2;">
+            <svg class="w-8 h-8" fill="none" stroke="#EF4444" stroke-width="1.5" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
+            </svg>
+        </div>
+
+        <h2 id="errorHeading" class="text-2xl font-bold text-gray-900 mb-3">Verification failed</h2>
+        <p id="errorBody" class="text-gray-600 mb-8">Something went wrong with your verification link.</p>
+
+        <button id="resendBtn" onclick="resendVerification()"
+                class="w-full bg-primary-500 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-xl transition-colors duration-200 text-base mb-4">
+            Send a New Verification Email
+        </button>
+
+        <div id="resendMessage" class="hidden mb-4 px-4 py-3 rounded-xl text-sm font-medium"></div>
+
+        <p class="text-gray-400 text-sm">
+            <a href="/login" class="text-primary-500 hover:underline">Back to login</a>
+        </p>
+    </div>
+
+    <script>
+        const API_BASE_URL = window.location.hostname === 'localhost'
+            ? 'http://localhost:5001'
+            : window.location.origin;
+
+        // Set messaging based on ?reason= param
+        (function() {
+            const reason = new URLSearchParams(window.location.search).get('reason');
+            if (reason === 'expired') {
+                document.getElementById('errorHeading').textContent = 'Link expired';
+                document.getElementById('errorBody').textContent =
+                    'This verification link has expired. Request a new one below.';
+            } else if (reason === 'invalid') {
+                document.getElementById('errorHeading').textContent = 'Invalid link';
+                document.getElementById('errorBody').textContent =
+                    'This verification link is invalid or has already been used. Request a new one below.';
+            }
+        })();
+
+        async function resendVerification() {
+            const btn = document.getElementById('resendBtn');
+            const msgDiv = document.getElementById('resendMessage');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            btn.disabled = true;
+            btn.textContent = 'Sending...';
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/auth/resend-verification`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: user.email || '' })
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    msgDiv.textContent = 'New verification email sent. Check your inbox.';
+                    msgDiv.className = 'mb-4 px-4 py-3 rounded-xl text-sm font-medium bg-green-50 text-green-700 border border-green-200';
+                    btn.textContent = 'Email sent!';
+                } else {
+                    msgDiv.textContent = data.error || 'Failed to send. Please try again.';
+                    msgDiv.className = 'mb-4 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 text-red-700 border border-red-200';
+                    btn.disabled = false;
+                    btn.textContent = 'Send a New Verification Email';
+                }
+                msgDiv.classList.remove('hidden');
+            } catch (e) {
+                msgDiv.textContent = 'Network error. Please try again.';
+                msgDiv.className = 'mb-4 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 text-red-700 border border-red-200';
+                msgDiv.classList.remove('hidden');
+                btn.disabled = false;
+                btn.textContent = 'Send a New Verification Email';
+            }
+        }
+    </script>
+
+</body>
+</html>

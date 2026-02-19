@@ -96,27 +96,33 @@ def create_checkout_session(business_id: str, email: str, business_name: str, di
     """
     Create a Stripe Checkout session for a new subscription.
 
-    This is the hosted payment page the business owner sees when entering
-    their card details. Includes a 14-day free trial.
+    Trial eligibility: only granted to businesses that have never had a trial
+    (has_had_trial = false). Returning subscribers are charged immediately.
+
+    Referral discount eligibility: only applied if the business has not already
+    used their one-time referral credit (referral_credit_used = false).
 
     Args:
         business_id: The business UUID
         email: Business owner's email
         business_name: Name of the business
-        discount_percent: Optional one-time discount (e.g., 50 for 50% off first month)
+        discount_percent: Optional one-time referral discount (e.g., 50 for 50% off)
 
     Returns:
         stripe.checkout.Session object, or None on error
     """
     try:
-        # Get or create Stripe customer
+        # Fetch Stripe customer ID + abuse-prevention flags in one query
         biz_result = supabase.table('businesses').select(
-            'stripe_customer_id'
+            'stripe_customer_id, has_had_trial, referral_credit_used'
         ).eq('id', business_id).execute()
 
-        stripe_customer_id = None
-        if biz_result.data:
-            stripe_customer_id = biz_result.data[0].get('stripe_customer_id')
+        if not biz_result.data:
+            logger.error(f"Business {business_id} not found")
+            return None
+
+        biz = biz_result.data[0]
+        stripe_customer_id = biz.get('stripe_customer_id')
 
         if not stripe_customer_id:
             customer = create_customer(business_id, email, business_name)
@@ -125,41 +131,52 @@ def create_checkout_session(business_id: str, email: str, business_name: str, di
                 return None
             stripe_customer_id = customer.id
 
-        # Build discounts if applicable
+        # --- Trial eligibility ---
+        if not biz.get('has_had_trial', False):
+            trial_days = 14
+            logger.info(f"Business {business_id} eligible for 14-day trial")
+        else:
+            trial_days = 0
+            logger.info(f"Business {business_id} not eligible for trial (has_had_trial=true) — charging immediately")
+
+        # --- Referral discount eligibility ---
         discounts = []
-        if discount_percent:
+        if discount_percent and not biz.get('referral_credit_used', False):
             coupon = stripe.Coupon.create(
                 percent_off=discount_percent,
                 duration='once',
                 name='Referral Discount'
             )
             discounts = [{'coupon': coupon.id}]
-            logger.info(f"Created {discount_percent}% discount coupon {coupon.id} for business {business_id}")
+            logger.info(f"Applied {discount_percent}% referral discount coupon {coupon.id} for business {business_id}")
+        elif discount_percent and biz.get('referral_credit_used', False):
+            logger.warning(f"Business {business_id} attempted to reuse referral discount — blocked")
 
-        # Create checkout session
-        session = stripe.checkout.Session.create(
+        # --- Build checkout session ---
+        # Only pass discounts kwarg when there's actually a coupon — passing an
+        # empty list can cause Stripe API errors in some configurations.
+        session_kwargs = dict(
             customer=stripe_customer_id,
             payment_method_types=['card'],
-            line_items=[{
-                'price': PRICE_ID,
-                'quantity': 1
-            }],
+            line_items=[{'price': PRICE_ID, 'quantity': 1}],
             mode='subscription',
             subscription_data={
-                'trial_period_days': 14,
-                'metadata': {
-                    'business_id': business_id
-                }
+                'trial_period_days': trial_days,
+                'metadata': {'business_id': business_id}
             },
-            discounts=discounts,
             success_url=f'{APP_BASE_URL}/billing/success?session_id={{CHECKOUT_SESSION_ID}}',
             cancel_url=f'{APP_BASE_URL}/billing/canceled',
-            metadata={
-                'business_id': business_id
-            }
+            metadata={'business_id': business_id}
         )
+        if discounts:
+            session_kwargs['discounts'] = discounts
 
-        logger.info(f"Created checkout session {session.id} for business {business_id}")
+        session = stripe.checkout.Session.create(**session_kwargs)
+
+        logger.info(
+            f"Created checkout session {session.id} for business {business_id} "
+            f"(trial_days={trial_days}, discount={'yes' if discounts else 'no'})"
+        )
         return session
 
     except Exception as e:
@@ -321,16 +338,33 @@ def handle_subscription_created(subscription, business_id: str) -> None:
                 period_end, tz=timezone.utc
             ).isoformat()
 
-        # Update businesses table
-        supabase.table('businesses').update({
+        # Update businesses table.
+        # has_had_trial=True is set permanently here — even if this subscription
+        # is later canceled, the flag stays so they can't get another free trial.
+        # first_subscription_at is only written once (COALESCE handled app-side
+        # by only updating when not already set).
+        biz_check = supabase.table('businesses').select(
+            'first_subscription_at'
+        ).eq('id', business_id).execute()
+
+        first_sub_at = None
+        if biz_check.data and not biz_check.data[0].get('first_subscription_at'):
+            first_sub_at = datetime.now(timezone.utc).isoformat()
+
+        update_payload = {
             'stripe_subscription_id': subscription.id,
             'subscription_status': subscription.status,
             'trial_ends_at': trial_ends_at,
-            'subscription_ends_at': subscription_ends_at
-        }).eq('id', business_id).execute()
+            'subscription_ends_at': subscription_ends_at,
+            'has_had_trial': True,
+        }
+        if first_sub_at:
+            update_payload['first_subscription_at'] = first_sub_at
+
+        supabase.table('businesses').update(update_payload).eq('id', business_id).execute()
 
         logger.info(f"Subscription {subscription.id} created for business {business_id} "
-                     f"(status: {subscription.status})")
+                     f"(status: {subscription.status}, has_had_trial stamped)")
 
         # Log billing event
         _log_billing_event(business_id, 'subscription_created', {
@@ -506,10 +540,11 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
                         supabase.table('businesses').update({
                             'account_credit': new_credit,
                             'discount_applied': 0,
+                            'referral_credit_used': True,
                         }).eq('id', business_id).execute()
                         logger.info(
                             f"Deducted ${credit_used} referral credit from business "
-                            f"{business_id} after first payment"
+                            f"{business_id} and marked referral_credit_used=true"
                         )
             except Exception as e:
                 logger.error(f"Failed to deduct referral credit for {business_id}: {e}")

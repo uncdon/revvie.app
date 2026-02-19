@@ -537,6 +537,90 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
 
 
 # ============================================================================
+# ACCOUNT / TRANSACTIONAL EMAILS
+# ============================================================================
+
+def send_verification_email(email: str, business_name: str, verification_url: str) -> dict:
+    """
+    Send email verification link to new signups.
+
+    Uses noreply@revvie.app as the sender rather than the shared
+    SENDGRID_FROM_EMAIL so it's clearly a system/transactional email.
+
+    Args:
+        email: Business email address
+        business_name: Business name
+        verification_url: Verification link with token (expires 24h)
+
+    Returns:
+        {'success': True} or {'success': False, 'error': str}
+    """
+    subject = "Verify your email for *revvie"
+
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      Welcome to *revvie, {business_name}!
+    </h2>
+
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      Thanks for signing up. To get started, please verify your email address.
+    </p>
+
+    <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
+      Click the button below to verify your email and start your free trial:
+    </p>
+
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td align="center" style="padding: 8px 0 24px;">
+          <a href="{verification_url}"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Verify Email Address
+          </a>
+        </td>
+      </tr>
+    </table>
+
+    <p style="margin: 0 0 16px; font-size: 14px; color: #6b7280; line-height: 20px;">
+      This link expires in 24 hours.
+    </p>
+
+    <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 20px;">
+      If you didn't create this account, you can safely ignore this email.
+    </p>
+
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e5e7eb;">
+      <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+        Or copy and paste this link into your browser:<br>
+        <a href="{verification_url}" style="color: #07B5F5; word-break: break-all;">
+          {verification_url}
+        </a>
+      </p>
+    </div>
+    """
+
+    html_body = render_email_template(subject, content, footer_content="")
+
+    try:
+        message = Mail(
+            from_email='noreply@revvie.app',
+            to_emails=email,
+            subject=subject,
+            html_content=html_body,
+        )
+        sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
+        sg.send(message)
+        logger.info(f"Verification email sent to {email}")
+        return {'success': True}
+    except Exception as e:
+        logger.error(f"Verification email failed for {email}: {e}")
+        return {'success': False, 'error': str(e)}
+
+
+# ============================================================================
 # REFERRAL EMAILS
 # ============================================================================
 

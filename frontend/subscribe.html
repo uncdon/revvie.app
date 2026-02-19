@@ -78,12 +78,12 @@
         <!-- Logo -->
         <h1 class="text-3xl font-bold text-primary-500 mb-6" style="font-family: 'Young Serif', serif;">*revvie</h1>
 
-        <!-- Headline -->
-        <h2 class="text-2xl font-bold text-gray-900 mb-2">
+        <!-- Headline (updated dynamically based on trial eligibility) -->
+        <h2 id="pageHeadline" class="text-2xl font-bold text-gray-900 mb-2">
             Start Your Free 14-Day Trial
         </h2>
 
-        <p class="text-gray-500 mb-8">
+        <p id="pageSubtext" class="text-gray-500 mb-8">
             Get more Google reviews on autopilot.
         </p>
 
@@ -111,12 +111,12 @@
             </div>
         </div>
 
-        <!-- Pricing -->
-        <p class="text-gray-900 font-semibold text-lg mb-1">$79/month after trial</p>
+        <!-- Pricing (updated dynamically) -->
+        <p id="pricingNote" class="text-gray-900 font-semibold text-lg mb-1">$79/month after trial</p>
         <p class="text-gray-500 text-sm mb-6">Cancel anytime</p>
 
         <!-- CTA Button -->
-        <button onclick="startTrial()"
+        <button onclick="startCheckout()"
                 id="trialBtn"
                 class="w-full bg-primary-500 hover:bg-primary-700 text-white font-bold py-4 px-6 rounded-xl transition-colors duration-200 text-lg mb-4">
             Start Free Trial &mdash; No charge for 14 days
@@ -130,7 +130,8 @@
             <span>Secured by Stripe</span>
         </div>
 
-        <p class="text-gray-400 text-xs">
+        <!-- Fine print (updated dynamically) -->
+        <p id="finePrint" class="text-gray-400 text-xs">
             Your card won't be charged for 14 days. Cancel anytime from your dashboard.
         </p>
 
@@ -139,15 +140,52 @@
     </div>
 
     <script>
-        async function startTrial() {
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            window.location.href = '/login';
+        }
+
+        // --- Update page messaging based on trial eligibility ---
+        async function loadEligibility() {
+            try {
+                const res = await fetch('/api/billing/trial-eligibility', {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                if (!res.ok) return; // Silently keep default UI on error
+
+                const data = await res.json();
+
+                if (!data.eligible_for_trial) {
+                    // Returning subscriber — no trial available
+                    document.getElementById('pageHeadline').textContent =
+                        'Start Your Subscription';
+                    document.getElementById('pageSubtext').textContent =
+                        "No free trial available \u2014 you\u2019ve already used your trial.";
+                    document.getElementById('pricingNote').textContent =
+                        '$79/month \u2014 billed immediately';
+                    document.getElementById('finePrint').textContent =
+                        'Cancel anytime from your dashboard.';
+
+                    const btn = document.getElementById('trialBtn');
+                    btn.textContent = 'Subscribe \u2014 $79/month';
+                } else if (data.eligible_for_referral_discount) {
+                    // First-time user with referral credit
+                    document.getElementById('pageSubtext').textContent =
+                        '\uD83C\uDF89 Your $40 referral credit will be applied automatically.';
+                }
+                // else: default messaging is already correct for a standard new user
+            } catch (e) {
+                // Non-fatal — keep default UI
+            }
+        }
+
+        loadEligibility();
+
+        // --- Checkout ---
+        async function startCheckout() {
             const btn = document.getElementById('trialBtn');
             const errorDiv = document.getElementById('errorMessage');
-            const token = localStorage.getItem('token');
-
-            if (!token) {
-                window.location.href = '/login';
-                return;
-            }
 
             btn.disabled = true;
             btn.textContent = 'Loading...';
@@ -171,21 +209,16 @@
                     errorDiv.textContent = data.error || 'Something went wrong. Please try again.';
                     errorDiv.classList.remove('hidden');
                     btn.disabled = false;
-                    btn.textContent = 'Start Free Trial \u2014 No charge for 14 days';
+                    btn.textContent = 'Subscribe';
                     btn.classList.remove('opacity-75');
                 }
             } catch (e) {
                 errorDiv.textContent = 'Network error. Please check your connection and try again.';
                 errorDiv.classList.remove('hidden');
                 btn.disabled = false;
-                btn.textContent = 'Start Free Trial \u2014 No charge for 14 days';
+                btn.textContent = 'Subscribe';
                 btn.classList.remove('opacity-75');
             }
-        }
-
-        // If not logged in, redirect to login
-        if (!localStorage.getItem('token')) {
-            window.location.href = '/login';
         }
     </script>
 

@@ -187,6 +187,21 @@ def record_referral_signup(referral_code: str, referred_business_id: str) -> dic
         The referral record dict, or None if invalid/error
     """
     try:
+        # Safety: block if business has already consumed a referral credit.
+        # This prevents re-subscribing with a new referral code to get infinite $40 credits.
+        credit_check = supabase_admin.table('businesses') \
+            .select('referral_credit_used') \
+            .eq('id', referred_business_id) \
+            .limit(1) \
+            .execute()
+
+        if credit_check.data and credit_check.data[0].get('referral_credit_used'):
+            logger.warning(
+                f"Business {referred_business_id} tried to use referral code '{referral_code}' "
+                f"but referral_credit_used=true — blocked"
+            )
+            return None
+
         # Look up the referrer
         referrer_result = supabase_admin.table('businesses') \
             .select('id') \
