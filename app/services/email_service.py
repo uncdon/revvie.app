@@ -23,6 +23,8 @@ from sendgrid.helpers.mail import Mail, Email, To, Content, TrackingSettings, Cl
 os.environ.setdefault('SSL_CERT_FILE', certifi.where())
 os.environ.setdefault('REQUESTS_CA_BUNDLE', certifi.where())
 
+APP_BASE_URL = os.environ.get('APP_BASE_URL', 'http://localhost:5000')
+
 
 def send_email(to_email: str, subject: str, html_body: str) -> dict:
     """
@@ -135,155 +137,167 @@ def send_email(to_email: str, subject: str, html_body: str) -> dict:
         }
 
 
-def send_review_request_email(
-    customer_name: str,
-    customer_email: str,
-    business_name: str,
-    review_url: str,
-    business_id: str = None
-) -> dict:
-    """
-    Send a review request email to a customer.
+# =============================================================================
+# TEMPLATE HELPER
+# =============================================================================
 
-    This sends a professionally designed email asking the customer
-    to leave a Google review for your business.
+def render_email_template(subject: str, content: str, footer_content: str = "") -> str:
+    """
+    Render the branded *revvie email template with the given content.
+
+    Reads app/templates/email_base.html and substitutes the three
+    {{ placeholder }} tokens. All emails should go through this function
+    to keep branding consistent.
 
     Args:
-        customer_name: Customer's first name (e.g., "John")
+        subject: Email subject line (used in <title>)
+        content: Main body HTML — injected into the card content area
+        footer_content: Optional footer HTML shown above the address line
+
+    Returns:
+        Complete HTML email string ready to pass to send_email()
+    """
+    import os
+
+    template_path = os.path.join(
+        os.path.dirname(__file__), '..', 'templates', 'email_base.html'
+    )
+
+    with open(template_path, 'r', encoding='utf-8') as f:
+        template = f.read()
+
+    html = template.replace('{{ subject }}', subject)
+    html = html.replace('{{ content }}', content)
+    html = html.replace('{{ footer_content }}', footer_content)
+
+    return html
+
+
+def generate_unsubscribe_url(business_id: str, customer_email: str) -> str:
+    """
+    Generate a signed unsubscribe URL for a customer.
+
+    Uses HMAC-SHA256 so the token can be verified server-side without
+    storing anything in the database at send time.
+
+    URL format:
+        {APP_BASE_URL}/unsubscribe?business_id=...&email=...&token=...
+    """
+    import hmac
+    import hashlib
+    import urllib.parse
+
+    secret = os.environ.get('SECRET_KEY', 'revvie-default-secret')
+    payload = f"{business_id}:{customer_email}"
+    token = hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
+
+    params = urllib.parse.urlencode({
+        'business_id': business_id,
+        'email': customer_email,
+        'token': token,
+    })
+    return f"{APP_BASE_URL}/unsubscribe?{params}"
+
+
+def send_review_request_email(
+    business_id: str,
+    customer_email: str,
+    customer_name: str,
+    business_name: str,
+    review_url: str,
+) -> dict:
+    """
+    Send a branded review request email to a customer.
+
+    Args:
+        business_id: The business UUID (used for usage cap + unsubscribe link)
         customer_email: Customer's email address
-        business_name: Your business name (e.g., "Joe's Coffee Shop")
-        review_url: The Google review URL (from generate_google_review_url)
+        customer_name: Customer's first name (e.g., "John"), or None
+        business_name: Business name (e.g., "Joe's Coffee Shop")
+        review_url: The Google review URL
 
     Returns:
         dict: Same format as send_email() - success, message, status_code
-
-    Example:
-        result = send_review_request_email(
-            customer_name="John",
-            customer_email="john@example.com",
-            business_name="Joe's Coffee",
-            review_url="https://search.google.com/local/writereview?placeid=..."
-        )
     """
-
     # Check usage cap before sending
-    if business_id:
-        from app.services import usage_tracker
-        usage_check = usage_tracker.can_send_email(business_id)
-        if not usage_check['can_send']:
-            import logging
-            logging.getLogger(__name__).warning(f"Email blocked for business {business_id}: {usage_check['reason']}")
-            return {
-                'success': False,
-                'error': 'monthly_email_limit_reached',
-                'message': f"Monthly email limit reached ({usage_check['current_usage']}/{usage_check['monthly_cap']}). Resets {usage_check['resets_on']}.",
-                'limit_info': usage_check
-            }
+    from app.services import usage_tracker
+    usage_check = usage_tracker.can_send_email(business_id)
+    if not usage_check['can_send']:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Email blocked for business {business_id}: {usage_check['reason']}"
+        )
+        return {
+            'success': False,
+            'error': 'monthly_email_limit_reached',
+            'message': (
+                f"Monthly email limit reached "
+                f"({usage_check['current_usage']}/{usage_check['monthly_cap']}). "
+                f"Resets {usage_check['resets_on']}."
+            ),
+            'limit_info': usage_check,
+        }
 
-    # Create the email subject with customer's name
-    subject = f"We'd love your feedback, {customer_name}!"
+    subject = f"How was your visit to {business_name}?"
 
-    # Build the HTML email body
-    # We use inline CSS because email clients don't support external stylesheets
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <!-- Main container -->
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <!-- Email card -->
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      Hi {customer_name or 'there'}!
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    {business_name}
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      Thanks for visiting <strong>{business_name}</strong>!
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <!-- Greeting -->
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    Hi {customer_name}!
-                                </h2>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
+      We'd love to hear about your experience. Your feedback helps us improve
+      and helps others find great service.
+    </p>
 
-                                <!-- Thank you message -->
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Thanks for visiting <strong>{business_name}</strong>! We hope you had a great experience with us.
-                                </p>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td align="center" style="padding: 8px 0 24px;">
+          <a clicktracking="off" href="{review_url}"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Leave a Review
+          </a>
+        </td>
+      </tr>
+    </table>
 
-                                <!-- Request message -->
-                                <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your feedback helps us improve and helps other customers discover our business. Would you take a moment to share your experience?
-                                </p>
-
-                                <!-- CTA Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #4F46E5;">
-                                            <a clicktracking="off" href="{review_url}" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                Leave us a Google Review
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <!-- Star rating visual -->
-                                <p style="margin: 30px 0 0 0; text-align: center; font-size: 28px;">
-                                    ⭐⭐⭐⭐⭐
-                                </p>
-
-                                <!-- Thank you note -->
-                                <p style="margin: 25px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
-                                    Thank you for your support!
-                                </p>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    This email was sent by {business_name}.<br>
-                                    You received this because you recently visited us.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <p style="margin: 0; font-size: 14px; color: #6b7280; line-height: 20px;">
+      Takes less than 2 minutes. Thank you!
+    </p>
     """
 
-    # Use our existing send_email function to actually send it
+    unsubscribe_url = generate_unsubscribe_url(business_id, customer_email)
+    footer = (
+        f"Don't want review requests from {business_name}? "
+        f'<a href="{unsubscribe_url}" style="color: #07B5F5; text-decoration: underline;">Unsubscribe</a>'
+    )
+
+    html_body = render_email_template(subject, content, footer)
+
     result = send_email(
         to_email=customer_email,
         subject=subject,
-        html_body=html_body
+        html_body=html_body,
     )
 
     # Increment usage counter on success
-    if result['success'] and business_id:
-        from app.services import usage_tracker
+    if result['success']:
         usage_tracker.increment_email_count(business_id)
 
         warnings = usage_tracker.check_approaching_limit(business_id)
         if warnings['email_warning']:
             import logging
-            logging.getLogger(__name__).info(f"Business {business_id} approaching email limit: {warnings['email_percentage']:.1f}%")
+            logging.getLogger(__name__).info(
+                f"Business {business_id} approaching email limit: "
+                f"{warnings['email_percentage']:.1f}%"
+            )
 
     return result
 
@@ -291,8 +305,6 @@ def send_review_request_email(
 # =============================================================================
 # BILLING EMAILS
 # =============================================================================
-
-APP_BASE_URL = os.environ.get('APP_BASE_URL', 'http://localhost:5000')
 
 
 def send_trial_welcome_email(email: str, business_name: str, trial_end_date: str) -> dict:
@@ -307,96 +319,57 @@ def send_trial_welcome_email(email: str, business_name: str, trial_end_date: str
     Returns:
         dict: Same format as send_email()
     """
-    subject = "Your 14-day free trial has started!"
+    subject = "Welcome to *revvie \u2014 Your free trial has started! \U0001f389"
 
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      Welcome to *revvie!
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    *revvie
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      Your 14-day free trial has started today.
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    Welcome to *revvie!
-                                </h2>
+    <p style="margin: 0 0 4px; font-size: 16px; color: #374151; line-height: 24px;">
+      <strong>Trial ends:</strong> {trial_end_date}
+    </p>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your 14-day free trial for <strong>{business_name}</strong> is now active.
-                                    You won't be charged until <strong>{trial_end_date}</strong>.
-                                </p>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
+      You won't be charged until {trial_end_date}.
+    </p>
 
-                                <p style="margin: 0 0 10px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Here's what you can do during your trial:
-                                </p>
+    <div style="background-color: #EBF8FF; border-left: 4px solid #07B5F5; padding: 16px; margin: 0 0 24px 0;">
+      <p style="margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #07B5F5;">
+        What you can do during your trial:
+      </p>
+      <ul style="margin: 0; padding-left: 20px; color: #374151; font-size: 15px; line-height: 26px;">
+        <li>Send unlimited review requests via SMS &amp; email</li>
+        <li>Import customers from any CSV</li>
+        <li>Connect Square integration</li>
+        <li>Track who opens your review links</li>
+      </ul>
+    </div>
 
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 0 25px 0;">
-                                    <tr>
-                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; Send unlimited review requests</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; Import customers via CSV</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; Connect Square integration</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 6px 0; color: #4b5563; font-size: 15px;">&#10003; View click analytics</td>
-                                    </tr>
-                                </table>
-
-                                <!-- CTA Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #4F46E5;">
-                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                Go to Dashboard &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <p style="margin: 25px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
-                                    Questions? Just reply to this email.
-                                </p>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    *revvie &mdash; Get more Google reviews, automatically.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 8px 0 8px;">
+          <a href="{APP_BASE_URL}/dashboard"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Go to Dashboard &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
-    return send_email(to_email=email, subject=subject, html_body=html_body)
+    return send_email(
+        to_email=email,
+        subject=subject,
+        html_body=render_email_template(subject, content, "Questions? Just reply to this email."),
+    )
 
 
 def send_trial_ending_email(email: str, business_name: str, trial_end_date: str, days_remaining: int) -> dict:
@@ -416,84 +389,48 @@ def send_trial_ending_email(email: str, business_name: str, trial_end_date: str,
     """
     subject = f"Your *revvie trial ends in {days_remaining} days"
 
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      Your free trial is ending soon
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    *revvie
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      Your trial ends <strong>{trial_end_date}</strong> ({days_remaining} days from now).
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    Your trial is ending soon
-                                </h2>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
+      After that, you'll be charged $79/month.
+    </p>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your free trial for <strong>{business_name}</strong> ends on
-                                    <strong>{trial_end_date}</strong> ({days_remaining} days from now).
-                                    After that, you'll be charged <strong>$79/month</strong> to continue using *revvie.
-                                </p>
+    <div style="background-color: #F3F4F6; border-radius: 8px; padding: 20px; margin: 0 0 24px 0;">
+      <p style="margin: 0; font-size: 15px; color: #374151; line-height: 24px;">
+        Need more time to decide?
+        <a href="mailto:support@revvie.app" style="color: #07B5F5; text-decoration: underline;">
+          Contact us
+        </a>
+      </p>
+    </div>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    You've been doing great! Keep the momentum going &mdash; your customers
-                                    are already seeing your review requests and clicking through.
-                                    Don't let that progress stop.
-                                </p>
-
-                                <!-- CTA Buttons -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 15px auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #4F46E5;">
-                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                Manage Billing &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <p style="margin: 0; text-align: center;">
-                                    <a href="{APP_BASE_URL}/dashboard" style="color: #4F46E5; text-decoration: none; font-size: 14px;">
-                                        Continue to Dashboard
-                                    </a>
-                                </p>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    *revvie &mdash; Get more Google reviews, automatically.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 8px 0 8px;">
+          <a href="{APP_BASE_URL}/dashboard"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Manage Billing &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
-    return send_email(to_email=email, subject=subject, html_body=html_body)
+    return send_email(
+        to_email=email,
+        subject=subject,
+        html_body=render_email_template(subject, content, "Questions? Just reply to this email."),
+    )
 
 
 def send_payment_failed_email(email: str, business_name: str) -> dict:
@@ -507,82 +444,47 @@ def send_payment_failed_email(email: str, business_name: str) -> dict:
     Returns:
         dict: Same format as send_email()
     """
-    subject = "Action required: Payment failed for *revvie"
+    subject = "\u26a0\ufe0f Action required: Payment failed for *revvie"
 
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #DC2626; font-weight: 600;">
+      Payment Issue
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #DC2626; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    *revvie
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      We couldn't process your payment for *revvie.
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    Payment Failed
-                                </h2>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
+      Please update your payment method to keep your account active.
+    </p>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    We couldn't process the payment for your <strong>{business_name}</strong> *revvie subscription.
-                                    Please update your payment method to keep your account active.
-                                </p>
+    <div style="background-color: #FEF2F2; border-left: 4px solid #DC2626; padding: 16px; margin: 0 0 24px 0;">
+      <p style="margin: 0; font-size: 15px; color: #991B1B; line-height: 22px;">
+        Your account will be paused if payment isn't received within 7 days.
+      </p>
+    </div>
 
-                                <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your account will be paused if payment isn't received within 7 days.
-                                    Update your card now to avoid any interruption.
-                                </p>
-
-                                <!-- CTA Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #DC2626;">
-                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                Update Payment Method &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <p style="margin: 25px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
-                                    Questions? Just reply to this email.
-                                </p>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    *revvie &mdash; Get more Google reviews, automatically.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 8px 0 8px;">
+          <a href="{APP_BASE_URL}/dashboard"
+             style="display: inline-block; padding: 14px 32px; background-color: #DC2626;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Update Payment Method &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
-    return send_email(to_email=email, subject=subject, html_body=html_body)
+    return send_email(
+        to_email=email,
+        subject=subject,
+        html_body=render_email_template(subject, content, "Questions? Just reply to this email."),
+    )
 
 
 def send_subscription_canceled_email(email: str, business_name: str) -> dict:
@@ -598,79 +500,40 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
     """
     subject = "Your *revvie subscription has been canceled"
 
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      We're sorry to see you go
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    *revvie
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      Your *revvie subscription for <strong>{business_name}</strong> has been canceled.
+      You'll retain access until the end of your current billing period.
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    We're sorry to see you go
-                                </h2>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
+      Changed your mind? You can reactivate anytime.
+    </p>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your *revvie subscription for <strong>{business_name}</strong> has been canceled.
-                                    You'll retain access until the end of your current billing period.
-                                </p>
-
-                                <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Changed your mind? You can reactivate anytime.
-                                </p>
-
-                                <!-- CTA Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #4F46E5;">
-                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                Reactivate &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <p style="margin: 25px 0 0 0; color: #6b7280; font-size: 14px; text-align: center;">
-                                    We'd love your feedback &mdash; just reply to this email.
-                                </p>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    *revvie &mdash; Get more Google reviews, automatically.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 8px 0 8px;">
+          <a href="{APP_BASE_URL}/dashboard"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Reactivate &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
-    return send_email(to_email=email, subject=subject, html_body=html_body)
+    return send_email(
+        to_email=email,
+        subject=subject,
+        html_body=render_email_template(subject, content, "We'd love your feedback &mdash; just reply to this email."),
+    )
 
 
 # ============================================================================
@@ -690,78 +553,53 @@ def send_referral_welcome_email(email: str, business_name: str, credit_amount: f
     Returns:
         dict: Same format as send_email()
     """
-    subject = f"You have ${int(credit_amount)} in *revvie credit! 🎉"
+    subject = f"You have ${int(credit_amount)} in *revvie credit! \U0001f389"
 
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      Welcome to *revvie!
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    *revvie
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      Great news &mdash; <strong>${int(credit_amount)} credit</strong> has been applied to your account!
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    Welcome to *revvie! 🎉
-                                </h2>
+    <div style="background-color: #D1FAE5; border-left: 4px solid #6FCF97; padding: 16px; margin: 0 0 24px 0;">
+      <p style="margin: 0; font-size: 18px; font-weight: 600; color: #065F46;">
+        \U0001f4b0 Your first month: ${79 - int(credit_amount)} instead of $79
+      </p>
+    </div>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Great news &mdash; because you were referred by a friend, <strong>{business_name}</strong> has
-                                    <strong>${int(credit_amount)} in credit</strong> waiting for you!
-                                </p>
+    <p style="margin: 0 0 12px; font-size: 16px; color: #374151; line-height: 24px;">
+      Start collecting Google reviews automatically:
+    </p>
 
-                                <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your credit will be automatically applied to your subscription. That's
-                                    free reviews, on us.
-                                </p>
+    <ul style="margin: 0 0 24px; padding-left: 20px; color: #374151; font-size: 15px; line-height: 26px;">
+      <li>Connect Square or import your customers</li>
+      <li>Review requests sent after each visit</li>
+      <li>Track who clicks your links</li>
+    </ul>
 
-                                <!-- CTA Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #07B5F5;">
-                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                Go to Dashboard &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    *revvie &mdash; Get more Google reviews, automatically.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 8px 0 8px;">
+          <a href="{APP_BASE_URL}/dashboard"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Go to Dashboard &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
-    return send_email(to_email=email, subject=subject, html_body=html_body)
+    return send_email(
+        to_email=email,
+        subject=subject,
+        html_body=render_email_template(subject, content, "Questions? Just reply to this email."),
+    )
 
 
 def send_referral_reward_email(email: str, business_name: str, referred_name: str, credit_amount: float = 40) -> dict:
@@ -778,94 +616,54 @@ def send_referral_reward_email(email: str, business_name: str, referred_name: st
     Returns:
         dict: Same format as send_email()
     """
-    subject = f"You earned ${int(credit_amount)}! {referred_name} just joined *revvie 🎉"
+    subject = f"You earned ${int(credit_amount)}! {referred_name} joined *revvie \U0001f389"
 
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      You earned a referral reward! \U0001f389
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    *revvie
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      <strong>{referred_name}</strong> just signed up with your referral link!
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    You earned ${int(credit_amount)}! 💰
-                                </h2>
+    <div style="background-color: #D1FAE5; border-left: 4px solid #6FCF97; padding: 20px; margin: 0 0 24px 0; text-align: center;">
+      <p style="margin: 0 0 8px; font-size: 16px; color: #065F46;">
+        Your reward
+      </p>
+      <p style="margin: 0; font-size: 36px; font-weight: 700; color: #059669;">
+        ${int(credit_amount)}
+      </p>
+    </div>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Great news, <strong>{business_name}</strong> &mdash; your referral just paid off!
-                                </p>
+    <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
+      This credit has been added to your account and will be automatically applied to your next invoice.
+    </p>
 
-                                <!-- Referral detail card -->
-                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 25px 0;">
-                                    <tr>
-                                        <td style="background-color: #f0fdf4; border: 1px solid #dcfce7; border-radius: 8px; padding: 20px;">
-                                            <p style="margin: 0 0 8px 0; color: #166534; font-size: 14px; font-weight: 600;">
-                                                Referral Complete
-                                            </p>
-                                            <p style="margin: 0 0 4px 0; color: #4b5563; font-size: 15px;">
-                                                <strong>{referred_name}</strong> just signed up for *revvie.
-                                            </p>
-                                            <p style="margin: 0; color: #166534; font-size: 18px; font-weight: 700;">
-                                                +${int(credit_amount)} credit added to your account
-                                            </p>
-                                        </td>
-                                    </tr>
-                                </table>
+    <p style="margin: 0 0 24px; font-size: 14px; color: #6B7280; line-height: 22px;">
+      Keep sharing your link to earn more!
+    </p>
 
-                                <p style="margin: 0 0 30px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Your credit will be automatically applied to your next bill. Keep
-                                    referring friends to earn even more!
-                                </p>
-
-                                <!-- CTA Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #07B5F5;">
-                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                View Your Referrals &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    *revvie &mdash; Get more Google reviews, automatically.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 8px 0 8px;">
+          <a href="{APP_BASE_URL}/dashboard"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            Share Your Link &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
-    return send_email(to_email=email, subject=subject, html_body=html_body)
+    return send_email(
+        to_email=email,
+        subject=subject,
+        html_body=render_email_template(subject, content, "Questions? Just reply to this email."),
+    )
 
 
 def send_referral_reminder_email(email: str, business_name: str, referral_link: str, pending_count: int) -> dict:
@@ -881,86 +679,53 @@ def send_referral_reminder_email(email: str, business_name: str, referral_link: 
     Returns:
         dict: Same format as send_email()
     """
-    subject = f"You have {pending_count} pending referral{'s' if pending_count != 1 else ''} on *revvie"
+    referral_word = f"referral{'s' if pending_count != 1 else ''}"
+    subject = f"You have {pending_count} pending {referral_word} on *revvie"
 
-    html_body = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, Helvetica, sans-serif; background-color: #f4f4f4;">
-        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f4f4f4;">
-            <tr>
-                <td align="center" style="padding: 40px 20px;">
-                    <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+    content = f"""
+    <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
+      Your referrals are waiting!
+    </h2>
 
-                        <!-- Header -->
-                        <tr>
-                            <td style="background-color: #4F46E5; padding: 30px 40px; border-radius: 8px 8px 0 0;">
-                                <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 600;">
-                                    *revvie
-                                </h1>
-                            </td>
-                        </tr>
+    <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
+      Hey <strong>{business_name}</strong> &mdash; you have
+      <strong>{pending_count} pending {referral_word}</strong> that haven't completed
+      signup yet. Each one is worth <strong>$40 in credit</strong> for both of you!
+    </p>
 
-                        <!-- Body -->
-                        <tr>
-                            <td style="padding: 40px;">
-                                <h2 style="margin: 0 0 20px 0; color: #1f2937; font-size: 22px;">
-                                    Your referrals are waiting!
-                                </h2>
+    <!-- Referral link box -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+           style="margin: 0 0 24px 0;">
+      <tr>
+        <td style="background-color: #EBF8FF; border: 1px solid #BAE6FD; border-radius: 8px;
+                   padding: 16px; text-align: center;">
+          <p style="margin: 0 0 6px; font-size: 12px; color: #6B7280;">Your referral link</p>
+          <a href="{referral_link}"
+             style="color: #07B5F5; font-size: 14px; font-weight: 600;
+                    text-decoration: none; word-break: break-all;">
+            {referral_link}
+          </a>
+        </td>
+      </tr>
+    </table>
 
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Hey <strong>{business_name}</strong> &mdash; you have <strong>{pending_count}
-                                    pending referral{'s' if pending_count != 1 else ''}</strong> that haven't completed
-                                    signup yet. Each one is worth <strong>$40 in credit</strong> for both of you!
-                                </p>
-
-                                <p style="margin: 0 0 25px 0; color: #4b5563; font-size: 16px; line-height: 1.6;">
-                                    Share your referral link to earn more:
-                                </p>
-
-                                <!-- Referral link box -->
-                                <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin: 0 0 30px 0;">
-                                    <tr>
-                                        <td style="background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 16px; text-align: center;">
-                                            <a href="{referral_link}" target="_blank" style="color: #0369a1; font-size: 15px; font-weight: 600; text-decoration: none; word-break: break-all;">
-                                                {referral_link}
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-
-                                <!-- CTA Button -->
-                                <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
-                                    <tr>
-                                        <td style="border-radius: 6px; background-color: #07B5F5;">
-                                            <a href="{APP_BASE_URL}/dashboard" target="_blank" style="display: inline-block; padding: 16px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: 600;">
-                                                View Referrals &rarr;
-                                            </a>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-
-                        <!-- Footer -->
-                        <tr>
-                            <td style="padding: 20px 40px; background-color: #f9fafb; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
-                                <p style="margin: 0; color: #9ca3af; font-size: 12px; text-align: center;">
-                                    *revvie &mdash; Get more Google reviews, automatically.
-                                </p>
-                            </td>
-                        </tr>
-
-                    </table>
-                </td>
-            </tr>
-        </table>
-    </body>
-    </html>
+    <!-- CTA Button -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+      <tr>
+        <td style="padding: 8px 0 8px;">
+          <a href="{APP_BASE_URL}/dashboard"
+             style="display: inline-block; padding: 14px 32px; background-color: #07B5F5;
+                    color: #ffffff; text-decoration: none; border-radius: 8px;
+                    font-size: 16px; font-weight: 600;">
+            View Referrals &rarr;
+          </a>
+        </td>
+      </tr>
+    </table>
     """
 
-    return send_email(to_email=email, subject=subject, html_body=html_body)
+    return send_email(
+        to_email=email,
+        subject=subject,
+        html_body=render_email_template(subject, content, "Questions? Just reply to this email."),
+    )

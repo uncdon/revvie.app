@@ -486,15 +486,51 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
             }).eq('id', business_id).execute()
             logger.info(f"Business {business_id} status updated from past_due to active")
 
-        # Complete referral on first real payment
-        # subscription_create = $0 trial invoice (skip)
-        # subscription_cycle = first real charge after trial ends
+        # Handle first subscription payment (subscription_create)
+        # This is when Stripe applies the referral coupon discount
         billing_reason = getattr(invoice, 'billing_reason', None)
-        if billing_reason == 'subscription_cycle' and amount > 0:
+        if billing_reason == 'subscription_create':
+            # Issue 1: Deduct credit if business used referral discount
+            # Stripe already applied it as a coupon - sync the DB to reflect that
+            try:
+                biz_credit_result = supabase.table('businesses').select(
+                    'account_credit, discount_applied'
+                ).eq('id', business_id).execute()
+
+                if biz_credit_result.data:
+                    business = biz_credit_result.data[0]
+                    credit_used = float(business.get('discount_applied') or 0)
+                    if credit_used > 0:
+                        current_credit = float(business.get('account_credit') or 0)
+                        new_credit = max(0.0, current_credit - credit_used)
+                        supabase.table('businesses').update({
+                            'account_credit': new_credit,
+                            'discount_applied': 0,
+                        }).eq('id', business_id).execute()
+                        logger.info(
+                            f"Deducted ${credit_used} referral credit from business "
+                            f"{business_id} after first payment"
+                        )
+            except Exception as e:
+                logger.error(f"Failed to deduct referral credit for {business_id}: {e}")
+
+            # Issue 2: Complete referral so referrer earns their $40 credit
+            try:
+                from app.services import referral_service
+                result = referral_service.complete_referral_by_business(business_id)
+                if result:
+                    logger.info(f"Referral completed: referrer earned $40 for business {business_id}")
+                else:
+                    logger.info(f"No pending referral found for {business_id}")
+            except Exception as e:
+                logger.error(f"Referral completion failed for {business_id}: {e}")
+
+        # Fallback: also complete referral on subscription_cycle (first charge after trial)
+        elif billing_reason == 'subscription_cycle' and amount > 0:
             try:
                 from app.services import referral_service
                 referral_service.complete_referral_by_business(business_id)
-                logger.info(f"Referral check completed for business {business_id} on first payment")
+                logger.info(f"Referral check completed for business {business_id} on subscription_cycle")
             except Exception as e:
                 logger.error(f"Referral completion failed for {business_id}: {e}")
 
