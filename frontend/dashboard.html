@@ -2389,7 +2389,11 @@
                     bannerText.textContent = 'Free Trial: ' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
 
                     if (billing.trial_ends_at) {
-                        const endDate = new Date(billing.trial_ends_at).toLocaleDateString('en-US', {
+                        // Extract the date part only (handles both 'T' and ' ' separators)
+                        // and parse as UTC midnight — avoids local-timezone shift when
+                        // JS parses a no-suffix timestamp as local time
+                        const dateOnly = billing.trial_ends_at.split('T')[0].split(' ')[0];
+                        const endDate = new Date(dateOnly + 'T00:00:00Z').toLocaleDateString('en-US', {
                             month: 'long', day: 'numeric', year: 'numeric',
                             timeZone: 'UTC'
                         });
