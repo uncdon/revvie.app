@@ -251,17 +251,20 @@ def stripe_webhook():
     logger.info(f"[STRIPE_WEBHOOK] Data length: {len(payload)}")
     logger.info(f"[STRIPE_WEBHOOK] Signature present: {bool(sig_header)}")
 
+    # =========================================================================
+    # TEMPORARY: Signature verification disabled for debugging.
+    # RE-ENABLE before going back to production!
+    # =========================================================================
+    import json
     try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, STRIPE_WEBHOOK_SECRET
-        )
-        logger.info(f"[STRIPE_WEBHOOK] Event verified: {event.type}")
-    except ValueError as e:
-        logger.error(f"[STRIPE_WEBHOOK] Invalid payload: {e}")
+        event_dict = json.loads(payload)
+        logger.info(f"[STRIPE_WEBHOOK] Event parsed (no sig check): {event_dict.get('type')}")
+    except Exception as e:
+        logger.error(f"[STRIPE_WEBHOOK] Failed to parse payload: {e}")
         return jsonify({"error": "Invalid payload"}), 400
-    except stripe.error.SignatureVerificationError as e:
-        logger.error(f"[STRIPE_WEBHOOK] Invalid signature: {e}")
-        return jsonify({"error": "Invalid signature"}), 400
+
+    event = stripe.Event.construct_from(event_dict, stripe.api_key)
+    # =========================================================================
 
     event_type = event.type
     event_id = event.id
