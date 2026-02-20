@@ -239,33 +239,23 @@ def stripe_webhook():
     PUBLIC endpoint — no JWT auth. Authenticity verified via Stripe signature.
     CRITICAL: Always return 200 to prevent Stripe from retrying.
     """
-    logger.info("=" * 80)
-    logger.info("[STRIPE_WEBHOOK] ROUTE HIT - REQUEST RECEIVED")
-    logger.info("=" * 80)
-    logger.info(f"[STRIPE_WEBHOOK] Headers: {dict(request.headers)}")
-    logger.info(f"[STRIPE_WEBHOOK] Content-Type: {request.content_type}")
-
     payload = request.get_data()
     sig_header = request.headers.get('Stripe-Signature')
-
-    logger.info(f"[STRIPE_WEBHOOK] Data length: {len(payload)}")
-    logger.info(f"[STRIPE_WEBHOOK] Signature present: {bool(sig_header)}")
 
     try:
         event = stripe.Webhook.construct_event(
             payload, sig_header, STRIPE_WEBHOOK_SECRET
         )
-        logger.info(f"[STRIPE_WEBHOOK] Event verified: {event.type}")
     except ValueError as e:
-        logger.error(f"[STRIPE_WEBHOOK] Invalid payload: {e}")
+        logger.error(f"Stripe webhook invalid payload: {e}")
         return jsonify({"error": "Invalid payload"}), 400
     except stripe.error.SignatureVerificationError as e:
-        logger.error(f"[STRIPE_WEBHOOK] Invalid signature: {e}")
+        logger.error(f"Stripe webhook invalid signature: {e}")
         return jsonify({"error": "Invalid signature"}), 400
 
     event_type = event.type
     event_id = event.id
-    logger.info(f"[WEBHOOK_DEBUG] Stripe webhook received: {event_type} ({event_id})")
+    logger.info(f"Stripe webhook received: {event_type} ({event_id})")
 
     # Idempotency check
     try:
