@@ -146,7 +146,8 @@ def _check_queued_requests(business_id: str, email: str, phone: str, cutoff: str
         query = supabase_admin.table("queued_review_requests") \
             .select("id, scheduled_send_at, customer_name") \
             .eq("business_id", business_id) \
-            .not_("status", "in", '("cancelled","failed")') \
+            .neq("status", "cancelled") \
+            .neq("status", "failed") \
             .gte("scheduled_send_at", cutoff) \
             .order("scheduled_send_at", desc=True) \
             .limit(1)
