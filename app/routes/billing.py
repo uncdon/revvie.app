@@ -236,102 +236,83 @@ def stripe_webhook():
     """
     Handle incoming Stripe webhook events.
 
-    This is a PUBLIC endpoint (no JWT auth). Authenticity is verified
-    using Stripe's webhook signature.
-
+    PUBLIC endpoint — no JWT auth. Authenticity verified via Stripe signature.
     CRITICAL: Always return 200 to prevent Stripe from retrying.
-
-    Events handled:
-    - customer.subscription.created
-    - customer.subscription.updated
-    - customer.subscription.deleted
-    - customer.subscription.trial_will_end
-    - invoice.payment_succeeded
-    - invoice.payment_failed
     """
     payload = request.get_data()
     sig_header = request.headers.get('Stripe-Signature')
 
-    # Verify webhook signature
-    if not STRIPE_WEBHOOK_SECRET:
-        logger.warning("STRIPE_WEBHOOK_SECRET not set, skipping signature verification")
-        try:
-            event = stripe.Event.construct_from(
-                stripe.util.convert_to_stripe_object(request.get_json()),
-                stripe.api_key
-            )
-        except Exception as e:
-            logger.error(f"Failed to parse webhook payload: {e}")
-            return jsonify({"error": "Invalid payload"}), 400
-    else:
-        try:
-            event = stripe.Webhook.construct_event(
-                payload, sig_header, STRIPE_WEBHOOK_SECRET
-            )
-        except ValueError:
-            logger.error("Invalid webhook payload")
-            return jsonify({"error": "Invalid payload"}), 400
-        except stripe.error.SignatureVerificationError:
-            logger.error("Invalid webhook signature")
-            return jsonify({"error": "Invalid signature"}), 400
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SECRET
+        )
+    except ValueError as e:
+        logger.error(f"[WEBHOOK_DEBUG] Invalid payload: {e}")
+        return jsonify({"error": "Invalid payload"}), 400
+    except stripe.error.SignatureVerificationError as e:
+        logger.error(f"[WEBHOOK_DEBUG] Invalid signature: {e}")
+        return jsonify({"error": "Invalid signature"}), 400
 
     event_type = event.type
     event_id = event.id
-    logger.info(f"Stripe webhook received: {event_type} (event_id: {event_id})")
+    logger.info(f"[WEBHOOK_DEBUG] Stripe webhook received: {event_type} ({event_id})")
 
-    # Check for duplicate events (idempotency)
+    # Idempotency check
     try:
-        dup_check = supabase.table('billing_events').select('id').eq(
+        dup = supabase.table('billing_events').select('id').eq(
             'stripe_event_id', event_id
         ).execute()
-        if dup_check.data:
-            logger.info(f"Duplicate webhook event {event_id} - already processed")
+        if dup.data:
+            logger.info(f"[WEBHOOK_DEBUG] Duplicate event {event_id} — skipping")
             return jsonify({"status": "already processed"}), 200
     except Exception as e:
-        # Don't block processing if duplicate check fails
-        logger.warning(f"Duplicate check failed (proceeding anyway): {e}")
+        logger.warning(f"[WEBHOOK_DEBUG] Duplicate check failed (proceeding): {e}")
 
-    # Extract the Stripe object from the event
     obj = event.data.object
 
-    # Resolve business_id from metadata or customer lookup
-    logger.info(f"[WEBHOOK_DEBUG] Resolving business_id for {event_type} ({event_id})")
-    logger.info(f"[WEBHOOK_DEBUG] obj.customer={getattr(obj, 'customer', None)} "
-                f"obj.subscription={getattr(obj, 'subscription', None)}")
+    # Resolve business_id from metadata or DB lookup
+    logger.info(f"[WEBHOOK_DEBUG] Resolving business_id for {event_type} — "
+                f"customer={getattr(obj, 'customer', None)} "
+                f"subscription={getattr(obj, 'subscription', None)}")
     business_id = _resolve_business_id(event_type, obj)
     logger.info(f"[WEBHOOK_DEBUG] Resolved business_id={business_id}")
 
     if not business_id:
-        logger.warning(f"Could not resolve business_id for event {event_type} ({event_id})")
+        logger.warning(f"[WEBHOOK_DEBUG] Could not resolve business_id for {event_type} ({event_id}) — skipping handlers")
         return jsonify({"status": "received", "warning": "no business_id"}), 200
 
-    # Route to the correct handler
+    # Route to handler
     try:
         if event_type == 'customer.subscription.created':
+            logger.info(f"[WEBHOOK_DEBUG] Processing subscription.created for {business_id}")
             stripe_service.handle_subscription_created(obj, business_id)
 
         elif event_type == 'customer.subscription.updated':
+            logger.info(f"[WEBHOOK_DEBUG] Processing subscription.updated for {business_id}")
             stripe_service.handle_subscription_updated(obj, business_id)
 
         elif event_type == 'customer.subscription.deleted':
+            logger.info(f"[WEBHOOK_DEBUG] Processing subscription.deleted for {business_id}")
             stripe_service.handle_subscription_deleted(obj, business_id)
 
         elif event_type == 'customer.subscription.trial_will_end':
+            logger.info(f"[WEBHOOK_DEBUG] Processing trial_will_end for {business_id}")
             _handle_trial_will_end(obj, business_id)
 
         elif event_type == 'invoice.payment_succeeded':
-            logger.info(f"[WEBHOOK_DEBUG] Calling handle_payment_succeeded for {business_id}")
+            logger.info(f"[REFERRAL_DEBUG] Processing invoice.payment_succeeded for {business_id}")
             stripe_service.handle_payment_succeeded(obj, business_id)
 
         elif event_type == 'invoice.payment_failed':
+            logger.info(f"[WEBHOOK_DEBUG] Processing payment_failed for {business_id}")
             stripe_service.handle_payment_failed(obj, business_id)
 
         else:
-            logger.debug(f"Unhandled event type: {event_type}")
+            logger.info(f"[WEBHOOK_DEBUG] Unhandled event type: {event_type}")
 
     except Exception as e:
-        # CRITICAL: Never return non-200 from webhook handler
-        logger.exception(f"Error processing webhook {event_type} ({event_id}): {e}")
+        logger.exception(f"[WEBHOOK_DEBUG] Error processing {event_type} ({event_id}): {e}")
+        # Always return 200 to prevent Stripe retries
 
     # Store event ID for idempotency (best-effort)
     try:
@@ -341,7 +322,7 @@ def stripe_webhook():
             'event_type': event_type,
         }).execute()
     except Exception as e:
-        logger.warning(f"Failed to store event ID for idempotency: {e}")
+        logger.warning(f"[WEBHOOK_DEBUG] Failed to store event for idempotency: {e}")
 
     return jsonify({"status": "received"}), 200
 
@@ -394,7 +375,7 @@ def _resolve_business_id(event_type: str, obj) -> str | None:
     if result:
         return result
 
-    # Step 3: customer lookup (most robust when metadata is stale or missing)
+    # Step 3: customer lookup (stripe_customer_id column in businesses)
     customer_id = getattr(obj, 'customer', None)
     if customer_id:
         try:
@@ -408,6 +389,24 @@ def _resolve_business_id(event_type: str, obj) -> str | None:
             logger.warning(f"[WEBHOOK_DEBUG] No business found for stripe_customer_id {customer_id}")
         except Exception as e:
             logger.warning(f"Failed to look up business by customer_id {customer_id}: {e}")
+
+    # Step 4: subscription ID lookup (stripe_subscription_id column in businesses)
+    # Covers invoice events where customer lookup fails but subscription was stored at creation
+    subscription_id = getattr(obj, 'subscription', None)
+    if not subscription_id and getattr(obj, 'object', None) == 'subscription':
+        subscription_id = getattr(obj, 'id', None)
+    if subscription_id:
+        try:
+            rows = supabase.table('businesses').select('id').eq(
+                'stripe_subscription_id', subscription_id
+            ).execute()
+            if rows.data:
+                bid = rows.data[0]['id']
+                logger.info(f"[WEBHOOK_DEBUG] business_id resolved from subscription_id lookup ({subscription_id}): {bid}")
+                return bid
+            logger.warning(f"[WEBHOOK_DEBUG] No business found for stripe_subscription_id {subscription_id}")
+        except Exception as e:
+            logger.warning(f"Failed to look up business by subscription_id {subscription_id}: {e}")
 
     logger.error(f"[WEBHOOK_DEBUG] All resolution methods failed for {event_type}")
     return None
