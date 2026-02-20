@@ -15,7 +15,10 @@ This service wraps the SendGrid Python library to make sending emails easy.
 """
 
 import os
+import logging
 import certifi
+
+logger = logging.getLogger(__name__)
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail, Email, To, Content, TrackingSettings, ClickTracking
 
