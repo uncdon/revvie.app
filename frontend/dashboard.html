@@ -1471,46 +1471,297 @@
 
             </div>
 
-            <!-- Quick Help -->
+            <!-- Quick Help FAQ -->
             <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-                <h3 class="text-lg font-semibold text-blue-900 mb-4">📚 Quick Help</h3>
+                <h3 class="text-lg font-semibold text-blue-900 mb-4">📚 Frequently Asked Questions</h3>
                 <div class="space-y-3">
 
-                    <details class="group">
-                        <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700">
-                            How do I import customers from my booking system?
-                        </summary>
-                        <p class="mt-2 text-sm text-blue-800 pl-4">
-                            Go to the <strong>Customers</strong> tab and click <strong>Import CSV</strong>. Export your customer list from Fresha, Square, Vagaro, or any booking system as a CSV file, then upload it. *revvie automatically handles duplicate prevention.
-                        </p>
-                    </details>
+                    <!-- GETTING STARTED -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>How do I get started sending review requests?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-2"><strong>You have 3 options:</strong></p>
+                                <ol class="ml-4 space-y-2">
+                                    <li><strong>1. Send manually</strong> - Go to the <strong>Home</strong> tab, enter your customer's name and phone/email, then click "Send Review Request"</li>
+                                    <li><strong>2. Import your customer list</strong> - Go to <strong>Customers</strong> tab → click "Import CSV" → upload your customer list from your booking software (works with Fresha, Square, Vagaro, etc.)</li>
+                                    <li><strong>3. Connect Square</strong> - Go to <strong>Integrations</strong> → connect your Square account → review requests send automatically after each payment</li>
+                                </ol>
+                                <p class="mt-3 text-xs text-blue-600">💡 Tip: Start with option 1 to test it out, then use option 2 or 3 to automate.</p>
+                            </div>
+                        </details>
+                    </div>
 
-                    <details class="group">
-                        <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700">
-                            Why aren't my review requests sending?
-                        </summary>
-                        <p class="mt-2 text-sm text-blue-800 pl-4">
-                            Check: (1) Your monthly SMS/email cap hasn't been reached (see Home tab usage gauge), (2) Customer hasn't opted out via STOP, (3) You haven't contacted them recently (see Account → Duplicate Prevention settings).
-                        </p>
-                    </details>
+                    <!-- CSV IMPORT -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>How do I export my customer list as a CSV?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-3">Most booking systems can export to CSV. Here's how:</p>
+                                <p class="font-semibold mb-1">Fresha:</p>
+                                <p class="ml-3 mb-3">Go to Clients → click Export → choose "All Clients" → Download</p>
+                                <p class="font-semibold mb-1">Square:</p>
+                                <p class="ml-3 mb-3">Go to Customers → click Export → Save the CSV file</p>
+                                <p class="font-semibold mb-1">Vagaro:</p>
+                                <p class="ml-3 mb-3">Go to Reports → Client Database → Export</p>
+                                <p class="mt-3 bg-green-50 border border-green-200 rounded p-2">✅ <strong>You can import the same CSV multiple times!</strong> *revvie automatically skips customers you've already contacted recently, so it's safe to import your full customer list weekly.</p>
+                            </div>
+                        </details>
+                    </div>
 
-                    <details class="group">
-                        <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700">
-                            How do referrals work?
-                        </summary>
-                        <p class="mt-2 text-sm text-blue-800 pl-4">
-                            Share your referral link (find it in the <strong>Referrals</strong> tab). When someone signs up and pays for their first month, you both get $40 credit applied to your accounts.
-                        </p>
-                    </details>
+                    <!-- NOT SENDING -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>Why aren't my review requests sending?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-2"><strong>Check these common issues:</strong></p>
+                                <ul class="ml-4 space-y-2">
+                                    <li>✅ <strong>Monthly limit reached?</strong> - Check your <strong>Account</strong> tab → see "Monthly Usage". You get 750 SMS and 1,000 emails per month.</li>
+                                    <li>✅ <strong>Customer opted out?</strong> - If a customer replied "STOP" to a text or clicked "Unsubscribe" in an email, we can't send to them anymore (it's the law).</li>
+                                    <li>✅ <strong>Sent recently?</strong> - We prevent sending to the same customer too often. Check <strong>Account</strong> → "Duplicate Prevention" to see your cooldown period (default 30 days).</li>
+                                    <li>✅ <strong>Wrong phone format?</strong> - Phone numbers need country code: +1 for US (example: +17025551234)</li>
+                                </ul>
+                            </div>
+                        </details>
+                    </div>
 
-                    <details class="group">
-                        <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700">
-                            Can I change my Google Business Profile?
-                        </summary>
-                        <p class="mt-2 text-sm text-blue-800 pl-4">
-                            Yes! Go to <strong>Account</strong> tab → <strong>Google Review Link</strong> section → click <strong>Change Business</strong>. You'll be able to search for and select a different business.
-                        </p>
-                    </details>
+                    <!-- GOOGLE REVIEW LINK -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>How do I change my Google review link?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-2">If you selected the wrong business when signing up, you can change it:</p>
+                                <ol class="ml-4 space-y-1">
+                                    <li>1. Go to the <strong>Account</strong> tab</li>
+                                    <li>2. Find "Google Review Link" section</li>
+                                    <li>3. Click <strong>"Change Business"</strong></li>
+                                    <li>4. Search for your correct business name</li>
+                                    <li>5. Select it and confirm</li>
+                                </ol>
+                                <p class="mt-3 text-xs text-blue-600">💡 Your Google review link is where customers go when they click the link in your text or email.</p>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- DUPLICATE PREVENTION -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>What is "Duplicate Prevention" and how does it work?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-3">Duplicate Prevention stops you from accidentally sending multiple review requests to the same customer too close together.</p>
+                                <p class="mb-2"><strong>Example:</strong> If you set it to 30 days and send a review request to Sarah on January 1st, *revvie won't let you send another one to Sarah until February 1st.</p>
+                                <p class="mb-3"><strong>Why is this important?</strong> Spamming customers with too many requests annoys them and can hurt your review response rate.</p>
+                                <p class="font-semibold mb-1">To change your setting:</p>
+                                <ol class="ml-4 space-y-1 mb-3">
+                                    <li>1. Go to <strong>Account</strong> tab</li>
+                                    <li>2. Find "Duplicate Prevention"</li>
+                                    <li>3. Choose your cooldown period (7, 14, 30, 60, or 90 days)</li>
+                                </ol>
+                                <p class="text-xs bg-blue-50 border border-blue-200 rounded p-2">📌 <strong>Recommended:</strong> 30 days for monthly clients, 7–14 days for weekly clients (like nail salons)</p>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- REFERRALS -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>How do referrals work?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-3">When you refer another salon owner to *revvie, you both get rewarded:</p>
+                                <div class="bg-green-50 border border-green-200 rounded p-3 mb-3">
+                                    <p class="font-semibold text-green-900 mb-2">💰 The Rewards:</p>
+                                    <ul class="space-y-1 ml-3">
+                                        <li>• <strong>They get:</strong> $40 off their first month ($79 → $39)</li>
+                                        <li>• <strong>You get:</strong> $40 credit when they pay for their first month</li>
+                                    </ul>
+                                </div>
+                                <p class="font-semibold mb-1">How to refer:</p>
+                                <ol class="ml-4 space-y-1 mb-3">
+                                    <li>1. Go to the <strong>Referrals</strong> tab</li>
+                                    <li>2. Copy your unique referral link</li>
+                                    <li>3. Share it with other salon/spa owners (text, email, etc.)</li>
+                                    <li>4. When they sign up and pay, you both get $40!</li>
+                                </ol>
+                                <p class="text-xs text-blue-600">💡 Your credit automatically applies to future invoices - no action needed!</p>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- BILLING/TRIAL -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>When will I be charged? How does the free trial work?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-3"><strong>Your 14-day free trial:</strong></p>
+                                <ul class="ml-4 space-y-2 mb-3">
+                                    <li>✅ <strong>No charge for 14 days</strong> - Use all features completely free</li>
+                                    <li>✅ <strong>Cancel anytime</strong> - If you cancel during the trial, you won't be charged</li>
+                                    <li>✅ <strong>After 14 days</strong> - You'll be charged $79/month automatically</li>
+                                    <li>✅ <strong>Monthly billing</strong> - Charged on the same day each month</li>
+                                </ul>
+                                <p class="font-semibold mb-2">What's included in $79/month:</p>
+                                <ul class="ml-4 space-y-1 mb-3">
+                                    <li>• 750 SMS messages per month</li>
+                                    <li>• 1,000 emails per month</li>
+                                    <li>• Unlimited customers</li>
+                                    <li>• Square integration</li>
+                                    <li>• CSV imports</li>
+                                    <li>• Click tracking &amp; analytics</li>
+                                </ul>
+                                <p class="text-xs bg-amber-50 border border-amber-200 rounded p-2">📅 Check your trial end date at the top of your dashboard</p>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- CANCELING -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>How do I cancel my subscription?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-2">You can cancel anytime:</p>
+                                <ol class="ml-4 space-y-1 mb-3">
+                                    <li>1. Go to the <strong>Billing</strong> tab</li>
+                                    <li>2. Click <strong>"Manage Billing"</strong></li>
+                                    <li>3. Click "Cancel subscription"</li>
+                                    <li>4. Confirm cancellation</li>
+                                </ol>
+                                <p class="mb-3"><strong>What happens after you cancel:</strong></p>
+                                <ul class="ml-4 space-y-1 mb-3">
+                                    <li>• You keep access until the end of your current billing period</li>
+                                    <li>• No refunds for unused time</li>
+                                    <li>• Your data is saved for 30 days in case you change your mind</li>
+                                    <li>• You can reactivate anytime</li>
+                                </ul>
+                                <p class="text-xs text-gray-600">We're sorry to see you go! If something isn't working, please email support@revvie.app - we'd love to help.</p>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- TRACKING -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>How can I see if customers are clicking my links?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-3">*revvie tracks every click automatically!</p>
+                                <p class="font-semibold mb-2">To see your stats:</p>
+                                <ol class="ml-4 space-y-1 mb-3">
+                                    <li>1. Go to the <strong>Home</strong> tab</li>
+                                    <li>2. Look at the top stat cards:
+                                        <ul class="ml-4 mt-1 space-y-1">
+                                            <li>• <strong>Review Requests Sent</strong> - total sent</li>
+                                            <li>• <strong>Links Clicked</strong> - how many customers clicked</li>
+                                            <li>• <strong>Conversion Rate</strong> - percentage who clicked</li>
+                                        </ul>
+                                    </li>
+                                    <li>3. Scroll down to "Recent Review Requests" table</li>
+                                    <li>4. Look for the green "Opened" badge - that means they clicked!</li>
+                                </ol>
+                                <p class="text-xs bg-blue-50 border border-blue-200 rounded p-2">💡 Typical click rates are 15–30%. If yours is lower, try sending at different times of day.</p>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- SQUARE -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>How does the Square integration work?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-3">Connecting Square makes review requests completely automatic!</p>
+                                <p class="font-semibold mb-2">Here's how it works:</p>
+                                <ol class="ml-4 space-y-2 mb-3">
+                                    <li><strong>1. Connect:</strong> Go to <strong>Integrations</strong> → click "Connect Square" → log in to your Square account → authorize *revvie</li>
+                                    <li><strong>2. Automatic sending:</strong> Every time you process a payment through Square, *revvie automatically sends a review request to that customer 1 hour later</li>
+                                    <li><strong>3. No duplicate spam:</strong> We won't send to the same customer more than once within your cooldown period (default 30 days)</li>
+                                </ol>
+                                <div class="bg-green-50 border border-green-200 rounded p-3">
+                                    <p class="font-semibold text-green-900 mb-1">✅ Benefits:</p>
+                                    <ul class="ml-3 space-y-1">
+                                        <li>• Set it and forget it - completely hands-free</li>
+                                        <li>• Customers get requests while your service is fresh in their mind</li>
+                                        <li>• Never forget to ask for a review</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </details>
+                    </div>
+
+                    <!-- STILL STUCK -->
+                    <div class="bg-white rounded-lg border border-blue-100">
+                        <details class="group">
+                            <summary class="cursor-pointer font-medium text-blue-900 hover:text-blue-700 p-4 flex items-center justify-between">
+                                <span>I'm still stuck! How do I get help?</span>
+                                <svg class="w-5 h-5 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </summary>
+                            <div class="px-4 pb-4 text-sm text-blue-800 border-t border-blue-100">
+                                <p class="mt-3 mb-3">We're here to help!</p>
+                                <div class="bg-blue-100 border border-blue-300 rounded-lg p-4 mb-3">
+                                    <p class="font-semibold text-blue-900 mb-2">📧 Email Support</p>
+                                    <p class="mb-2">Send us an email at:</p>
+                                    <a href="mailto:support@revvie.app" class="inline-block px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">support@revvie.app</a>
+                                    <p class="text-xs text-blue-700 mt-2">We typically respond within 24 hours on weekdays</p>
+                                </div>
+                                <p class="font-semibold mb-2">What to include in your email:</p>
+                                <ul class="ml-4 space-y-1">
+                                    <li>• What you're trying to do</li>
+                                    <li>• What's not working</li>
+                                    <li>• Any error messages you see</li>
+                                    <li>• Screenshots if helpful</li>
+                                </ul>
+                            </div>
+                        </details>
+                    </div>
 
                 </div>
             </div>
