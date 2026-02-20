@@ -778,7 +778,12 @@
                 );
                 const data = await res.json();
 
-                if (!res.ok || !data.business) {
+                if (!res.ok) {
+                    showToast(`Search failed: ${data.error || res.statusText} (${res.status})`, true);
+                    return;
+                }
+
+                if (!data.business) {
                     document.getElementById('account-not-found').classList.remove('hidden');
                     return;
                 }

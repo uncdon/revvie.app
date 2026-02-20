@@ -65,6 +65,14 @@ def create_checkout():
         email = business.get('email')
         business_name = business.get('business_name')
 
+        # Check if account is blocked
+        biz_check = supabase.table('businesses').select('account_status').eq('id', business_id).execute()
+        if biz_check.data and biz_check.data[0].get('account_status') == 'blocked':
+            return jsonify({
+                "error": "Account blocked",
+                "message": "Your account has been blocked and cannot subscribe. Contact support@revvie.app for assistance.",
+            }), 403
+
         # Check if already has active subscription
         status = stripe_service.get_subscription_status(business_id)
         if status['is_active']:

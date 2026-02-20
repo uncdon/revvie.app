@@ -2830,9 +2830,37 @@
         // =====================================================
         // LOAD DATA
         // =====================================================
+        function showBlockedScreen() {
+            document.body.innerHTML = `
+                <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8f8f8;font-family:sans-serif;">
+                    <div style="background:white;padding:40px;border-radius:12px;max-width:480px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+                        <div style="font-size:56px;margin-bottom:16px;">🚫</div>
+                        <h1 style="color:#DC2626;margin:0 0 12px;font-size:22px;">Account Blocked</h1>
+                        <p style="color:#6B7280;margin:0 0 24px;line-height:1.6;">
+                            Your account has been blocked. Please contact support for assistance.
+                        </p>
+                        <a href="mailto:support@revvie.app"
+                           style="display:inline-block;padding:12px 28px;background:#07B5F5;color:white;text-decoration:none;border-radius:8px;font-weight:600;margin-bottom:16px;">
+                            Contact Support
+                        </a>
+                        <br>
+                        <button onclick="localStorage.clear();window.location.href='/login';"
+                                style="color:#6B7280;background:none;border:none;cursor:pointer;text-decoration:underline;font-size:14px;margin-top:8px;">
+                            Sign out
+                        </button>
+                    </div>
+                </div>`;
+        }
+
         async function loadUserData() {
             try {
                 const data = await apiCall(`${API_URL}/auth/me`);
+
+                if (data.business?.account_status === 'blocked') {
+                    showBlockedScreen();
+                    return;
+                }
+
                 const businessName = data.business?.business_name || 'Your Business';
                 sidebarBusinessName.textContent = businessName;
                 const userEmail = data.user?.email || data.business?.email;
