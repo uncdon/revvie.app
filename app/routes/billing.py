@@ -354,55 +354,62 @@ def _resolve_business_id(event_type: str, obj) -> str | None:
     """
     Extract or look up the business_id for a Stripe event.
 
-    Tries metadata first, then falls back to customer ID lookup.
-    Each metadata-sourced ID is validated against the businesses table
-    before being returned — stale metadata on deleted accounts is skipped.
+    Resolution order:
+    1. Subscription metadata  (set via subscription_data.metadata at checkout)
+    2. Invoice/object metadata (set via subscription_data.invoice_settings.metadata)
+    3. Customer lookup         (stripe_customer_id in businesses table)
+
+    Every metadata-sourced ID is validated against the businesses table
+    before being returned — stale metadata from deleted accounts is skipped.
     """
     def _exists_in_db(bid: str) -> bool:
-        """Return True if business_id exists in the businesses table."""
         try:
             r = supabase.table('businesses').select('id').eq('id', bid).limit(1).execute()
             return bool(r.data)
         except Exception:
             return False
 
-    # Try metadata on the object itself
-    metadata = getattr(obj, 'metadata', None) or {}
-    business_id = metadata.get('business_id')
-    if business_id:
-        if _exists_in_db(business_id):
-            logger.info(f"[WEBHOOK_DEBUG] business_id resolved from object metadata: {business_id}")
-            return business_id
-        logger.warning(f"[WEBHOOK_DEBUG] object metadata business_id {business_id} not in DB — skipping")
+    def _try_id(bid: str, source: str) -> str | None:
+        if not bid:
+            return None
+        if _exists_in_db(bid):
+            logger.info(f"[WEBHOOK_DEBUG] business_id resolved from {source}: {bid}")
+            return bid
+        logger.warning(f"[WEBHOOK_DEBUG] {source} business_id {bid} not in DB — skipping")
+        return None
 
-    # For invoice events, check the subscription metadata
+    # Step 1: subscription metadata (most reliable — set at checkout creation)
     if hasattr(obj, 'subscription') and obj.subscription:
         try:
             sub = stripe.Subscription.retrieve(obj.subscription)
-            business_id = (sub.metadata or {}).get('business_id')
-            if business_id:
-                if _exists_in_db(business_id):
-                    logger.info(f"[WEBHOOK_DEBUG] business_id resolved from subscription metadata: {business_id}")
-                    return business_id
-                logger.warning(f"[WEBHOOK_DEBUG] subscription metadata business_id {business_id} not in DB — skipping")
+            result = _try_id((sub.metadata or {}).get('business_id'), 'subscription metadata')
+            if result:
+                return result
         except Exception as e:
             logger.warning(f"Failed to retrieve subscription for business_id lookup: {e}")
 
-    # Fall back: look up by stripe_customer_id
+    # Step 2: invoice/object metadata (set via subscription_data.invoice_settings.metadata)
+    obj_metadata = getattr(obj, 'metadata', None) or {}
+    result = _try_id(obj_metadata.get('business_id'), 'invoice/object metadata')
+    if result:
+        return result
+
+    # Step 3: customer lookup (most robust when metadata is stale or missing)
     customer_id = getattr(obj, 'customer', None)
     if customer_id:
         try:
-            result = supabase.table('businesses').select('id').eq(
+            rows = supabase.table('businesses').select('id').eq(
                 'stripe_customer_id', customer_id
             ).execute()
-            if result.data:
-                business_id = result.data[0]['id']
-                logger.info(f"[WEBHOOK_DEBUG] business_id resolved from customer lookup ({customer_id}): {business_id}")
-                return business_id
+            if rows.data:
+                bid = rows.data[0]['id']
+                logger.info(f"[WEBHOOK_DEBUG] business_id resolved from customer lookup ({customer_id}): {bid}")
+                return bid
             logger.warning(f"[WEBHOOK_DEBUG] No business found for stripe_customer_id {customer_id}")
         except Exception as e:
             logger.warning(f"Failed to look up business by customer_id {customer_id}: {e}")
 
+    logger.error(f"[WEBHOOK_DEBUG] All resolution methods failed for {event_type}")
     return None
 
 

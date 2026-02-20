@@ -162,7 +162,10 @@ def create_checkout_session(business_id: str, email: str, business_name: str, di
             mode='subscription',
             subscription_data={
                 'trial_period_days': trial_days,
-                'metadata': {'business_id': business_id}
+                'metadata': {'business_id': business_id},
+                'invoice_settings': {
+                    'metadata': {'business_id': business_id}
+                },
             },
             success_url=f'{APP_BASE_URL}/billing/success?session_id={{CHECKOUT_SESSION_ID}}',
             cancel_url=f'{APP_BASE_URL}/billing/canceled',
