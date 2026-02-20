@@ -502,6 +502,10 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
     """
     try:
         amount = (invoice.amount_paid or 0) / 100
+        billing_reason = getattr(invoice, 'billing_reason', None)
+
+        logger.info(f"[REFERRAL_DEBUG] handle_payment_succeeded called: "
+                    f"business_id={business_id} amount=${amount:.2f} billing_reason={billing_reason}")
 
         _log_billing_event(business_id, 'payment_succeeded', {
             'invoice_id': invoice.id,
@@ -527,14 +531,16 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
         # IMPORTANT: Only process when amount > 0 — a $0 invoice with
         # billing_reason='subscription_create' is fired at trial start and
         # must NOT trigger credit deduction or referral completion.
-        billing_reason = getattr(invoice, 'billing_reason', None)
         if billing_reason == 'subscription_create' and amount > 0:
+            logger.info(f"[REFERRAL_DEBUG] First payment (subscription_create) detected for {business_id}")
             # Issue 1: Deduct credit if business used referral discount
             # Stripe already applied it as a coupon - sync the DB to reflect that
             try:
                 biz_credit_result = supabase.table('businesses').select(
                     'account_credit, discount_applied'
                 ).eq('id', business_id).execute()
+
+                logger.info(f"[REFERRAL_DEBUG] Business credit data: {biz_credit_result.data}")
 
                 if biz_credit_result.data:
                     business = biz_credit_result.data[0]
@@ -557,22 +563,33 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
             # Issue 2: Complete referral so referrer earns their $40 credit
             try:
                 from app.services import referral_service
+                logger.info(f"[REFERRAL_DEBUG] Calling complete_referral_by_business for {business_id}")
                 result = referral_service.complete_referral_by_business(business_id)
+                logger.info(f"[REFERRAL_DEBUG] complete_referral_by_business result: {result}")
                 if result:
                     logger.info(f"Referral completed: referrer earned $40 for business {business_id}")
                 else:
                     logger.info(f"No pending referral found for {business_id}")
             except Exception as e:
-                logger.error(f"Referral completion failed for {business_id}: {e}")
+                logger.error(f"Referral completion failed for {business_id}: {e}", exc_info=True)
 
         # Fallback: also complete referral on subscription_cycle (first charge after trial)
         elif billing_reason == 'subscription_cycle' and amount > 0:
+            logger.info(f"[REFERRAL_DEBUG] subscription_cycle payment detected for {business_id}, checking referral")
             try:
                 from app.services import referral_service
-                referral_service.complete_referral_by_business(business_id)
-                logger.info(f"Referral check completed for business {business_id} on subscription_cycle")
+                logger.info(f"[REFERRAL_DEBUG] Calling complete_referral_by_business for {business_id}")
+                result = referral_service.complete_referral_by_business(business_id)
+                logger.info(f"[REFERRAL_DEBUG] complete_referral_by_business result: {result}")
+                if result:
+                    logger.info(f"Referral completed: referrer earned $40 for business {business_id} (subscription_cycle)")
+                else:
+                    logger.info(f"No pending referral found for {business_id} on subscription_cycle")
             except Exception as e:
-                logger.error(f"Referral completion failed for {business_id}: {e}")
+                logger.error(f"Referral completion failed for {business_id}: {e}", exc_info=True)
+
+        else:
+            logger.info(f"[REFERRAL_DEBUG] No referral action: billing_reason={billing_reason} amount=${amount:.2f}")
 
     except Exception as e:
         logger.error(f"Failed to handle payment succeeded for business {business_id}: {e}")

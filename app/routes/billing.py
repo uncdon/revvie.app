@@ -295,7 +295,11 @@ def stripe_webhook():
     obj = event.data.object
 
     # Resolve business_id from metadata or customer lookup
+    logger.info(f"[WEBHOOK_DEBUG] Resolving business_id for {event_type} ({event_id})")
+    logger.info(f"[WEBHOOK_DEBUG] obj.customer={getattr(obj, 'customer', None)} "
+                f"obj.subscription={getattr(obj, 'subscription', None)}")
     business_id = _resolve_business_id(event_type, obj)
+    logger.info(f"[WEBHOOK_DEBUG] Resolved business_id={business_id}")
 
     if not business_id:
         logger.warning(f"Could not resolve business_id for event {event_type} ({event_id})")
@@ -316,6 +320,7 @@ def stripe_webhook():
             _handle_trial_will_end(obj, business_id)
 
         elif event_type == 'invoice.payment_succeeded':
+            logger.info(f"[WEBHOOK_DEBUG] Calling handle_payment_succeeded for {business_id}")
             stripe_service.handle_payment_succeeded(obj, business_id)
 
         elif event_type == 'invoice.payment_failed':
