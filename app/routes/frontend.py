@@ -69,6 +69,18 @@ def verify_email_error():
     return send_from_directory(FRONTEND_FOLDER, 'verify-email-error.html')
 
 
+@frontend_bp.route('/forgot-password')
+def forgot_password():
+    """Serve forgot password page."""
+    return send_from_directory(FRONTEND_FOLDER, 'forgot-password.html')
+
+
+@frontend_bp.route('/reset-password')
+def reset_password():
+    """Serve reset password page."""
+    return send_from_directory(FRONTEND_FOLDER, 'reset-password.html')
+
+
 @frontend_bp.route('/admin')
 def admin():
     """Serve admin page."""

@@ -385,6 +385,113 @@ def verify_email():
         return jsonify({"error": "Verification failed. Please try again."}), 500
 
 
+@auth_bp.route('/auth/forgot-password', methods=['POST'])
+def forgot_password():
+    """
+    Send a password reset email.
+
+    Always returns success to avoid leaking whether an email exists.
+
+    Request body:
+        { "email": "user@example.com" }
+    """
+    email = (request.get_json() or {}).get('email', '').strip().lower()
+    if not email:
+        return jsonify({'error': 'Email required'}), 400
+
+    _SUCCESS = {'success': True, 'message': 'If that email exists, we sent a password reset link.'}
+
+    try:
+        result = supabase_admin.table('businesses').select(
+            'id, email, business_name'
+        ).eq('email', email).execute()
+
+        if not result.data:
+            logger.info(f"Password reset requested for unknown email: {email}")
+            return jsonify(_SUCCESS), 200
+
+        business = result.data[0]
+        reset_token = secrets.token_urlsafe(32)
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat()
+
+        supabase_admin.table('businesses').update({
+            'password_reset_token': reset_token,
+            'password_reset_expires_at': expires_at,
+        }).eq('id', business['id']).execute()
+
+        reset_url = (
+            f"{os.getenv('APP_BASE_URL', 'http://localhost:5000')}"
+            f"/reset-password?token={reset_token}"
+        )
+
+        from app.services import email_service
+        email_service.send_password_reset_email(
+            email=email,
+            business_name=business.get('business_name', ''),
+            reset_url=reset_url,
+        )
+
+        logger.info(f"Password reset email sent to {email}")
+        return jsonify(_SUCCESS), 200
+
+    except Exception as e:
+        logger.error(f"Forgot password error for {email}: {e}")
+        return jsonify(_SUCCESS), 200  # Still don't leak anything on error
+
+
+@auth_bp.route('/auth/reset-password', methods=['POST'])
+def reset_password():
+    """
+    Reset password using the token from the reset email.
+
+    Request body:
+        { "token": "...", "new_password": "newpass123" }
+    """
+    data = request.get_json() or {}
+    token = data.get('token', '').strip()
+    new_password = data.get('new_password', '')
+
+    if not token or not new_password:
+        return jsonify({'error': 'Token and new password required'}), 400
+    if len(new_password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+    try:
+        result = supabase_admin.table('businesses').select(
+            'id, email, password_reset_expires_at'
+        ).eq('password_reset_token', token).execute()
+
+        if not result.data:
+            return jsonify({'error': 'Invalid or expired reset link'}), 404
+
+        business = result.data[0]
+
+        expires_str = business.get('password_reset_expires_at')
+        if expires_str:
+            expires_at = datetime.fromisoformat(expires_str.replace('Z', '+00:00'))
+            if datetime.now(timezone.utc) > expires_at:
+                return jsonify({'error': 'Reset link expired. Please request a new one.'}), 410
+
+        # Update password via Supabase Auth admin API (no bcrypt needed — Supabase handles it)
+        supabase_admin.auth.admin.update_user_by_id(
+            business['id'],
+            {'password': new_password}
+        )
+
+        # Clear the one-time token
+        supabase_admin.table('businesses').update({
+            'password_reset_token': None,
+            'password_reset_expires_at': None,
+        }).eq('id', business['id']).execute()
+
+        logger.info(f"Password reset successful for {business['email']}")
+        return jsonify({'success': True, 'message': 'Password reset successfully! You can now log in.'}), 200
+
+    except Exception as e:
+        logger.error(f"Password reset error: {e}")
+        return jsonify({'error': 'Failed to reset password. Please try again.'}), 500
+
+
 @auth_bp.route('/auth/resend-verification', methods=['POST'])
 def resend_verification():
     """
