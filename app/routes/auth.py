@@ -469,13 +469,17 @@ def reset_password():
         expires_str = business.get('password_reset_expires_at')
         if expires_str:
             expires_at = datetime.fromisoformat(expires_str.replace('Z', '+00:00'))
+            # TIMESTAMP columns return timezone-naive datetimes — treat as UTC
+            if expires_at.tzinfo is None:
+                expires_at = expires_at.replace(tzinfo=timezone.utc)
             if datetime.now(timezone.utc) > expires_at:
                 return jsonify({'error': 'Reset link expired. Please request a new one.'}), 410
 
         # Update password via Supabase Auth admin API (no bcrypt needed — Supabase handles it)
+        from gotrue.types import AdminUserAttributes
         supabase_admin.auth.admin.update_user_by_id(
             business['id'],
-            {'password': new_password}
+            AdminUserAttributes(password=new_password)
         )
 
         # Clear the one-time token
