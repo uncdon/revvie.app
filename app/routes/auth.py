@@ -476,10 +476,9 @@ def reset_password():
                 return jsonify({'error': 'Reset link expired. Please request a new one.'}), 410
 
         # Update password via Supabase Auth admin API (no bcrypt needed — Supabase handles it)
-        from gotrue.types import AdminUserAttributes
         supabase_admin.auth.admin.update_user_by_id(
             business['id'],
-            AdminUserAttributes(password=new_password)
+            {'password': new_password}
         )
 
         # Clear the one-time token
