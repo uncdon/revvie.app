@@ -6,7 +6,8 @@ This pattern allows creating multiple instances of the app with different config
 import os
 import sentry_sdk
 from sentry_sdk.integrations.flask import FlaskIntegration
-from flask import Flask, send_from_directory
+import logging
+from flask import Flask, request, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from config import config
@@ -43,6 +44,17 @@ def create_app(config_name='default'):
     # Initialize extensions with the app
     db.init_app(app)
     CORS(app)  # Enable Cross-Origin Resource Sharing for API access
+
+    _logger = logging.getLogger(__name__)
+
+    @app.before_request
+    def log_all_requests():
+        """Log every incoming request to diagnose routing issues."""
+        _logger.info("=" * 60)
+        _logger.info(f"[REQUEST] {request.method} {request.path}")
+        _logger.info(f"[REQUEST] From: {request.remote_addr}")
+        _logger.info(f"[REQUEST] User-Agent: {request.headers.get('User-Agent', 'unknown')}")
+        _logger.info("=" * 60)
 
     # Register blueprints (route modules)
     from app.routes.health import health_bp
