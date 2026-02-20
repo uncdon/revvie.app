@@ -526,27 +526,29 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
             }).eq('id', business_id).execute()
             logger.info(f"Business {business_id} status updated from past_due to active")
 
-        # Handle first subscription payment (subscription_create)
-        # This is when Stripe applies the referral coupon discount.
-        # IMPORTANT: Only process when amount > 0 — a $0 invoice with
-        # billing_reason='subscription_create' is fired at trial start and
-        # must NOT trigger credit deduction or referral completion.
-        if billing_reason == 'subscription_create' and amount > 0:
-            logger.info(f"[REFERRAL_DEBUG] First payment (subscription_create) detected for {business_id}")
-            # Issue 1: Deduct credit if business used referral discount
-            # Stripe already applied it as a coupon - sync the DB to reflect that
+        # Process referral actions on any real (non-zero) payment.
+        # We use referral_credit_used flag for idempotency — safe to check on
+        # every payment regardless of billing_reason (handles subscription_create,
+        # subscription_cycle, subscription_update, and any future reasons).
+        # A $0 invoice at trial start is excluded by the amount > 0 guard.
+        if amount > 0:
+            logger.info(f"[REFERRAL_DEBUG] Real payment detected (billing_reason={billing_reason}, "
+                        f"amount=${amount:.2f}) — checking referral actions for {business_id}")
+
+            # Deduct referred business's credit if not already done
+            # (referral_credit_used guards against double-deduction)
             try:
                 biz_credit_result = supabase.table('businesses').select(
-                    'account_credit, discount_applied'
+                    'account_credit, discount_applied, referral_credit_used'
                 ).eq('id', business_id).execute()
 
                 logger.info(f"[REFERRAL_DEBUG] Business credit data: {biz_credit_result.data}")
 
                 if biz_credit_result.data:
-                    business = biz_credit_result.data[0]
-                    credit_used = float(business.get('discount_applied') or 0)
-                    if credit_used > 0:
-                        current_credit = float(business.get('account_credit') or 0)
+                    biz = biz_credit_result.data[0]
+                    credit_used = float(biz.get('discount_applied') or 0)
+                    if credit_used > 0 and not biz.get('referral_credit_used'):
+                        current_credit = float(biz.get('account_credit') or 0)
                         new_credit = max(0.0, current_credit - credit_used)
                         supabase.table('businesses').update({
                             'account_credit': new_credit,
@@ -554,42 +556,32 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
                             'referral_credit_used': True,
                         }).eq('id', business_id).execute()
                         logger.info(
-                            f"Deducted ${credit_used} referral credit from business "
-                            f"{business_id} and marked referral_credit_used=true"
+                            f"[REFERRAL_DEBUG] Deducted ${credit_used} referral credit from "
+                            f"business {business_id} (referral_credit_used=true)"
                         )
+                    else:
+                        logger.info(f"[REFERRAL_DEBUG] No credit to deduct "
+                                    f"(discount_applied={credit_used}, "
+                                    f"referral_credit_used={biz.get('referral_credit_used')})")
             except Exception as e:
-                logger.error(f"Failed to deduct referral credit for {business_id}: {e}")
+                logger.error(f"[REFERRAL_DEBUG] Failed to deduct referral credit for {business_id}: {e}")
 
-            # Issue 2: Complete referral so referrer earns their $40 credit
+            # Complete referral so referrer earns their credit
+            # complete_referral_by_business is idempotent — returns None if already done
             try:
                 from app.services import referral_service
                 logger.info(f"[REFERRAL_DEBUG] Calling complete_referral_by_business for {business_id}")
                 result = referral_service.complete_referral_by_business(business_id)
                 logger.info(f"[REFERRAL_DEBUG] complete_referral_by_business result: {result}")
                 if result:
-                    logger.info(f"Referral completed: referrer earned $40 for business {business_id}")
+                    logger.info(f"[REFERRAL_DEBUG] Referral completed — referrer earned credit for {business_id}")
                 else:
-                    logger.info(f"No pending referral found for {business_id}")
+                    logger.info(f"[REFERRAL_DEBUG] No pending referral found for {business_id}")
             except Exception as e:
-                logger.error(f"Referral completion failed for {business_id}: {e}", exc_info=True)
-
-        # Fallback: also complete referral on subscription_cycle (first charge after trial)
-        elif billing_reason == 'subscription_cycle' and amount > 0:
-            logger.info(f"[REFERRAL_DEBUG] subscription_cycle payment detected for {business_id}, checking referral")
-            try:
-                from app.services import referral_service
-                logger.info(f"[REFERRAL_DEBUG] Calling complete_referral_by_business for {business_id}")
-                result = referral_service.complete_referral_by_business(business_id)
-                logger.info(f"[REFERRAL_DEBUG] complete_referral_by_business result: {result}")
-                if result:
-                    logger.info(f"Referral completed: referrer earned $40 for business {business_id} (subscription_cycle)")
-                else:
-                    logger.info(f"No pending referral found for {business_id} on subscription_cycle")
-            except Exception as e:
-                logger.error(f"Referral completion failed for {business_id}: {e}", exc_info=True)
+                logger.error(f"[REFERRAL_DEBUG] Referral completion failed for {business_id}: {e}", exc_info=True)
 
         else:
-            logger.info(f"[REFERRAL_DEBUG] No referral action: billing_reason={billing_reason} amount=${amount:.2f}")
+            logger.info(f"[REFERRAL_DEBUG] Skipping referral actions — amount=${amount:.2f} (trial start invoice)")
 
     except Exception as e:
         logger.error(f"Failed to handle payment succeeded for business {business_id}: {e}")
