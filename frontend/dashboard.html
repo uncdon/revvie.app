@@ -2312,8 +2312,11 @@
             if (!trialEndsAt) return 0;
             const now = new Date();
             const end = new Date(trialEndsAt);
-            const diffMs = end - now;
-            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            // Compare UTC calendar dates (midnight-to-midnight) to avoid timezone
+            // and time-of-day skew — Stripe trial_end is an exact timestamp, not midnight
+            const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+            const endUTC = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
+            const diffDays = Math.round((endUTC - nowUTC) / (1000 * 60 * 60 * 24));
             return Math.max(0, diffDays);
         }
 
@@ -2387,7 +2390,8 @@
 
                     if (billing.trial_ends_at) {
                         const endDate = new Date(billing.trial_ends_at).toLocaleDateString('en-US', {
-                            month: 'long', day: 'numeric', year: 'numeric'
+                            month: 'long', day: 'numeric', year: 'numeric',
+                            timeZone: 'UTC'
                         });
                         bannerSubtext.textContent = 'Your trial ends ' + endDate + '. After that: $79/month.';
                     }
