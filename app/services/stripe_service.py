@@ -155,15 +155,16 @@ def create_checkout_session(business_id: str, email: str, business_name: str, di
         # --- Build checkout session ---
         # Only pass discounts kwarg when there's actually a coupon — passing an
         # empty list can cause Stripe API errors in some configurations.
+        subscription_data = {'metadata': {'business_id': business_id}}
+        if trial_days > 0:
+            subscription_data['trial_period_days'] = trial_days
+
         session_kwargs = dict(
             customer=stripe_customer_id,
             payment_method_types=['card'],
             line_items=[{'price': PRICE_ID, 'quantity': 1}],
             mode='subscription',
-            subscription_data={
-                'trial_period_days': trial_days,
-                'metadata': {'business_id': business_id}
-            },
+            subscription_data=subscription_data,
             success_url=f'{APP_BASE_URL}/billing/success?session_id={{CHECKOUT_SESSION_ID}}',
             cancel_url=f'{APP_BASE_URL}/billing/canceled',
             metadata={'business_id': business_id}
