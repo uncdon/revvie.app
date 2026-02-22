@@ -2643,6 +2643,13 @@
                 });
                 if (!res.ok) return;
                 const billing = await res.json();
+                console.log('[billing]', JSON.stringify({
+                    status: billing.status,
+                    trial_ends_at: billing.trial_ends_at,
+                    days_remaining_in_trial: billing.days_remaining_in_trial,
+                    days_remaining_type: typeof billing.days_remaining_in_trial,
+                    getDaysRemaining_result: getDaysRemaining(billing.trial_ends_at),
+                }));
 
                 if (billing.status === 'none' || billing.status === 'canceled' || billing.status === 'unpaid') {
                     window.location.href = '/subscribe';
