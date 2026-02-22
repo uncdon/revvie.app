@@ -55,11 +55,15 @@ def select_place():
         if not result.data:
             return jsonify({"error": "Business not found"}), 404
 
+        has_subscription = bool(request.business.get('subscription_status'))
+        redirect_url = '/dashboard' if has_subscription else '/subscribe'
+
         return jsonify({
             "success": True,
             "place_id": place_id,
             "review_url": review_url,
             "maps_url": maps_url,
+            "redirect": redirect_url,
         }), 200
 
     except Exception as e:

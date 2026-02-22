@@ -483,7 +483,13 @@
                 biz.google_review_url = data.review_url;
                 localStorage.setItem('business', JSON.stringify(biz));
 
-                showStep(3);
+                if (data.redirect === '/dashboard') {
+                    // Existing subscriber changing business — go straight back
+                    window.location.href = '/dashboard';
+                } else {
+                    // New user — show success screen before billing
+                    showStep(3);
+                }
             } catch (err) {
                 errEl.textContent = err.message || 'Something went wrong. Please try again.';
                 errEl.classList.remove('hidden');
