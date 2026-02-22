@@ -41,7 +41,8 @@ def redirect_tracking_link(short_code):
     # Step 2: Log the click — must never block or break the redirect
     try:
         user_agent = request.headers.get('User-Agent', '')
-        ip_address = request.headers.get('X-Forwarded-For', request.remote_addr)
+        forwarded_for = request.headers.get('X-Forwarded-For')
+        ip_address = forwarded_for.split(',')[0].strip() if forwarded_for else request.remote_addr
 
         log_click(
             tracking_link_id=tracking_link['id'],
