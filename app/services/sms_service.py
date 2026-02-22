@@ -400,15 +400,15 @@ def send_review_request_sms(
     # within 320 chars (2 segments).
     MAX_LENGTH = 320
 
-    # Short template (preferred - more personal)
+    # Short template (preferred)
     short_template = (
-        f"Hi {name}! Thanks for visiting {business}. We'd love your feedback: {review_url}"
+        f"Thanks for visiting {business}! Leave a review: {review_url}"
         f"{OPT_OUT_FOOTER}"
     )
 
-    # Medium template (if short is too long)
+    # Medium template (if short is too long - very long business names)
     medium_template = (
-        f"Thanks for visiting {business}! Leave us a review: {review_url}"
+        f"Leave a review for {business}: {review_url}"
         f"{OPT_OUT_FOOTER}"
     )
 
