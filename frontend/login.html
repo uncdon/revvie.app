@@ -87,6 +87,13 @@
         </div>
     </div>
 
+    <!-- Session Expired Banner -->
+    <div id="sessionBanner" class="fixed top-0 left-0 right-0 z-50 hidden">
+        <div class="bg-amber-50 border-b border-amber-200 text-amber-800 text-center py-2.5 px-4 text-sm font-medium">
+            <span id="sessionBannerMsg"></span>
+        </div>
+    </div>
+
     <!-- Main container -->
     <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 relative overflow-hidden">
         <!-- Decorative gradient -->
@@ -175,6 +182,15 @@
             ? 'http://localhost:5001'
             : window.location.origin;  // Use same origin in production
         const API_URL = `${API_BASE_URL}/api`;
+
+        // Show session-expired message if redirected from dashboard
+        const loginMsg = localStorage.getItem('loginMessage');
+        if (loginMsg) {
+            const banner = document.getElementById('sessionBanner');
+            document.getElementById('sessionBannerMsg').textContent = loginMsg;
+            banner.classList.remove('hidden');
+            localStorage.removeItem('loginMessage');
+        }
 
         const form = document.getElementById('loginForm');
         const errorDiv = document.getElementById('errorMessage');

@@ -2557,6 +2557,29 @@
         if (!token) window.location.href = 'login.html';
 
         // =====================================================
+        // SESSION MANAGEMENT
+        // =====================================================
+        function redirectToLogin(message) {
+            localStorage.removeItem('token');
+            if (message) localStorage.setItem('loginMessage', message);
+            window.location.href = '/login';
+        }
+
+        // Global fetch interceptor — catches 401/403 from any API call
+        // so expired sessions always redirect to login, no matter which
+        // function made the request.
+        const _originalFetch = window.fetch;
+        window.fetch = async function(url, options = {}) {
+            const response = await _originalFetch(url, options);
+            if (typeof url === 'string' && url.includes('/api/') &&
+                (response.status === 401 || response.status === 403)) {
+                redirectToLogin('Your session expired. Please log in again.');
+                return new Promise(() => {}); // Never resolves — redirect in progress
+            }
+            return response;
+        };
+
+        // =====================================================
         // HELPERS
         // =====================================================
         function getDaysRemaining(trialEndsAt) {
