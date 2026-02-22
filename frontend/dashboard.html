@@ -2658,7 +2658,12 @@
                     const banner = document.getElementById('trialBanner');
                     const bannerText = document.getElementById('trialBannerText');
                     const bannerSubtext = document.getElementById('trialBannerSubtext');
-                    const days = getDaysRemaining(billing.trial_ends_at);
+                    // Prefer server-computed days (exact timedelta) over client-side
+                    // midnight-to-midnight diff, which can be off by 1 when Stripe
+                    // sets trial_end to the start of the next billing-period day.
+                    const days = typeof billing.days_remaining_in_trial === 'number'
+                        ? billing.days_remaining_in_trial
+                        : getDaysRemaining(billing.trial_ends_at);
 
                     bannerText.textContent = 'Free Trial: ' + days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
 
@@ -2682,7 +2687,9 @@
                 document.getElementById('billingContent').classList.remove('hidden');
 
                 if (billing.status === 'trialing') {
-                    const days = getDaysRemaining(billing.trial_ends_at);
+                    const days = typeof billing.days_remaining_in_trial === 'number'
+                        ? billing.days_remaining_in_trial
+                        : getDaysRemaining(billing.trial_ends_at);
                     document.getElementById('billingTrialText').textContent =
                         days + ' day' + (days !== 1 ? 's' : '') + ' remaining';
                     document.getElementById('billingTrialing').classList.remove('hidden');
