@@ -3156,6 +3156,13 @@
                 });
 
                 if (response.ok) {
+                    // Clear stale place data from localStorage so onboarding
+                    // doesn't see google_place_id and immediately bounce back
+                    const biz = JSON.parse(localStorage.getItem('business') || '{}');
+                    delete biz.google_place_id;
+                    delete biz.google_review_url;
+                    localStorage.setItem('business', JSON.stringify(biz));
+
                     window.location.href = '/onboarding';
                 } else {
                     alert('Failed to change business. Please try again.');
