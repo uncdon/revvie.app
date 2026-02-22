@@ -5,10 +5,13 @@ Google Places API endpoints for business lookup.
 - POST /api/places/select  - Save a selected Place ID to the business
 """
 
+import logging
 from flask import Blueprint, jsonify, request
 from app.services.auth_service import require_auth
 from app.services.supabase_service import supabase
 from app.services.google_places import search_places as places_search, get_review_url, get_maps_url
+
+logger = logging.getLogger(__name__)
 
 places_bp = Blueprint('places', __name__)
 
@@ -32,7 +35,13 @@ def select_place():
         return jsonify({"error": "place_id is required"}), 400
 
     place_id = body['place_id'].strip()
+
+    if not request.business:
+        return jsonify({"error": "Business record not found"}), 404
+
     business_id = request.business.get('id')
+    if not business_id:
+        return jsonify({"error": "Business ID missing"}), 404
 
     review_url = get_review_url(place_id)
     maps_url = get_maps_url(place_id)
@@ -53,5 +62,6 @@ def select_place():
             "maps_url": maps_url,
         }), 200
 
-    except Exception:
+    except Exception as e:
+        logger.exception(f"Failed to save place_id={place_id!r} for business_id={business_id!r}: {e}")
         return jsonify({"error": "Failed to save selection, please try again"}), 500
