@@ -146,7 +146,7 @@ def send_email(to_email: str, subject: str, html_body: str) -> dict:
 
 def render_email_template(subject: str, content: str, footer_content: str = "") -> str:
     """
-    Render the branded *revvie email template with the given content.
+    Render the branded Revvie email template with the given content.
 
     Reads app/templates/email_base.html and substitutes the three
     {{ placeholder }} tokens. All emails should go through this function
@@ -345,11 +345,11 @@ def send_trial_welcome_email(email: str, business_name: str, trial_end_date: str
     Returns:
         dict: Same format as send_email()
     """
-    subject = "Welcome to *revvie \u2014 Your free trial has started! \U0001f389"
+    subject = "Welcome to Revvie \u2014 Your free trial has started! \U0001f389"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
-      Welcome to *revvie!
+      Welcome to Revvie!
     </h2>
 
     <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
@@ -413,7 +413,7 @@ def send_trial_ending_email(email: str, business_name: str, trial_end_date: str,
     Returns:
         dict: Same format as send_email()
     """
-    subject = f"Your *revvie trial ends in {days_remaining} days"
+    subject = f"Your Revvie trial ends in {days_remaining} days"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
@@ -470,7 +470,7 @@ def send_payment_failed_email(email: str, business_name: str) -> dict:
     Returns:
         dict: Same format as send_email()
     """
-    subject = "\u26a0\ufe0f Action required: Payment failed for *revvie"
+    subject = "\u26a0\ufe0f Action required: Payment failed for Revvie"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #DC2626; font-weight: 600;">
@@ -478,7 +478,7 @@ def send_payment_failed_email(email: str, business_name: str) -> dict:
     </h2>
 
     <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
-      We couldn't process your payment for *revvie.
+      We couldn't process your payment for Revvie.
     </p>
 
     <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
@@ -524,7 +524,7 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
     Returns:
         dict: Same format as send_email()
     """
-    subject = "Your *revvie subscription has been canceled"
+    subject = "Your Revvie subscription has been canceled"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
@@ -532,7 +532,7 @@ def send_subscription_canceled_email(email: str, business_name: str) -> dict:
     </h2>
 
     <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
-      Your *revvie subscription for <strong>{business_name}</strong> has been canceled.
+      Your Revvie subscription for <strong>{business_name}</strong> has been canceled.
       You'll retain access until the end of your current billing period.
     </p>
 
@@ -578,7 +578,7 @@ def send_password_reset_email(email: str, business_name: str, reset_url: str) ->
     Returns:
         {'success': True} or {'success': False, 'error': str}
     """
-    subject = "Reset your *revvie password"
+    subject = "Reset your Revvie password"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
@@ -590,7 +590,7 @@ def send_password_reset_email(email: str, business_name: str, reset_url: str) ->
     </p>
 
     <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
-      We received a request to reset your password for your *revvie account.
+      We received a request to reset your password for your Revvie account.
       Click the button below to create a new password:
     </p>
 
@@ -656,11 +656,11 @@ def send_verification_email(email: str, business_name: str, verification_url: st
     Returns:
         {'success': True} or {'success': False, 'error': str}
     """
-    subject = "Verify your email for *revvie"
+    subject = "Verify your email for Revvie"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
-      Welcome to *revvie, {business_name}!
+      Welcome to Revvie, {business_name}!
     </h2>
 
     <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
@@ -738,11 +738,11 @@ def send_referral_welcome_email(email: str, business_name: str, credit_amount: f
     Returns:
         dict: Same format as send_email()
     """
-    subject = f"You have ${int(credit_amount)} in *revvie credit! \U0001f389"
+    subject = f"You have ${int(credit_amount)} in Revvie credit! \U0001f389"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
-      Welcome to *revvie!
+      Welcome to Revvie!
     </h2>
 
     <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
@@ -801,7 +801,7 @@ def send_referral_reward_email(email: str, business_name: str, referred_name: st
     Returns:
         dict: Same format as send_email()
     """
-    subject = f"You earned ${int(credit_amount)}! {referred_name} joined *revvie \U0001f389"
+    subject = f"You earned ${int(credit_amount)}! {referred_name} joined Revvie \U0001f389"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
@@ -865,7 +865,7 @@ def send_referral_reminder_email(email: str, business_name: str, referral_link: 
         dict: Same format as send_email()
     """
     referral_word = f"referral{'s' if pending_count != 1 else ''}"
-    subject = f"You have {pending_count} pending {referral_word} on *revvie"
+    subject = f"You have {pending_count} pending {referral_word} on Revvie"
 
     content = f"""
     <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">

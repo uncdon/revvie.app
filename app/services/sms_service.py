@@ -226,7 +226,7 @@ def send_sms(to_phone: str, message: str) -> dict:
             - error_code: Telnyx error code (if applicable)
 
     Example:
-        result = send_sms("+14155551234", "Hello from *revvie!")
+        result = send_sms("+14155551234", "Hello from Revvie!")
 
         if result['success']:
             print(f"SMS sent! ID: {result['message_id']}")

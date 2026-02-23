@@ -24,7 +24,7 @@ def send_sms_endpoint():
     Request body:
     {
         "recipient_phone": "+14155551234",
-        "message": "Hello from *revvie!"
+        "message": "Hello from Revvie!"
     }
 
     Response (success):

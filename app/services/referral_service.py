@@ -1,5 +1,5 @@
 """
-Referral Service - handles the *revvie refer-and-earn program.
+Referral Service - handles the Revvie refer-and-earn program.
 
 HOW IT WORKS:
 =============
@@ -385,7 +385,7 @@ def complete_referral(referral_id: str) -> dict | None:
                 'business_id': referrer_id,
                 'amount': REFERRER_CREDIT,
                 'type': 'referral_credit',
-                'description': f'$40 referral credit earned - {referred_name} joined *revvie',
+                'description': f'$40 referral credit earned - {referred_name} joined Revvie',
                 'referral_id': referral_id,
             }).execute()
         except Exception as e:

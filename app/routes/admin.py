@@ -343,10 +343,10 @@ def _build_preview_html(email_type: str) -> tuple[str, str] | None:
         )
 
     elif email_type == 'trial_welcome':
-        subject = "Welcome to *revvie \u2014 Your free trial has started! \U0001f389"
+        subject = "Welcome to Revvie \u2014 Your free trial has started! \U0001f389"
         content = f"""
         <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
-          Welcome to *revvie!
+          Welcome to Revvie!
         </h2>
         <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
           Your 14-day free trial has started today.
@@ -384,7 +384,7 @@ def _build_preview_html(email_type: str) -> tuple[str, str] | None:
         footer = "Questions? Just reply to this email."
 
     elif email_type == 'trial_ending':
-        subject = f"Your *revvie trial ends in {s['days_remaining']} days"
+        subject = f"Your Revvie trial ends in {s['days_remaining']} days"
         content = f"""
         <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
           Your free trial is ending soon
@@ -419,13 +419,13 @@ def _build_preview_html(email_type: str) -> tuple[str, str] | None:
         footer = "Questions? Just reply to this email."
 
     elif email_type == 'payment_failed':
-        subject = "\u26a0\ufe0f Action required: Payment failed for *revvie"
+        subject = "\u26a0\ufe0f Action required: Payment failed for Revvie"
         content = f"""
         <h2 style="margin: 0 0 16px; font-size: 24px; color: #DC2626; font-weight: 600;">
           Payment Issue
         </h2>
         <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
-          We couldn't process your payment for *revvie.
+          We couldn't process your payment for Revvie.
         </p>
         <p style="margin: 0 0 24px; font-size: 16px; color: #374151; line-height: 24px;">
           Please update your payment method to keep your account active.
@@ -451,10 +451,10 @@ def _build_preview_html(email_type: str) -> tuple[str, str] | None:
         footer = "Questions? Just reply to this email."
 
     elif email_type == 'referral_welcome':
-        subject = f"You have ${int(s['credit_amount'])} in *revvie credit! \U0001f389"
+        subject = f"You have ${int(s['credit_amount'])} in Revvie credit! \U0001f389"
         content = f"""
         <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
-          Welcome to *revvie!
+          Welcome to Revvie!
         </h2>
         <p style="margin: 0 0 16px; font-size: 16px; color: #374151; line-height: 24px;">
           Great news &mdash; <strong>${int(s['credit_amount'])} credit</strong> has been applied to your account!
@@ -488,7 +488,7 @@ def _build_preview_html(email_type: str) -> tuple[str, str] | None:
         footer = "Questions? Just reply to this email."
 
     elif email_type == 'referral_reward':
-        subject = f"You earned ${int(s['credit_amount'])}! {s['referred_name']} joined *revvie \U0001f389"
+        subject = f"You earned ${int(s['credit_amount'])}! {s['referred_name']} joined Revvie \U0001f389"
         content = f"""
         <h2 style="margin: 0 0 16px; font-size: 24px; color: #111827; font-weight: 600;">
           You earned a referral reward! \U0001f389
