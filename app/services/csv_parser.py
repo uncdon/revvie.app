@@ -305,6 +305,11 @@ def map_columns(df: pd.DataFrame) -> dict:
 
             # Try partial match (column contains the variation)
             for col_lower, col_original in actual_columns.items():
+                # Don't let the 'name' field claim first/last name columns —
+                # those should be handled by the first_name/last_name fields
+                # so that we can combine them into a full name later.
+                if field == 'name' and ('first' in col_lower or 'last' in col_lower):
+                    continue
                 if variation in col_lower or col_lower in variation:
                     # Avoid false positives (e.g., "phone" matching "cellphone2")
                     # by checking word boundaries

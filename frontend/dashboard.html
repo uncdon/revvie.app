@@ -3424,9 +3424,9 @@
                 return;
             }
             const filtered = allCustomers.filter(c =>
-                c.name.toLowerCase().includes(query) ||
-                c.email.toLowerCase().includes(query) ||
-                (c.phone && c.phone.includes(query))
+                (c.name || '').toLowerCase().includes(query) ||
+                (c.email || '').toLowerCase().includes(query) ||
+                (c.phone || '').includes(query)
             );
             displayCustomers(filtered);
         });
