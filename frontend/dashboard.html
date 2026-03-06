@@ -2316,40 +2316,6 @@
                         <p id="sendImportedDesc" class="text-gray-600">Send review requests to your newly imported customers?</p>
                     </div>
 
-                    <!-- Send Options -->
-                    <div id="sendImportedOptions" class="mb-6">
-                        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                            <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">When to send?</p>
-                            <div class="space-y-2">
-                                <label class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white cursor-pointer transition-colors">
-                                    <input type="radio" name="sendImportedTiming" value="immediate" checked class="w-4 h-4 text-accent-600 focus:ring-accent-500">
-                                    <div>
-                                        <span class="text-sm font-medium text-gray-800">Send immediately</span>
-                                        <p class="text-xs text-gray-500">Requests go out right now</p>
-                                    </div>
-                                </label>
-                                <label class="flex items-center gap-3 p-2.5 rounded-lg hover:bg-white cursor-pointer transition-colors">
-                                    <input type="radio" name="sendImportedTiming" value="schedule" class="w-4 h-4 text-accent-600 focus:ring-accent-500">
-                                    <div class="flex-1">
-                                        <span class="text-sm font-medium text-gray-800">Schedule for later</span>
-                                        <p class="text-xs text-gray-500">Queue requests for delayed sending</p>
-                                    </div>
-                                </label>
-                                <div id="sendImportedDelaySection" class="hidden pl-9 pb-1">
-                                    <label class="text-xs font-medium text-gray-600">Send after:</label>
-                                    <select id="sendImportedDelayHours" class="mt-1 block w-full rounded-lg border-gray-300 text-sm focus:ring-accent-500 focus:border-accent-500">
-                                        <option value="1">1 hour</option>
-                                        <option value="2" selected>2 hours</option>
-                                        <option value="4">4 hours</option>
-                                        <option value="24">1 day</option>
-                                        <option value="48">2 days</option>
-                                        <option value="72">3 days</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Sending Progress -->
                     <div id="sendImportedProgress" class="hidden text-center py-2 mb-6">
                         <div class="flex items-center justify-center gap-3">
@@ -4506,12 +4472,9 @@
             document.getElementById('sendToAllImportedBtnText').textContent = `Send to All ${count}`;
 
             // Reset modal state
-            document.getElementById('sendImportedOptions').classList.remove('hidden');
             document.getElementById('sendImportedProgress').classList.add('hidden');
             document.getElementById('sendImportedSuccess').classList.add('hidden');
             document.getElementById('sendImportedButtons').classList.remove('hidden');
-            document.getElementById('sendImportedDelaySection').classList.add('hidden');
-            document.querySelector('input[name="sendImportedTiming"][value="immediate"]').checked = true;
 
             sendImportedModal.classList.remove('hidden');
             document.body.style.overflow = 'hidden';
@@ -4526,45 +4489,26 @@
         async function sendImportedReviewRequests() {
             if (importedCustomerIds.length === 0) return;
 
-            const timing = document.querySelector('input[name="sendImportedTiming"]:checked').value;
-            const delayHours = parseInt(document.getElementById('sendImportedDelayHours').value) || 2;
-
             document.getElementById('sendImportedButtons').classList.add('hidden');
-            document.getElementById('sendImportedOptions').classList.add('hidden');
             document.getElementById('sendImportedProgress').classList.remove('hidden');
-            document.getElementById('sendImportedProgressText').textContent = timing === 'immediate'
-                ? `Sending to ${importedCustomerIds.length} customer(s)...`
-                : `Scheduling ${importedCustomerIds.length} review request(s)...`;
+            document.getElementById('sendImportedProgressText').textContent = `Sending to ${importedCustomerIds.length} customer(s)...`;
 
             try {
-                if (timing === 'immediate') {
-                    const data = await apiCall(`${API_URL}/review-requests/bulk`, {
-                        method: 'POST',
-                        body: JSON.stringify({ customer_ids: importedCustomerIds })
-                    });
+                const data = await apiCall(`${API_URL}/review-requests/bulk`, {
+                    method: 'POST',
+                    body: JSON.stringify({ customer_ids: importedCustomerIds })
+                });
 
-                    document.getElementById('sendImportedProgress').classList.add('hidden');
-                    document.getElementById('sendImportedSuccess').classList.remove('hidden');
-                    let successMsg = `Sent ${data.success_count} review request(s)!`;
-                    if (data.error_count > 0) successMsg += ` (${data.error_count} failed)`;
-                    document.getElementById('sendImportedSuccessText').textContent = successMsg;
-                    showToast(`Sent ${data.success_count} review request(s)!`, 'success');
-                    showSuccessAnimation();
-                    loadDashboardStats();
-                    loadUsageStats();
-                    loadReviewRequests();
-                } else {
-                    const data = await apiCall(`${API_URL}/review-requests/queue-bulk`, {
-                        method: 'POST',
-                        body: JSON.stringify({ customer_ids: importedCustomerIds, delay_hours: delayHours })
-                    });
-
-                    document.getElementById('sendImportedProgress').classList.add('hidden');
-                    document.getElementById('sendImportedSuccess').classList.remove('hidden');
-                    const queued = data.queued_count || importedCustomerIds.length;
-                    document.getElementById('sendImportedSuccessText').textContent = `Queued ${queued} review request(s)!`;
-                    showToast(`Queued ${queued} review request(s) for later!`, 'success');
-                }
+                document.getElementById('sendImportedProgress').classList.add('hidden');
+                document.getElementById('sendImportedSuccess').classList.remove('hidden');
+                let successMsg = `Sent ${data.success_count} review request(s)!`;
+                if (data.error_count > 0) successMsg += ` (${data.error_count} failed)`;
+                document.getElementById('sendImportedSuccessText').textContent = successMsg;
+                showToast(`Sent ${data.success_count} review request(s)!`, 'success');
+                showSuccessAnimation();
+                loadDashboardStats();
+                loadUsageStats();
+                loadReviewRequests();
 
                 importedCustomerIds = [];
                 setTimeout(closeSendImportedModal, 2000);
@@ -4574,23 +4518,12 @@
                 showToast(error.message || 'Failed to send review requests', 'error');
                 document.getElementById('sendImportedProgress').classList.add('hidden');
                 document.getElementById('sendImportedButtons').classList.remove('hidden');
-                document.getElementById('sendImportedOptions').classList.remove('hidden');
             }
         }
 
         // Send to Imported modal event listeners
         document.getElementById('skipSendImportedBtn').addEventListener('click', closeSendImportedModal);
         document.getElementById('sendToAllImportedBtn').addEventListener('click', sendImportedReviewRequests);
-        document.querySelectorAll('input[name="sendImportedTiming"]').forEach(radio => {
-            radio.addEventListener('change', (e) => {
-                const delaySection = document.getElementById('sendImportedDelaySection');
-                if (e.target.value === 'schedule') {
-                    delaySection.classList.remove('hidden');
-                } else {
-                    delaySection.classList.add('hidden');
-                }
-            });
-        });
 
         // =====================================================
         // KEYBOARD SHORTCUTS
