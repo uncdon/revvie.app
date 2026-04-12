@@ -370,6 +370,12 @@ def handle_subscription_created(subscription, business_id: str) -> None:
         logger.info(f"Subscription {subscription.id} created for business {business_id} "
                      f"(status: {subscription.status}, has_had_trial stamped)")
 
+        # Apply any pending account_credit to Stripe customer balance now.
+        # For non-trial subscriptions the first invoice fires immediately after this,
+        # so the balance must be set here. For trial subscriptions the balance just
+        # sits on the customer until the trial-end invoice is finalized.
+        _apply_account_credit(subscription.customer, business_id)
+
         # Log billing event
         _log_billing_event(business_id, 'subscription_created', {
             'subscription_id': subscription.id,
@@ -448,6 +454,12 @@ def handle_subscription_updated(subscription, business_id: str) -> None:
 
         # Handle status transitions
         if old_status != new_status:
+            # Trial just ended → apply any pending account_credit to the Stripe customer
+            # balance NOW, before Stripe creates and finalizes the first real invoice.
+            # subscription.updated fires before invoice events in Stripe's event order.
+            if old_status == 'trialing' and new_status != 'trialing':
+                _apply_account_credit(subscription.customer, business_id)
+
             if new_status == 'past_due':
                 _send_payment_failed(business_id)
             elif new_status == 'canceled':
@@ -491,45 +503,20 @@ def handle_subscription_deleted(subscription, business_id: str) -> None:
 
 
 # =============================================================================
-# FUNCTION 8: HANDLE INVOICE CREATED
+# FUNCTION 8: APPLY ACCOUNT CREDIT (helper)
 # =============================================================================
 
-def handle_invoice_created(invoice, business_id: str) -> None:
+def _apply_account_credit(stripe_customer_id: str, business_id: str) -> None:
     """
-    Apply account_credit as a negative invoice item when an invoice is created.
+    Apply any pending account_credit to the Stripe customer balance.
 
-    Called by the webhook handler for invoice.created events, which fires while
-    the invoice is still in 'draft' state — giving us a window to add line items
-    before Stripe finalizes and charges the customer.
+    Uses CustomerBalanceTransaction (not InvoiceItem) so the credit is stored
+    on the customer and Stripe automatically deducts it when the next invoice
+    is finalized — no timing race with invoice creation/finalization.
 
-    Only applies credit when:
-    - invoice.amount_due > 0  (skip $0 trial-start invoices)
-    - account_credit > 0      (business has credit to apply)
-    - referral_credit_used is False  (idempotency guard)
-
-    Args:
-        invoice: The Stripe Invoice object
-        business_id: The business UUID
+    Idempotent: referral_credit_used flag prevents double-application.
     """
     try:
-        amount_due = (getattr(invoice, 'amount_due', 0) or 0)
-        invoice_status = getattr(invoice, 'status', None)
-
-        logger.info(
-            f"[CREDIT_DEBUG] handle_invoice_created: business={business_id} "
-            f"invoice={invoice.id} amount_due={amount_due} status={invoice_status}"
-        )
-
-        # Only act on invoices that will actually charge the customer
-        if amount_due <= 0:
-            logger.info(f"[CREDIT_DEBUG] Skipping — amount_due={amount_due} (trial/zero invoice)")
-            return
-
-        # Only act on draft invoices; finalized invoices can't accept new items
-        if invoice_status not in ('draft', None):
-            logger.info(f"[CREDIT_DEBUG] Skipping — invoice status is '{invoice_status}', not draft")
-            return
-
         biz_result = supabase.table('businesses').select(
             'account_credit, referral_credit_used'
         ).eq('id', business_id).execute()
@@ -540,43 +527,40 @@ def handle_invoice_created(invoice, business_id: str) -> None:
 
         biz = biz_result.data[0]
         account_credit = float(biz.get('account_credit') or 0)
-        credit_already_used = biz.get('referral_credit_used', False)
 
         logger.info(
-            f"[CREDIT_DEBUG] account_credit=${account_credit:.2f} "
-            f"referral_credit_used={credit_already_used}"
+            f"[CREDIT_DEBUG] _apply_account_credit: business={business_id} "
+            f"account_credit=${account_credit:.2f} "
+            f"referral_credit_used={biz.get('referral_credit_used')}"
         )
 
-        if account_credit <= 0 or credit_already_used:
+        if account_credit <= 0 or biz.get('referral_credit_used'):
             logger.info(f"[CREDIT_DEBUG] No credit to apply — skipping")
             return
 
-        # Cap credit at the invoice amount so we never credit more than is owed
-        credit_to_apply = min(account_credit, amount_due / 100)
-        credit_cents = -int(round(credit_to_apply * 100))  # negative = credit
-
-        stripe.InvoiceItem.create(
-            customer=invoice.customer,
-            invoice=invoice.id,
+        # Create a negative balance transaction on the Stripe customer.
+        # Stripe automatically applies this balance when the next invoice is finalized.
+        credit_cents = -int(round(account_credit * 100))
+        stripe.CustomerBalanceTransaction.create(
+            stripe_customer_id,
             amount=credit_cents,
             currency='usd',
             description='Referral credit',
         )
 
         logger.info(
-            f"[CREDIT_DEBUG] Applied ${credit_to_apply:.2f} credit to invoice "
-            f"{invoice.id} for business {business_id}"
+            f"[CREDIT_DEBUG] Applied ${account_credit:.2f} to Stripe customer balance "
+            f"for business {business_id} (customer {stripe_customer_id})"
         )
 
-        # Mark credit as consumed so it isn't applied again
         supabase.table('businesses').update({
-            'account_credit': max(0.0, account_credit - credit_to_apply),
+            'account_credit': 0,
             'referral_credit_used': True,
         }).eq('id', business_id).execute()
 
         _log_billing_event(business_id, 'credit_applied', {
-            'invoice_id': invoice.id,
-            'credit_applied': credit_to_apply,
+            'stripe_customer_id': stripe_customer_id,
+            'credit_applied': account_credit,
         })
 
     except stripe.error.StripeError as e:
