@@ -307,6 +307,10 @@ def stripe_webhook():
             logger.info(f"[WEBHOOK_DEBUG] Processing trial_will_end for {business_id}")
             _handle_trial_will_end(obj, business_id)
 
+        elif event_type == 'invoice.created':
+            logger.info(f"[CREDIT_DEBUG] Processing invoice.created for {business_id}")
+            stripe_service.handle_invoice_created(obj, business_id)
+
         elif event_type == 'invoice.payment_succeeded':
             logger.info(f"[REFERRAL_DEBUG] Processing invoice.payment_succeeded for {business_id}")
             stripe_service.handle_payment_succeeded(obj, business_id)

@@ -491,7 +491,102 @@ def handle_subscription_deleted(subscription, business_id: str) -> None:
 
 
 # =============================================================================
-# FUNCTION 8: HANDLE PAYMENT SUCCEEDED
+# FUNCTION 8: HANDLE INVOICE CREATED
+# =============================================================================
+
+def handle_invoice_created(invoice, business_id: str) -> None:
+    """
+    Apply account_credit as a negative invoice item when an invoice is created.
+
+    Called by the webhook handler for invoice.created events, which fires while
+    the invoice is still in 'draft' state — giving us a window to add line items
+    before Stripe finalizes and charges the customer.
+
+    Only applies credit when:
+    - invoice.amount_due > 0  (skip $0 trial-start invoices)
+    - account_credit > 0      (business has credit to apply)
+    - referral_credit_used is False  (idempotency guard)
+
+    Args:
+        invoice: The Stripe Invoice object
+        business_id: The business UUID
+    """
+    try:
+        amount_due = (getattr(invoice, 'amount_due', 0) or 0)
+        invoice_status = getattr(invoice, 'status', None)
+
+        logger.info(
+            f"[CREDIT_DEBUG] handle_invoice_created: business={business_id} "
+            f"invoice={invoice.id} amount_due={amount_due} status={invoice_status}"
+        )
+
+        # Only act on invoices that will actually charge the customer
+        if amount_due <= 0:
+            logger.info(f"[CREDIT_DEBUG] Skipping — amount_due={amount_due} (trial/zero invoice)")
+            return
+
+        # Only act on draft invoices; finalized invoices can't accept new items
+        if invoice_status not in ('draft', None):
+            logger.info(f"[CREDIT_DEBUG] Skipping — invoice status is '{invoice_status}', not draft")
+            return
+
+        biz_result = supabase.table('businesses').select(
+            'account_credit, referral_credit_used'
+        ).eq('id', business_id).execute()
+
+        if not biz_result.data:
+            logger.warning(f"[CREDIT_DEBUG] Business {business_id} not found")
+            return
+
+        biz = biz_result.data[0]
+        account_credit = float(biz.get('account_credit') or 0)
+        credit_already_used = biz.get('referral_credit_used', False)
+
+        logger.info(
+            f"[CREDIT_DEBUG] account_credit=${account_credit:.2f} "
+            f"referral_credit_used={credit_already_used}"
+        )
+
+        if account_credit <= 0 or credit_already_used:
+            logger.info(f"[CREDIT_DEBUG] No credit to apply — skipping")
+            return
+
+        # Cap credit at the invoice amount so we never credit more than is owed
+        credit_to_apply = min(account_credit, amount_due / 100)
+        credit_cents = -int(round(credit_to_apply * 100))  # negative = credit
+
+        stripe.InvoiceItem.create(
+            customer=invoice.customer,
+            invoice=invoice.id,
+            amount=credit_cents,
+            currency='usd',
+            description='Referral credit',
+        )
+
+        logger.info(
+            f"[CREDIT_DEBUG] Applied ${credit_to_apply:.2f} credit to invoice "
+            f"{invoice.id} for business {business_id}"
+        )
+
+        # Mark credit as consumed so it isn't applied again
+        supabase.table('businesses').update({
+            'account_credit': max(0.0, account_credit - credit_to_apply),
+            'referral_credit_used': True,
+        }).eq('id', business_id).execute()
+
+        _log_billing_event(business_id, 'credit_applied', {
+            'invoice_id': invoice.id,
+            'credit_applied': credit_to_apply,
+        })
+
+    except stripe.error.StripeError as e:
+        logger.error(f"[CREDIT_DEBUG] Stripe error applying credit for {business_id}: {e}")
+    except Exception as e:
+        logger.error(f"[CREDIT_DEBUG] Unexpected error applying credit for {business_id}: {e}")
+
+
+# =============================================================================
+# FUNCTION 9: HANDLE PAYMENT SUCCEEDED
 # =============================================================================
 
 def handle_payment_succeeded(invoice, business_id: str) -> None:
