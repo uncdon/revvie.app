@@ -279,6 +279,9 @@ def get_subscription_status(business_id: str) -> dict:
         if status == 'trialing' and trial_ends_at:
             try:
                 trial_end = datetime.fromisoformat(trial_ends_at.replace('Z', '+00:00'))
+                # Supabase can return timezone-naive strings; treat them as UTC
+                if trial_end.tzinfo is None:
+                    trial_end = trial_end.replace(tzinfo=timezone.utc)
                 delta = trial_end - datetime.now(timezone.utc)
                 days_remaining = max(0, delta.days)
             except Exception:

@@ -2571,9 +2571,11 @@
         function getDaysRemaining(trialEndsAt) {
             if (!trialEndsAt) return 0;
             const now = new Date();
-            const end = new Date(trialEndsAt);
-            // Compare UTC calendar dates (midnight-to-midnight) to avoid timezone
-            // and time-of-day skew — Stripe trial_end is an exact timestamp, not midnight
+            // If no timezone indicator, JS would parse as local time — force UTC instead
+            const normalized = (trialEndsAt.includes('Z') || trialEndsAt.includes('+'))
+                ? trialEndsAt : trialEndsAt + 'Z';
+            const end = new Date(normalized);
+            // Compare UTC calendar dates (midnight-to-midnight) to avoid time-of-day skew
             const nowUTC = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
             const endUTC = Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate());
             const diffDays = Math.round((endUTC - nowUTC) / (1000 * 60 * 60 * 24));
