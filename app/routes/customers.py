@@ -153,13 +153,14 @@ def get_customers():
 
         return jsonify({
             "success": True,
-            "data": result.data
+            "data": result.data or []
         }), 200
 
     except Exception as e:
+        print(f"Error fetching customers: {e}")
         return jsonify({
             "success": False,
-            "message": f"Failed to fetch customers: {str(e)}"
+            "message": "Failed to load customers"
         }), 500
 
 
