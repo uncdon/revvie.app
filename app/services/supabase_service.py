@@ -43,18 +43,14 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 # Create the admin client (bypasses RLS) - for backend/server operations
 # This is used for queue processing, webhooks, and other server-side tasks
-if SUPABASE_SERVICE_ROLE_KEY:
-    supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-else:
-    # Fall back to regular client if service role key not configured
-    # This means RLS will still apply, which may cause issues with queue processing
-    import logging
-    logging.warning(
-        "SUPABASE_SERVICE_ROLE_KEY not set! "
-        "Queue processor and webhooks may not work correctly due to RLS policies. "
-        "Get the service_role key from your Supabase dashboard > Settings > API"
+if not SUPABASE_SERVICE_ROLE_KEY:
+    raise ValueError(
+        "SUPABASE_SERVICE_ROLE_KEY is not set! "
+        "This key is required for signup, webhooks, and other server-side operations. "
+        "Get it from: Supabase dashboard → Settings → API → service_role key."
     )
-    supabase_admin: Client = supabase
+
+supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 
 # ============================================================================
