@@ -92,29 +92,28 @@ def create_customer(business_id: str, email: str, business_name: str):
 # FUNCTION 2: CREATE CHECKOUT SESSION
 # =============================================================================
 
-def create_checkout_session(business_id: str, email: str, business_name: str, discount_percent: int = None):
+def create_checkout_session(business_id: str, email: str, business_name: str):
     """
     Create a Stripe Checkout session for a new subscription.
 
     Trial eligibility: only granted to businesses that have never had a trial
     (has_had_trial = false). Returning subscribers are charged immediately.
 
-    Referral discount eligibility: only applied if the business has not already
-    used their one-time referral credit (referral_credit_used = false).
+    Referral credit is applied as a Stripe customer balance transaction in
+    handle_subscription_created — not via coupon at checkout time.
 
     Args:
         business_id: The business UUID
         email: Business owner's email
         business_name: Name of the business
-        discount_percent: Optional one-time referral discount (e.g., 50 for 50% off)
 
     Returns:
         stripe.checkout.Session object, or None on error
     """
     try:
-        # Fetch Stripe customer ID + abuse-prevention flags in one query
+        # Fetch Stripe customer ID + trial flag
         biz_result = supabase.table('businesses').select(
-            'stripe_customer_id, has_had_trial, referral_credit_used'
+            'stripe_customer_id, has_had_trial'
         ).eq('id', business_id).execute()
 
         if not biz_result.data:
@@ -139,27 +138,14 @@ def create_checkout_session(business_id: str, email: str, business_name: str, di
             trial_days = 0
             logger.info(f"Business {business_id} not eligible for trial (has_had_trial=true) — charging immediately")
 
-        # --- Referral discount eligibility ---
-        discounts = []
-        if discount_percent and not biz.get('referral_credit_used', False):
-            coupon = stripe.Coupon.create(
-                percent_off=discount_percent,
-                duration='once',
-                name='Referral Discount'
-            )
-            discounts = [{'coupon': coupon.id}]
-            logger.info(f"Applied {discount_percent}% referral discount coupon {coupon.id} for business {business_id}")
-        elif discount_percent and biz.get('referral_credit_used', False):
-            logger.warning(f"Business {business_id} attempted to reuse referral discount — blocked")
-
         # --- Build checkout session ---
-        # Only pass discounts kwarg when there's actually a coupon — passing an
-        # empty list can cause Stripe API errors in some configurations.
+        # Referral credit ($40) is applied as a Stripe customer balance transaction
+        # in handle_subscription_created — no coupon needed here.
         subscription_data = {'metadata': {'business_id': business_id}}
         if trial_days > 0:
             subscription_data['trial_period_days'] = trial_days
 
-        session_kwargs = dict(
+        session = stripe.checkout.Session.create(
             customer=stripe_customer_id,
             payment_method_types=['card'],
             line_items=[{'price': PRICE_ID, 'quantity': 1}],
@@ -169,14 +155,10 @@ def create_checkout_session(business_id: str, email: str, business_name: str, di
             cancel_url=f'{APP_BASE_URL}/billing/canceled',
             metadata={'business_id': business_id}
         )
-        if discounts:
-            session_kwargs['discounts'] = discounts
-
-        session = stripe.checkout.Session.create(**session_kwargs)
 
         logger.info(
             f"Created checkout session {session.id} for business {business_id} "
-            f"(trial_days={trial_days}, discount={'yes' if discounts else 'no'})"
+            f"(trial_days={trial_days})"
         )
         return session
 
@@ -611,37 +593,6 @@ def handle_payment_succeeded(invoice, business_id: str) -> None:
         if amount > 0:
             logger.info(f"[REFERRAL_DEBUG] Real payment detected (billing_reason={billing_reason}, "
                         f"amount=${amount:.2f}) — checking referral actions for {business_id}")
-
-            # Deduct referred business's credit if not already done
-            # (referral_credit_used guards against double-deduction)
-            try:
-                biz_credit_result = supabase.table('businesses').select(
-                    'account_credit, discount_applied, referral_credit_used'
-                ).eq('id', business_id).execute()
-
-                logger.info(f"[REFERRAL_DEBUG] Business credit data: {biz_credit_result.data}")
-
-                if biz_credit_result.data:
-                    biz = biz_credit_result.data[0]
-                    credit_used = float(biz.get('discount_applied') or 0)
-                    if credit_used > 0 and not biz.get('referral_credit_used'):
-                        current_credit = float(biz.get('account_credit') or 0)
-                        new_credit = max(0.0, current_credit - credit_used)
-                        supabase.table('businesses').update({
-                            'account_credit': new_credit,
-                            'discount_applied': 0,
-                            'referral_credit_used': True,
-                        }).eq('id', business_id).execute()
-                        logger.info(
-                            f"[REFERRAL_DEBUG] Deducted ${credit_used} referral credit from "
-                            f"business {business_id} (referral_credit_used=true)"
-                        )
-                    else:
-                        logger.info(f"[REFERRAL_DEBUG] No credit to deduct "
-                                    f"(discount_applied={credit_used}, "
-                                    f"referral_credit_used={biz.get('referral_credit_used')})")
-            except Exception as e:
-                logger.error(f"[REFERRAL_DEBUG] Failed to deduct referral credit for {business_id}: {e}")
 
             # Complete referral so referrer earns their credit
             # complete_referral_by_business is idempotent — returns None if already done

@@ -81,15 +81,11 @@ def create_checkout():
                 "status": status['status']
             }), 400
 
-        # Check for referral discount
-        discount_percent = None
-        discount_applied = business.get('discount_applied') or 0
-        if discount_applied > 0:
-            discount_percent = 50
-
         # Create checkout session
+        # Referral credit is applied as a Stripe customer balance transaction
+        # when the subscription is created (handle_subscription_created), not via coupon.
         session = stripe_service.create_checkout_session(
-            business_id, email, business_name, discount_percent
+            business_id, email, business_name
         )
 
         if not session:
@@ -131,7 +127,7 @@ def trial_eligibility():
         business_id = business.get('id')
 
         result = supabase.table('businesses').select(
-            'has_had_trial, referral_credit_used, discount_applied'
+            'has_had_trial, referral_credit_used, account_credit'
         ).eq('id', business_id).execute()
 
         if not result.data:
@@ -141,7 +137,7 @@ def trial_eligibility():
         eligible_for_trial = not biz.get('has_had_trial', False)
         eligible_for_referral = (
             not biz.get('referral_credit_used', False)
-            and (biz.get('discount_applied') or 0) > 0
+            and (biz.get('account_credit') or 0) > 0
         )
 
         if eligible_for_trial and eligible_for_referral:

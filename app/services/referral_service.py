@@ -15,7 +15,7 @@ REWARD AMOUNTS:
 
 TABLES USED:
 ============
-- businesses:          referral_code, account_credit, discount_applied
+- businesses:          referral_code, account_credit
 - referrals:           tracks each referral relationship and status
 - credit_transactions: audit log of all credit changes
 """
@@ -265,7 +265,6 @@ def record_referral_signup(referral_code: str, referred_business_id: str) -> dic
 
             supabase_admin.table('businesses') \
                 .update({
-                    'discount_applied': REFERRED_CREDIT,
                     'account_credit': current + REFERRED_CREDIT,
                 }) \
                 .eq('id', referred_business_id) \
@@ -531,7 +530,6 @@ def cancel_referral(referral_id: str) -> dict | None:
             supabase_admin.table('businesses') \
                 .update({
                     'account_credit': new_credit,
-                    'discount_applied': 0,
                 }) \
                 .eq('id', referred_id) \
                 .execute()
