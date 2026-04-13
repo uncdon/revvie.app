@@ -24,7 +24,7 @@ The token is signed by Supabase's secret key, so we can trust it's authentic.
 
 from functools import wraps
 from flask import request, jsonify
-from app.services.supabase_service import supabase
+from app.services.supabase_service import supabase, supabase_admin
 
 
 def signup_user(email: str, password: str, business_name: str) -> dict:
@@ -48,14 +48,17 @@ def signup_user(email: str, password: str, business_name: str) -> dict:
 
     user_id = auth_response.user.id
 
-    # Step 2: Create business record linked to this user
+    # Step 2: Create business record linked to this user.
+    # Must use supabase_admin (service role) here — if Supabase email confirmation
+    # is enabled, sign_up() returns no session, so the anon client is unauthenticated
+    # and RLS would silently block the insert, leaving an orphaned auth user.
     business_data = {
         "id": user_id,  # Use same ID as auth user for easy linking
         "email": email,
         "business_name": business_name
     }
 
-    business_response = supabase.table("businesses").insert(business_data).execute()
+    business_response = supabase_admin.table("businesses").insert(business_data).execute()
 
     if not business_response.data:
         raise Exception("Failed to create business record")
