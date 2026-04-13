@@ -188,7 +188,7 @@ def record_referral_signup(referral_code: str, referred_business_id: str) -> dic
         The referral record dict, or None if invalid/error
     """
     try:
-        logger.info(
+        logger.warning(
             f"[REFERRAL_SIGNUP] record_referral_signup called: "
             f"code={referral_code!r} referred_business={referred_business_id}"
         )
