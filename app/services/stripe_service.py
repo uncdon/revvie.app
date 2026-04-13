@@ -541,7 +541,7 @@ def _apply_account_credit(stripe_customer_id: str, business_id: str) -> None:
         # Create a negative balance transaction on the Stripe customer.
         # Stripe automatically applies this balance when the next invoice is finalized.
         credit_cents = -int(round(account_credit * 100))
-        stripe.CustomerBalanceTransaction.create(
+        stripe.Customer.create_balance_transaction(
             stripe_customer_id,
             amount=credit_cents,
             currency='usd',
