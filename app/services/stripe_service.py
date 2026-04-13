@@ -454,12 +454,6 @@ def handle_subscription_updated(subscription, business_id: str) -> None:
 
         # Handle status transitions
         if old_status != new_status:
-            # Trial just ended → apply any pending account_credit to the Stripe customer
-            # balance NOW, before Stripe creates and finalizes the first real invoice.
-            # subscription.updated fires before invoice events in Stripe's event order.
-            if old_status == 'trialing' and new_status != 'trialing':
-                _apply_account_credit(subscription.customer, business_id)
-
             if new_status == 'past_due':
                 _send_payment_failed(business_id)
             elif new_status == 'canceled':

@@ -26,6 +26,7 @@ import secrets
 import string
 from datetime import datetime, timezone
 
+import stripe
 from app.services.supabase_service import supabase_admin
 
 logger = logging.getLogger(__name__)
@@ -359,23 +360,43 @@ def complete_referral(referral_id: str) -> dict | None:
 
         logger.info(f"Referral {referral_id} completed: rewarding referrer {referrer_id}")
 
-        # Add $40 credit to referrer
-        # First get current credit to add to it
+        # Add $40 credit to referrer and immediately push it to Stripe customer balance
         try:
             biz_result = supabase_admin.table('businesses') \
-                .select('account_credit') \
+                .select('account_credit, stripe_customer_id') \
                 .eq('id', referrer_id) \
                 .limit(1) \
                 .execute()
 
             current_credit = 0.0
+            stripe_customer_id = None
             if biz_result.data:
                 current_credit = float(biz_result.data[0].get('account_credit') or 0)
+                stripe_customer_id = biz_result.data[0].get('stripe_customer_id')
 
             supabase_admin.table('businesses') \
                 .update({'account_credit': current_credit + REFERRER_CREDIT}) \
                 .eq('id', referrer_id) \
                 .execute()
+
+            # Apply to Stripe customer balance immediately so it's deducted from
+            # the next invoice automatically — no dependency on webhook ordering.
+            if stripe_customer_id:
+                stripe.Customer.create_balance_transaction(
+                    stripe_customer_id,
+                    amount=-int(REFERRER_CREDIT * 100),
+                    currency='usd',
+                    description=f'Referral credit — {referred_name} joined Revvie',
+                )
+                logger.info(
+                    f"[REFERRAL_DEBUG] Applied ${REFERRER_CREDIT} to Stripe customer "
+                    f"{stripe_customer_id} for referrer {referrer_id}"
+                )
+            else:
+                logger.warning(
+                    f"[REFERRAL_DEBUG] Referrer {referrer_id} has no stripe_customer_id — "
+                    f"credit saved to DB only; will be applied at next subscription event"
+                )
         except Exception as e:
             logger.error(f"Failed to add credit to referrer {referrer_id}: {e}")
 
