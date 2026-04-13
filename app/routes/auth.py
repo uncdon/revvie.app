@@ -71,6 +71,7 @@ def signup():
 
         # Record referral if signup came from a referral link
         ref_code = data.get('referral_code')
+        logger.info(f"[REFERRAL_SIGNUP] Signup for {new_business_id} — referral_code={ref_code!r}")
         if ref_code:
             try:
                 from app.services import referral_service
@@ -78,9 +79,9 @@ def signup():
                     referral_code=ref_code,
                     referred_business_id=new_business_id
                 )
-                logger.info(f"Referral recorded: {ref_code} → {new_business_id}")
+                logger.info(f"[REFERRAL_SIGNUP] record_referral_signup completed for {ref_code} → {new_business_id}")
             except Exception as e:
-                logger.error(f"Referral recording failed for code {ref_code}: {e}")
+                logger.error(f"[REFERRAL_SIGNUP] record_referral_signup raised for code {ref_code}: {e}", exc_info=True)
 
         # Generate and store email verification token
         verification_token = secrets.token_urlsafe(32)

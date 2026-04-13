@@ -188,6 +188,11 @@ def record_referral_signup(referral_code: str, referred_business_id: str) -> dic
         The referral record dict, or None if invalid/error
     """
     try:
+        logger.info(
+            f"[REFERRAL_SIGNUP] record_referral_signup called: "
+            f"code={referral_code!r} referred_business={referred_business_id}"
+        )
+
         # Safety: block if business has already consumed a referral credit.
         # This prevents re-subscribing with a new referral code to get infinite $40 credits.
         credit_check = supabase_admin.table('businesses') \
@@ -198,8 +203,8 @@ def record_referral_signup(referral_code: str, referred_business_id: str) -> dic
 
         if credit_check.data and credit_check.data[0].get('referral_credit_used'):
             logger.warning(
-                f"Business {referred_business_id} tried to use referral code '{referral_code}' "
-                f"but referral_credit_used=true — blocked"
+                f"[REFERRAL_SIGNUP] Business {referred_business_id} tried to use referral code "
+                f"'{referral_code}' but referral_credit_used=true — blocked"
             )
             return None
 
@@ -211,14 +216,15 @@ def record_referral_signup(referral_code: str, referred_business_id: str) -> dic
             .execute()
 
         if not referrer_result.data:
-            logger.warning(f"Referral code not found: {referral_code}")
+            logger.warning(f"[REFERRAL_SIGNUP] Referral code not found: {referral_code!r}")
             return None
 
         referrer_id = referrer_result.data[0]['id']
+        logger.info(f"[REFERRAL_SIGNUP] Referrer found: {referrer_id}")
 
         # Safety: can't refer yourself
         if referrer_id == referred_business_id:
-            logger.warning(f"Self-referral attempted: {referrer_id}")
+            logger.warning(f"[REFERRAL_SIGNUP] Self-referral attempted: {referrer_id}")
             return None
 
         # Safety: check for duplicate referral
@@ -229,71 +235,87 @@ def record_referral_signup(referral_code: str, referred_business_id: str) -> dic
             .execute()
 
         if dup_result.data:
-            logger.warning(f"Duplicate referral for business {referred_business_id}")
+            logger.warning(
+                f"[REFERRAL_SIGNUP] Duplicate referral for business {referred_business_id} "
+                f"(existing referral: {dup_result.data[0]['id']})"
+            )
             return None
 
-        # Insert referral record
-        referral_result = supabase_admin.table('referrals').insert({
-            'referrer_business_id': referrer_id,
-            'referred_business_id': referred_business_id,
-            'referral_code': referral_code,
-            'status': 'pending',
-            'referrer_credit': REFERRER_CREDIT,
-            'referred_credit': REFERRED_CREDIT,
-        }).execute()
-
-        if not referral_result.data:
-            logger.error(f"Referral insert returned no data for {referred_business_id}")
-            return None
-
-        referral = referral_result.data[0]
-        referral_id = referral['id']
-
-        logger.info(
-            f"Recorded referral {referral_id}: "
-            f"{referrer_id} referred {referred_business_id} via {referral_code}"
-        )
-
-        # Apply $40 discount to referred business
+        # --- APPLY CREDIT FIRST ---
+        # Credit is applied before the referral record is inserted so that a DB
+        # error on the insert can't leave the user with no credit.
+        referral_id = None
         try:
             biz_credit = supabase_admin.table('businesses') \
                 .select('account_credit') \
                 .eq('id', referred_business_id) \
                 .limit(1) \
                 .execute()
-            current = float((biz_credit.data[0].get('account_credit') or 0)) if biz_credit.data else 0.0
+            current = float(biz_credit.data[0].get('account_credit') or 0) if biz_credit.data else 0.0
 
             supabase_admin.table('businesses') \
-                .update({
-                    'account_credit': current + REFERRED_CREDIT,
-                }) \
+                .update({'account_credit': current + REFERRED_CREDIT}) \
                 .eq('id', referred_business_id) \
                 .execute()
-        except Exception as e:
-            logger.error(f"Failed to apply discount for {referred_business_id}: {e}")
 
-        # Log credit transaction
-        try:
-            supabase_admin.table('credit_transactions').insert({
-                'business_id': referred_business_id,
-                'amount': REFERRED_CREDIT,
-                'type': 'referral_discount',
-                'description': '$40 referral credit applied to first month',
-                'referral_id': referral_id,
-            }).execute()
+            logger.info(
+                f"[REFERRAL_SIGNUP] Set account_credit={current + REFERRED_CREDIT} "
+                f"for referred business {referred_business_id}"
+            )
         except Exception as e:
-            logger.error(f"Failed to log credit transaction for {referred_business_id}: {e}")
+            logger.error(
+                f"[REFERRAL_SIGNUP] CRITICAL: Failed to set account_credit "
+                f"for {referred_business_id}: {e}"
+            )
+            # Don't return — still try to record the referral row
+
+        # Insert referral record
+        try:
+            referral_result = supabase_admin.table('referrals').insert({
+                'referrer_business_id': referrer_id,
+                'referred_business_id': referred_business_id,
+                'referral_code': referral_code,
+                'status': 'pending',
+                'referrer_credit': REFERRER_CREDIT,
+                'referred_credit': REFERRED_CREDIT,
+            }).execute()
+
+            if referral_result.data:
+                referral_id = referral_result.data[0]['id']
+                logger.info(
+                    f"[REFERRAL_SIGNUP] Referral record created: {referral_id} "
+                    f"({referrer_id} → {referred_business_id})"
+                )
+            else:
+                logger.error(
+                    f"[REFERRAL_SIGNUP] Referral insert returned no data for {referred_business_id}"
+                )
+        except Exception as e:
+            logger.error(f"[REFERRAL_SIGNUP] Referral insert failed for {referred_business_id}: {e}")
+
+        # Log credit transaction (best-effort)
+        if referral_id:
+            try:
+                supabase_admin.table('credit_transactions').insert({
+                    'business_id': referred_business_id,
+                    'amount': REFERRED_CREDIT,
+                    'type': 'referral_discount',
+                    'description': '$40 referral credit applied to first month',
+                    'referral_id': referral_id,
+                }).execute()
+            except Exception as e:
+                logger.error(f"[REFERRAL_SIGNUP] Failed to log credit transaction for {referred_business_id}: {e}")
 
         # Send welcome email to referred business
         try:
             _send_referral_welcome(referred_business_id, referral_code)
         except Exception as e:
-            logger.error(f"Failed to send referral welcome email for {referred_business_id}: {e}")
+            logger.error(f"[REFERRAL_SIGNUP] Failed to send referral welcome email for {referred_business_id}: {e}")
 
-        return referral
+        return referral_result.data[0] if (referral_id and referral_result.data) else {'referrer_id': referrer_id, 'referred_business_id': referred_business_id}
 
     except Exception as e:
-        logger.error(f"Failed to record referral signup for code {referral_code}: {e}")
+        logger.error(f"[REFERRAL_SIGNUP] Unexpected error for code {referral_code}: {e}", exc_info=True)
         return None
 
 
