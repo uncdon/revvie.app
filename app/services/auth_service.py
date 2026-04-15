@@ -118,13 +118,13 @@ def get_current_user(access_token: str) -> dict:
     user_id = user_response.user.id
     logger.info(f"Auth: Looking up business for user_id={user_id}")
 
-    # Get the user's business details
-    business_response = supabase.table("businesses").select("*").eq("id", user_id).execute()
+    # Get the user's business details.
+    # Must use supabase_admin here — the anon client's session is a shared mutable
+    # singleton. Concurrent sign_up() calls in the same worker overwrite each other's
+    # session, causing intermittent "No business found" failures for valid users.
+    business_response = supabase_admin.table("businesses").select("*").eq("id", user_id).execute()
 
-    logger.info(f"Auth: Business query returned {len(business_response.data) if business_response.data else 0} records")
-    if business_response.data:
-        logger.info(f"Auth: Found business: {business_response.data[0].get('business_name')}")
-    else:
+    if not business_response.data:
         logger.warning(f"Auth: No business found for user_id={user_id}")
 
     return {
