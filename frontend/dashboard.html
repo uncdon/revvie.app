@@ -5283,14 +5283,14 @@
                 document.getElementById('refPendingCredit').textContent = `$${pendingCredit.toFixed(2)}`;
                 document.getElementById('refPendingCount').textContent = `${pendingCount} pending referral${pendingCount !== 1 ? 's' : ''}`;
 
-                // Credit note — different message for referred vs referrer
+                // Credit note — different message depending on source and state
                 if (accountCredit > 0) {
                     const noteEl = document.getElementById('refCreditNote');
                     const noteTextEl = noteEl.querySelector('p');
                     if (stats.was_referred) {
-                        noteTextEl.textContent = `You received $${accountCredit.toFixed(0)} credit for signing up with a referral link. It will be applied to your first invoice.`;
+                        noteTextEl.textContent = `$${accountCredit.toFixed(0)} referral credit is applied to your account and will reduce your next invoice.`;
                     } else {
-                        noteTextEl.textContent = 'Your credit will be automatically applied to your next invoice.';
+                        noteTextEl.textContent = `$${accountCredit.toFixed(0)} credit is applied to your account and will reduce your next invoice.`;
                     }
                     noteEl.classList.remove('hidden');
                 }

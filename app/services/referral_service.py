@@ -626,16 +626,36 @@ def get_referral_stats(business_id: str) -> dict | None:
         if not link_info:
             return None
 
-        # Get account credit balance
+        # Get credit balance — prefer live Stripe customer balance over the DB field.
+        # Once _apply_account_credit() runs it zeroes out DB account_credit and pushes
+        # the balance to Stripe, so Stripe is the source of truth for active subscribers.
+        # For users who haven't subscribed yet (no stripe_customer_id), fall back to the
+        # DB value which holds the pending credit until Stripe picks it up.
         biz_result = supabase_admin.table('businesses') \
-            .select('account_credit') \
+            .select('account_credit, stripe_customer_id') \
             .eq('id', business_id) \
             .limit(1) \
             .execute()
 
         account_credit = 0.0
         if biz_result.data:
-            account_credit = float(biz_result.data[0].get('account_credit') or 0)
+            biz_row = biz_result.data[0]
+            stripe_customer_id = biz_row.get('stripe_customer_id')
+
+            if stripe_customer_id:
+                # Live Stripe balance: negative value = credit available.
+                try:
+                    customer = stripe.Customer.retrieve(stripe_customer_id)
+                    stripe_balance_cents = customer.get('balance', 0)
+                    # Stripe balance is negative when credit exists (e.g. -4000 = $40 credit)
+                    account_credit = max(0.0, -stripe_balance_cents / 100)
+                except Exception as e:
+                    logger.error(f"Failed to fetch Stripe balance for {business_id}: {e}")
+                    # Fall back to DB value on Stripe error
+                    account_credit = float(biz_row.get('account_credit') or 0)
+            else:
+                # No Stripe customer yet — credit is pending in the DB
+                account_credit = float(biz_row.get('account_credit') or 0)
 
         # Check if this business was itself referred by someone
         referred_check = supabase_admin.table('referrals') \
