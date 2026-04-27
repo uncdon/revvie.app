@@ -1,115 +1,98 @@
-# Revvie - Review Automation SaaS
+# Revvie — Review Automation SaaS
 
-A Flask-based backend for review automation.
+Revvie is a backend-driven SaaS platform that automates customer review requests for businesses.  
+It allows businesses to send automated follow-ups to customers and increase online reviews without manual effort.
+
+This project demonstrates backend system design, API development, database management, and third-party integrations.
+
+---
+
+## Features
+
+- Send automated review request emails/SMS
+- Store and manage customer data
+- REST API endpoints for managing users and reviews
+- Environment-based configuration system
+- Modular service-based architecture
+- Health monitoring endpoint
+- Database models using SQLAlchemy
+
+---
+
+## Tech Stack
+
+Backend:
+- Python
+- Flask
+- SQLAlchemy
+
+Integrations:
+- SendGrid API (email automation)
+
+Tools:
+- Git
+- Virtual environments
+- Environment variables (.env)
+
+Database:
+- SQLite / PostgreSQL (whichever you used)
+
+---
 
 ## Project Structure
 
-```
 revvie/
-├── app/                    # Main application package
-│   ├── __init__.py        # App factory (creates Flask app)
-│   ├── routes/            # API endpoint definitions
-│   │   ├── __init__.py
-│   │   └── health.py      # Health check endpoint
-│   ├── models/            # Database models (SQLAlchemy)
-│   │   ├── __init__.py
-│   │   └── example.py     # Example model structure
-│   └── services/          # Business logic layer
-│       ├── __init__.py
-│       └── example_service.py
-├── config.py              # Configuration settings
-├── run.py                 # Application entry point
-├── requirements.txt       # Python dependencies
-├── .env.example          # Environment variables template
-├── .gitignore            # Git ignore rules
-└── README.md             # This file
-```
+├── app/
+│   ├── routes/        # API endpoints
+│   ├── models/        # Database models
+│   ├── services/      # Business logic
+├── config.py
+├── run.py
+├── requirements.txt
+├── .env.example
+├── .gitignore
+└── README.md
+
+---
 
 ## Setup Instructions
 
-### 1. Create a Virtual Environment
+### 1. Create Virtual Environment
 
-A virtual environment keeps your project dependencies isolated from other Python projects.
-
-```bash
-# Navigate to the project folder
-cd /Users/uncledanny/Desktop/revvie
-
-# Create a virtual environment named 'venv'
-python3 -m venv venv
-
-# Activate the virtual environment
-# On macOS/Linux:
+python3 -m venv venv  
 source venv/bin/activate
-
-# On Windows:
-# venv\Scripts\activate
-```
-
-When activated, you'll see `(venv)` at the start of your terminal prompt.
 
 ### 2. Install Dependencies
 
-```bash
 pip install -r requirements.txt
-```
 
-### 3. Set Up Environment Variables
+### 3. Configure Environment Variables
 
-```bash
-# Copy the example environment file
 cp .env.example .env
 
-# Edit .env with your settings (optional for development)
-```
+Update all variables and API keys.
 
-### 4. Run the Application
+### 4. Run the Server
 
-```bash
 python run.py
-```
 
-The server will start at `http://localhost:5001`
+Server runs at:
 
-> **Note:** Port 5001 is used because port 5000 is often occupied by macOS AirPlay Receiver.
+http://localhost:5001
 
-### 5. Test the Health Endpoint
+---
 
-Open your browser or use curl:
+## API Health Check
 
-```bash
 curl http://localhost:5001/api/health
-```
 
 Expected response:
-```json
+
 {"status": "ok"}
-```
 
-## Development
+---
 
-### Adding New Routes
+## Author
 
-1. Create a new file in `app/routes/` (e.g., `reviews.py`)
-2. Define a Blueprint with your endpoints
-3. Register the Blueprint in `app/__init__.py`
-
-### Adding New Models
-
-1. Create a new file in `app/models/` (e.g., `review.py`)
-2. Define your model class extending `db.Model`
-3. Import it in `app/models/__init__.py`
-
-### Adding New Services
-
-1. Create a new file in `app/services/`
-2. Add your business logic classes/functions
-3. Import and use in your routes
-
-## Deactivating the Virtual Environment
-
-When you're done working:
-
-```bash
-deactivate
-```
+Daniel Israel  
+GitHub: https://github.com/uncdon
