@@ -24,10 +24,14 @@ This project demonstrates backend system design, API development, database manag
 Backend:
 - Python
 - Flask
-- SQLAlchemy
+- HTML
+- PostgreSQL
 
 Integrations:
 - SendGrid API (email automation)
+- Square API
+- Telnyx API
+- Stripe API
 
 Tools:
 - Git
@@ -35,7 +39,7 @@ Tools:
 - Environment variables (.env)
 
 Database:
-- SQLite / PostgreSQL (whichever you used)
+- PostgreSQL
 
 ---
 
